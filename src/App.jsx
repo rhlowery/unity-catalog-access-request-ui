@@ -6,7 +6,7 @@ import AccessForm from './components/AccessForm';
 import ApproverDashboard from './components/ApproverDashboard';
 import AuditLog from './components/AuditLog';
 import Login from './components/Login';
-import { getCatalogs } from './services/mockData';
+import { getCatalogs, getRequests } from './services/mockData';
 import './index.css';
 
 const MainLayout = () => {
@@ -15,10 +15,29 @@ const MainLayout = () => {
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [selectedObjects, setSelectedObjects] = useState([]);
   const [viewMode, setViewMode] = useState('REQUESTER');
+  const [pendingCount, setPendingCount] = useState(0);
 
   useEffect(() => {
     getCatalogs().then(setCatalogs);
-  }, []);
+
+    // Poll for pending requests count (simple implementation)
+    const checkPending = async () => {
+      const reqs = await getRequests();
+      // Since we don't know the exact active persona here, we just check if *any* request is pending globally
+      // or check for specific user. But the requirement implies "requests THEY need to approve".
+      // For simplicity in this mock/demo, we'll sum up pending for ANY of the standard mock personas 
+      // OR ideally, we'd know the user's groups.
+      // Let's count *total* pending requests for now as a signal to check the dashboard.
+      // Refinement: We can check if `user.id` or their groups are in `approvalState` as PENDING.
+      // Mock simplification: We will just count ALL pending requests to prompt action.
+      const pending = reqs.filter(r => r.status === 'PENDING').length;
+      setPendingCount(pending);
+    };
+
+    checkPending();
+    const interval = setInterval(checkPending, 5000); // Poll every 5s
+    return () => clearInterval(interval);
+  }, [user]);
 
   const handleToggleSelection = (id, node) => {
     const newSelectedIds = new Set(selectedIds);
@@ -68,18 +87,43 @@ const MainLayout = () => {
             </button>
             <button
               className={`btn ${viewMode === 'APPROVER' ? 'btn-primary' : 'btn-ghost'}`}
-              style={viewMode !== 'APPROVER' ? { border: 'none', background: 'transparent', color: 'var(--text-secondary)' } : {}}
+              style={{
+                ...(viewMode !== 'APPROVER' ? { border: 'none', background: 'transparent', color: 'var(--text-secondary)' } : {}),
+                position: 'relative'
+              }}
               onClick={() => setViewMode('APPROVER')}
             >
               Approver
+              {pendingCount > 0 && (
+                <span style={{
+                  position: 'absolute',
+                  top: '-5px',
+                  right: '-5px',
+                  background: 'var(--danger)',
+                  color: 'white',
+                  fontSize: '0.6rem',
+                  width: '18px',
+                  height: '18px',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: 'bold',
+                  border: '2px solid var(--glass-bg)'
+                }}>
+                  {pendingCount}
+                </span>
+              )}
             </button>
-            <button
-              className={`btn ${viewMode === 'AUDIT' ? 'btn-primary' : 'btn-ghost'}`}
-              style={viewMode !== 'AUDIT' ? { border: 'none', background: 'transparent', color: 'var(--text-secondary)' } : {}}
-              onClick={() => setViewMode('AUDIT')}
-            >
-              Audit Log
-            </button>
+            {user?.groups?.some(g => ['group_security', 'group_platform_admins'].includes(g)) && (
+              <button
+                className={`btn ${viewMode === 'AUDIT' ? 'btn-primary' : 'btn-ghost'}`}
+                style={viewMode !== 'AUDIT' ? { border: 'none', background: 'transparent', color: 'var(--text-secondary)' } : {}}
+                onClick={() => setViewMode('AUDIT')}
+              >
+                Audit Log
+              </button>
+            )}
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', paddingLeft: '16px', borderLeft: '1px solid var(--glass-border)' }}>

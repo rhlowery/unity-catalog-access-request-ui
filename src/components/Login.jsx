@@ -51,6 +51,11 @@ const Login = () => {
                         <Lock size={18} />
                         <span>SSO via SAML (Okta/Ping)</span>
                     </button>
+
+                    <button className="sso-btn" style={{ background: '#333', border: '1px solid #555', marginTop: '8px' }} onClick={() => handleLogin('ADMIN')}>
+                        <Shield size={18} />
+                        <span>Sign in as Security Admin</span>
+                    </button>
                 </div>
 
                 <div className="login-footer">

@@ -37,19 +37,26 @@ const ApproverDashboard = () => {
         setRefreshTrigger(prev => prev + 1);
     };
 
-    // Filter requests where the Active Persona is a required approver AND has not yet decided
+    // 1. Action Required: I need to approve, and global status is PENDING
     const pendingForMe = requests.filter(r =>
         r.status === 'PENDING' &&
         r.approvalState &&
         r.approvalState[activePersona] === 'PENDING'
     );
 
+    // 2. Pending Others: I have approved, but global status is still PENDING (waiting on others)
     const otherPending = requests.filter(r =>
         r.status === 'PENDING' &&
-        (!r.approvalState[activePersona] || r.approvalState[activePersona] !== 'PENDING')
+        r.approvalState &&
+        r.approvalState[activePersona] === 'APPROVED'
     );
 
-    const completedRequests = requests.filter(r => r.status !== 'PENDING');
+    // 3. History: Global status is DONE (Approved/Denied), AND I was an approver
+    const completedRequests = requests.filter(r =>
+        r.status !== 'PENDING' &&
+        r.approvalState &&
+        Object.keys(r.approvalState).includes(activePersona)
+    );
 
     const getProgress = (req) => {
         const states = Object.values(req.approvalState || {});

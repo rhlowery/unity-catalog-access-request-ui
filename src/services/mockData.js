@@ -136,18 +136,82 @@ const getInitialApprovalState = (approvers) => {
     return state;
 };
 
+// Helper to find object path
+const findObjectPath = (id, catalogs = MOCK_CATALOGS, currentPath = []) => {
+    for (const node of catalogs) {
+        const newPath = [...currentPath, node.name];
+        if (node.id === id) {
+            return newPath.join('.');
+        }
+        if (node.children) {
+            const found = findObjectPath(id, node.children, newPath);
+            if (found) return found;
+        }
+    }
+    return null;
+};
+
+// Helper to check for expired requests
+const checkExpirations = (requests) => {
+    const now = new Date();
+    let hasChanges = false;
+
+    requests.forEach(req => {
+        if (req.status === 'APPROVED' && req.expirationTime) {
+            const expDate = new Date(req.expirationTime);
+            if (now > expDate) {
+                // EXPIRE IT
+                req.status = 'EXPIRED';
+                req.approvalData.push({
+                    approverId: 'SYSTEM',
+                    message: 'Access window expired. Access automatically revoked.',
+                    decision: 'REVOKE',
+                    timestamp: now.toISOString()
+                });
+                hasChanges = true;
+            }
+        }
+    });
+
+    if (hasChanges) saveRequests(requests);
+    return requests;
+};
+
 export const submitRequest = (request) => {
     const requests = loadRequests();
-    const requiredApprovers = getRequiredApprovers(request.requestedObjects);
+
+    // Enrich requested objects with full path
+    const enrichedObjects = request.requestedObjects.map(obj => ({
+        ...obj,
+        fullPath: findObjectPath(obj.id) || obj.name
+    }));
+
+    const requiredApprovers = getRequiredApprovers(enrichedObjects);
+
+    // Calculate Expiration Time if applicable
+    let expirationTime = null;
+    if (request.timeConstraint) {
+        if (request.timeConstraint.type === 'DURATION') {
+            const hours = parseInt(request.timeConstraint.value);
+            expirationTime = new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
+        } else if (request.timeConstraint.type === 'RANGE' && request.timeConstraint.end) {
+            // Set to end of the day of the end date
+            const end = new Date(request.timeConstraint.end);
+            end.setHours(23, 59, 59, 999);
+            expirationTime = end.toISOString();
+        }
+    }
 
     const newRequest = {
         id: `req_${Date.now()}`,
         status: 'PENDING',
         timestamp: new Date().toISOString(),
+        expirationTime: expirationTime, // Set calculated expiration
         approvalData: [],
         approvalState: getInitialApprovalState(requiredApprovers),
         requiredApprovers: requiredApprovers,
         ...request,
+        requestedObjects: enrichedObjects, // Store enriched objects
     };
     requests.push(newRequest);
     saveRequests(requests);
@@ -155,7 +219,9 @@ export const submitRequest = (request) => {
 };
 
 export const getRequests = () => {
-    return Promise.resolve(loadRequests().sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)));
+    const requests = loadRequests();
+    checkExpirations(requests); // Check for expirations every fetch
+    return Promise.resolve(requests.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)));
 };
 
 export const approveRequest = (requestId, approverId, message, decision) => {
