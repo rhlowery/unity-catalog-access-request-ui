@@ -30,7 +30,7 @@ const Login = () => {
                     <div className="logo-circle">
                         <Shield size={32} color="white" />
                     </div>
-                    <h1>Unity Access Manager</h1>
+                    <h1>Access Control Service</h1>
                     <p className="text-secondary">Enterprise Data Governance</p>
                 </div>
 

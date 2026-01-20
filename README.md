@@ -1,4 +1,4 @@
-# Unity Catalog Access Manager (UC Access)
+# Access Control Service
 
 A premium, standalone React application for managing data access requests within a Unity Catalog environment.
 

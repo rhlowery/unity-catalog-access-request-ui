@@ -1,5 +1,5 @@
 
-// Mock Data Service for Unity Catalog Access Request UI
+// Mock Data Service for ACS UI (Access Control Requests)
 
 export const MOCK_CATALOGS = [
     {
