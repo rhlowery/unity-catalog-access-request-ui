@@ -5,16 +5,69 @@
  * Requires Vite Proxy configuration to handle CORS.
  */
 
+import { StorageService } from './storage/StorageService';
+
 const API_BASE = '/api/2.0/preview/scim/v2';
+
+// Simple in-memory cache for demo purposes
+let cachedToken = null;
+
+const getM2MToken = async (config) => {
+    if (cachedToken) return cachedToken;
+
+    if (!config.ucClientId || !config.ucClientSecret) {
+        console.warn("Missing UC Client ID/Secret for M2M Auth.");
+        return null;
+    }
+
+    try {
+        console.log("Exchanging M2M credentials for token...");
+        // Note: usage of URLSearchParams for x-www-form-urlencoded
+        const body = new URLSearchParams();
+        body.append('grant_type', 'client_credentials');
+        body.append('client_id', config.ucClientId);
+        body.append('client_secret', config.ucClientSecret);
+        body.append('scope', 'all-apis');
+
+        // We use the proxy '/api' prefix to handle CORS to the Databricks host
+        // The token endpoint is usually /oidc/v1/token on the workspace URL
+        const tokenRes = await fetch('/api/oidc/v1/token', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: body
+        });
+
+        if (!tokenRes.ok) throw new Error('Token exchange failed');
+
+        const data = await tokenRes.json();
+        cachedToken = data.access_token;
+        return data.access_token;
+    } catch (e) {
+        console.error("M2M Token Exchange Error:", e);
+        return null;
+    }
+};
 
 export const fetchUCIdentities = async () => {
     try {
-        console.log("Fetching identities from Unity Catalog...");
+        const config = StorageService.getConfig();
+        const hostInfo = config.ucHost ? `Configured Host (${config.ucHost})` : 'Env/Proxy Host';
+
+        // 1. Get Token via M2M
+        const accessToken = await getM2MToken(config);
+        const headers = {};
+        if (accessToken) {
+            headers['Authorization'] = `Bearer ${accessToken}`;
+        }
+
+        console.log(`Fetching identities from Unity Catalog via ${hostInfo}...`);
 
         const [usersRes, groupsRes, spRes] = await Promise.allSettled([
-            fetch(`${API_BASE}/Users`),
-            fetch(`${API_BASE}/Groups`),
-            fetch(`${API_BASE}/ServicePrincipals`)
+            fetch(`${API_BASE}/Users`, { headers }),
+            fetch(`${API_BASE}/Groups`, { headers }),
+            fetch(`${API_BASE}/ServicePrincipals`, { headers })
         ]);
 
         const users = usersRes.status === 'fulfilled' ? await usersRes.value.json() : { Resources: [] };

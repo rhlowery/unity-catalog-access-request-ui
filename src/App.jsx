@@ -8,6 +8,7 @@ import AuditLog from './components/AuditLog';
 import AdminSettings from './components/AdminSettings';
 import Login from './components/Login';
 import { getCatalogs, getRequests } from './services/mockData';
+import { StorageService } from './services/storage/StorageService';
 import './index.css';
 
 const MainLayout = () => {
@@ -170,6 +171,23 @@ const MainLayout = () => {
           display: 'flex',
           flexDirection: 'column'
         }}>
+          {(() => {
+            const config = StorageService.getConfig();
+            if (config.ucAuthType === 'ACCOUNT') {
+              return (
+                <div style={{ padding: '1rem', borderBottom: '1px solid var(--glass-border)' }}>
+                  <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '8px' }}>Active Workspace</label>
+                  <select style={{ width: '100%', padding: '6px', borderRadius: '4px', background: 'rgba(0,0,0,0.2)', color: 'white', border: '1px solid var(--border-color)' }}>
+                    <option>Marketing Workspace</option>
+                    <option>Finance Secure WS</option>
+                    <option>Engineering Dev</option>
+                  </select>
+                </div>
+              );
+            }
+            return null;
+          })()}
+
           <div style={{ padding: '1rem', borderBottom: '1px solid var(--glass-border)' }}>
             <h3 style={{ fontSize: '0.9rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>
               Data Catalog

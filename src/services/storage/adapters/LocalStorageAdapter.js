@@ -9,7 +9,6 @@ export const LocalStorageAdapter = {
     type: 'LOCAL',
 
     async load() {
-        // Simulate async network delay for realism if desired, but keeping fast for local
         const data = localStorage.getItem(STORAGE_KEY);
         return data ? JSON.parse(data) : [];
     },
@@ -17,5 +16,16 @@ export const LocalStorageAdapter = {
     async save(data) {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
         return true;
+    },
+
+    async upsertRequest(request) {
+        const all = await this.load();
+        const index = all.findIndex(r => r.id === request.id);
+        if (index !== -1) {
+            all[index] = request;
+        } else {
+            all.push(request);
+        }
+        return await this.save(all);
     }
 };

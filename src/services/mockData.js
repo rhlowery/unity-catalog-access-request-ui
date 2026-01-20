@@ -186,17 +186,16 @@ const checkExpirations = (requests) => {
                     timestamp: now.toISOString()
                 });
                 hasChanges = true;
+                // Upsert the revocation
+                StorageService.upsertRequest(req);
             }
         }
     });
 
-    if (hasChanges) saveRequests(requests);
     return requests;
 };
 
-export const submitRequest = (request) => {
-    const requests = loadRequests();
-
+export const submitRequest = async (request) => {
     // Enrich requested objects with full path
     const enrichedObjects = request.requestedObjects.map(obj => ({
         ...obj,
@@ -230,24 +229,23 @@ export const submitRequest = (request) => {
         ...request,
         requestedObjects: enrichedObjects, // Store enriched objects
     };
-    requests.push(newRequest);
-    saveRequests(requests);
-    return Promise.resolve(newRequest);
+
+    // Save via Storage Service (Upsert)
+    await StorageService.upsertRequest(newRequest);
+    return newRequest;
 };
 
-export const getRequests = () => {
-    const requests = loadRequests();
+export const getRequests = async () => {
+    const requests = await StorageService.loadRequests();
     checkExpirations(requests); // Check for expirations every fetch
-    return Promise.resolve(requests.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)));
+    return requests.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 };
 
-export const approveRequest = (requestId, approverId, message, decision) => {
-    const requests = loadRequests();
-    const reqIndex = requests.findIndex((r) => r.id === requestId);
+export const approveRequest = async (requestId, approverId, message, decision) => {
+    const requests = await StorageService.loadRequests();
+    const req = requests.find((r) => r.id === requestId);
 
-    if (reqIndex !== -1) {
-        const req = requests[reqIndex];
-
+    if (req) {
         // 1. Log the action
         req.approvalData.push({
             approverId,
@@ -272,10 +270,9 @@ export const approveRequest = (requestId, approverId, message, decision) => {
             req.status = 'PENDING';
         }
 
-        // Update the array
-        requests[reqIndex] = req;
-        saveRequests(requests);
-        return Promise.resolve(req);
+        // Update via Storage Service (Upsert)
+        await StorageService.upsertRequest(req);
+        return req;
     }
     return Promise.reject('Request not found');
 };

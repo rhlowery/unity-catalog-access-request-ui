@@ -1,13 +1,44 @@
 .admin-settings {
     padding: 1rem;
-    max-width: 800px;
+    max-width: 900px;
     margin: 0 auto;
+}
+
+.settings-tabs {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 2rem;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 1px;
+}
+
+.tab-btn {
+    padding: 0.75rem 1.5rem;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--text-secondary);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 1rem;
+}
+
+.tab-btn:hover {
+    color: var(--text-primary);
+}
+
+.tab-btn.active {
+    color: var(--accent-color);
+    border-bottom-color: var(--accent-color);
 }
 
 .settings-card {
     padding: 2rem;
+    min-height: 400px;
 }
 
+/* Forms */
 .form-group {
     margin-bottom: 1.5rem;
 }
@@ -19,7 +50,8 @@
     color: var(--text-secondary);
 }
 
-.form-group input {
+.form-group input,
+.form-group select {
     background: rgba(0, 0, 0, 0.2);
     border: 1px solid var(--border-color);
     padding: 10px 12px;
@@ -28,10 +60,19 @@
     width: 100%;
 }
 
+.form-group input:focus,
+.form-group select:focus {
+    outline: none;
+    border-color: var(--accent-color);
+}
+
 .backend-selector {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
     gap: 1rem;
+    margin-bottom: 2rem;
+    justify-items: start;
+    /* Ensure grid items align left */
 }
 
 .backend-option {
@@ -46,6 +87,26 @@
     color: var(--text-secondary);
     cursor: pointer;
     transition: all 0.2s;
+    width: 100%;
+    /* Take full width of grid cell */
+}
+
+/* Radio Group Alignment */
+.radio-group-left {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    margin-bottom: 1rem;
+    justify-content: flex-start;
+}
+
+.radio-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-weight: normal;
+    font-size: 0.95rem;
 }
 
 .backend-option:hover {
