@@ -95,23 +95,40 @@ export const PERMISSIONS = [
     'EXECUTE', 'READ_VOLUME', 'WRITE_VOLUME', 'CREATE_MODEL', 'USE_COMPUTE', 'ACCESS_STORAGE'
 ];
 
-// LocalStorage Helper
-const STORAGE_KEY = 'uc_access_requests_v1';
-const loadRequests = () => {
-    const data = localStorage.getItem(STORAGE_KEY);
-    return data ? JSON.parse(data) : [];
+import { StorageService } from './storage/StorageService';
+
+// Storage Helper
+const loadRequests = async () => {
+    return await StorageService.loadRequests();
 };
-const saveRequests = (data) => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+const saveRequests = async (data) => {
+    return await StorageService.saveRequests(data);
 };
 
 export const getCatalogs = () => Promise.resolve(MOCK_CATALOGS);
 
-export const getIdentities = () => Promise.resolve([
-    ...MOCK_IDENTITIES.users,
-    ...MOCK_IDENTITIES.groups,
-    ...MOCK_IDENTITIES.servicePrincipals,
-]);
+import { fetchUCIdentities } from './UCIdentityService';
+
+export const getIdentities = async () => {
+    // 1. Try to fetch real data from Unity Catalog
+    const realData = await fetchUCIdentities();
+
+    if (realData) {
+        return [
+            ...realData.users,
+            ...realData.groups,
+            ...realData.servicePrincipals
+        ];
+    }
+
+    // 2. Fallback to Mock Data
+    console.warn("Using Mock Identity Data (API fetch failed or not configured)");
+    return Promise.resolve([
+        ...MOCK_IDENTITIES.users,
+        ...MOCK_IDENTITIES.groups,
+        ...MOCK_IDENTITIES.servicePrincipals,
+    ]);
+};
 
 // Helper to get all owners for a list of objects
 const getRequiredApprovers = (objects) => {

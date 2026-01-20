@@ -5,6 +5,7 @@ import CatalogTree from './components/CatalogTree';
 import AccessForm from './components/AccessForm';
 import ApproverDashboard from './components/ApproverDashboard';
 import AuditLog from './components/AuditLog';
+import AdminSettings from './components/AdminSettings';
 import Login from './components/Login';
 import { getCatalogs, getRequests } from './services/mockData';
 import './index.css';
@@ -116,13 +117,22 @@ const MainLayout = () => {
               )}
             </button>
             {user?.groups?.some(g => ['group_security', 'group_platform_admins'].includes(g)) && (
-              <button
-                className={`btn ${viewMode === 'AUDIT' ? 'btn-primary' : 'btn-ghost'}`}
-                style={viewMode !== 'AUDIT' ? { border: 'none', background: 'transparent', color: 'var(--text-secondary)' } : {}}
-                onClick={() => setViewMode('AUDIT')}
-              >
-                Audit Log
-              </button>
+              <>
+                <button
+                  className={`btn ${viewMode === 'AUDIT' ? 'btn-primary' : 'btn-ghost'}`}
+                  style={viewMode !== 'AUDIT' ? { border: 'none', background: 'transparent', color: 'var(--text-secondary)' } : {}}
+                  onClick={() => setViewMode('AUDIT')}
+                >
+                  Audit Log
+                </button>
+                <button
+                  className={`btn ${viewMode === 'SETTINGS' ? 'btn-primary' : 'btn-ghost'}`}
+                  style={viewMode !== 'SETTINGS' ? { border: 'none', background: 'transparent', color: 'var(--text-secondary)' } : {}}
+                  onClick={() => setViewMode('SETTINGS')}
+                >
+                  Settings
+                </button>
+              </>
             )}
           </div>
 
@@ -181,6 +191,7 @@ const MainLayout = () => {
           )}
           {viewMode === 'APPROVER' && <ApproverDashboard />}
           {viewMode === 'AUDIT' && <AuditLog />}
+          {viewMode === 'SETTINGS' && <AdminSettings />}
         </section>
       </main>
     </div>
