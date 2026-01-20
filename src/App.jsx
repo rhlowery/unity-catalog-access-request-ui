@@ -87,7 +87,21 @@ const MainLayout = () => {
               <div style={{ fontWeight: 500, color: 'var(--text-primary)' }}>{user?.name}</div>
               <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{user?.provider}</div>
             </div>
-            <img src={user?.avatar} alt="User" style={{ width: '32px', height: '32px', borderRadius: '50%', border: '2px solid var(--glass-border)' }} />
+            <div style={{
+              width: '32px',
+              height: '32px',
+              borderRadius: '50%',
+              border: '2px solid var(--glass-border)',
+              background: 'var(--accent-color)',
+              color: 'white',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '0.8rem',
+              fontWeight: 600
+            }}>
+              {user?.initials || 'U'}
+            </div>
             <button className="btn btn-secondary" style={{ padding: '6px' }} onClick={logout} title="Sign Out">
               <LogOut size={16} />
             </button>

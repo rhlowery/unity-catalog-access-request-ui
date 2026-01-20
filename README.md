@@ -1,16 +1,75 @@
-# React + Vite
+# Unity Catalog Access Manager (UC Access)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A premium, standalone React application for managing data access requests within a Unity Catalog environment.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **Unity Catalog Browser**: Browse and select Catalogs, Schemas, Tables, Models, Volumes, and Compute resources.
+- **Access Requests**: Submit requests for Users, Groups, or Service Principals with specific permissions.
+- **Multi-Stage Approval**:
+    - Supports multiple asset owners.
+    - **Mandatory Governance**: A governance group must check every request.
+    - **Unanimous Consent**: All owners + governance must approve.
+- **Audit Logging**: Full audit trail of all requests and decisions.
+- **Simulated SSO**: Login simulation for Google, Microsoft, and SAML (Mock).
+- **Offline First**: All data is mocked and persisted locally (`localStorage`). No external dependencies required at runtime.
 
-## React Compiler
+## Prerequisites
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **Node.js** (v16 or higher)
+- **npm** (v7 or higher)
 
-## Expanding the ESLint configuration
+## Installation
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+1.  Clone or download this repository.
+2.  Navigate to the project directory:
+    ```bash
+    cd unity-catalog-access-request-ui
+    ```
+3.  Install dependencies:
+    ```bash
+    npm install
+    ```
+
+## Running Locally (Development)
+
+To start the development server:
+
+```bash
+npm run dev
+```
+
+Open your browser to `http://localhost:5173`.
+
+## Building for Production
+
+To create a static production build (which can be hosted on any static file server):
+
+1.  Run the build command:
+    ```bash
+    npm run build
+    ```
+2.  The output files will be in the `dist/` directory.
+
+To preview the production build locally:
+```bash
+npm run preview
+```
+
+## How to Demo
+
+1.  **Login**: Use the "Sign in with Google" button to login as **Alice Johnson** (Requester).
+2.  **Request**: Browse the catalog (e.g., `External Locations & Compute`) and request access to a resource like `GPU Cluster`.
+3.  **Logout**: Switch users to the Approver role.
+4.  **Approve**: Login as "Sign in with Microsoft" (**Carol CFO**).
+    - Go to the **Approver** tab.
+    - Use the **Persona Switcher** to approve as `Governance Team`.
+    - Then approve as `Carol CFO` (Owner).
+5.  **Audit**: Check the **Audit Log** tab to see the full history.
+
+## Technology Stack
+
+- **Framework**: React + Vite
+- **Styling**: Vanilla CSS (CSS Variables, Glassmorphism)
+- **Icons**: Lucide React
+- **Persistence**: LocalStorage

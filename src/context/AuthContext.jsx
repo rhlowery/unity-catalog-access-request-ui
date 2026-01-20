@@ -26,16 +26,16 @@ export const AuthProvider = ({ children }) => {
         // Simulate mapping different Identity Providers to internal users
         switch (provider) {
             case 'GOOGLE': // OAuth
-                mockUser = { ...MOCK_IDENTITIES.users[0], provider: 'Google Workspace', avatar: 'https://ui-avatars.com/api/?name=Alice+Johnson&background=random' };
+                mockUser = { ...MOCK_IDENTITIES.users[0], provider: 'Google Workspace', initials: 'AJ' };
                 break;
             case 'MICROSOFT': // Active Directory
-                mockUser = { ...MOCK_IDENTITIES.users[2], provider: 'Azure AD', avatar: 'https://ui-avatars.com/api/?name=Carol+CFO&background=0078d4&color=fff' }; // CFO
+                mockUser = { ...MOCK_IDENTITIES.users[2], provider: 'Azure AD', initials: 'CC' }; // CFO
                 break;
             case 'SAML': // Generic SAML
-                mockUser = { ...MOCK_IDENTITIES.users[4], provider: 'Okta (SAML)', avatar: 'https://ui-avatars.com/api/?name=Dave+Developer&background=random' }; // Developer
+                mockUser = { ...MOCK_IDENTITIES.users[4], provider: 'Okta (SAML)', initials: 'DD' }; // Developer
                 break;
             default:
-                mockUser = { ...MOCK_IDENTITIES.users[1], provider: 'Guest', avatar: 'https://ui-avatars.com/api/?name=Bob+Smith&background=random' };
+                mockUser = { ...MOCK_IDENTITIES.users[1], provider: 'Guest', initials: 'BS' };
         }
 
         localStorage.setItem('uc_auth_user', JSON.stringify(mockUser));
