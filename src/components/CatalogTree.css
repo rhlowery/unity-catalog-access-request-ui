@@ -1,0 +1,115 @@
+.tree-container {
+    padding: 1rem;
+    overflow-y: auto;
+    height: 100%;
+}
+
+.tree-node {
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+}
+
+.node-content {
+    display: flex;
+    align-items: center;
+    padding: 4px 8px;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background-color 0.15s ease;
+}
+
+.node-content:hover {
+    background-color: rgba(88, 166, 255, 0.1);
+    color: var(--text-primary);
+}
+
+.node-content.selected {
+    background-color: rgba(88, 166, 255, 0.2);
+    color: var(--accent-color);
+}
+
+.node-toggle {
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 4px;
+    border-radius: 4px;
+    color: var(--text-muted);
+}
+
+.node-toggle:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.node-icon {
+    margin-right: 8px;
+    color: var(--text-secondary);
+}
+
+.node-label {
+    flex: 1;
+}
+
+.node-checkbox {
+    margin-right: 8px;
+    accent-color: var(--accent-color);
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+}
+
+.node-children {
+    margin-left: 24px;
+    border-left: 1px solid var(--glass-border);
+    padding-left: 4px;
+}
+
+/* Distinct icons colors */
+.icon-catalog {
+    color: #f2cc60;
+}
+
+.icon-schema {
+    color: #f85149;
+}
+
+.icon-table {
+    color: #58a6ff;
+}
+
+.icon-view {
+    color: #56d364;
+}
+
+.icon-model {
+    color: #8957e5;
+}
+
+/* Purple for AI */
+.icon-function {
+    color: #d29922;
+}
+
+/* Orange for logic */
+.icon-volume {
+    color: #79c0ff;
+}
+
+/* Light blue for storage */
+.icon-location {
+    color: #238636;
+}
+
+/* Green */
+.icon-credential {
+    color: #d73a49;
+}
+
+/* Red */
+.icon-compute {
+    color: #db61a2;
+}
+
+/* Pink */
