@@ -68,10 +68,12 @@ const TreeNode = ({ node, selectedIds, toggleSelection }) => {
     );
 };
 
+import { useAuth } from '../context/AuthContext';
 import { StorageService } from '../services/storage/StorageService';
 import { fetchWorkspaces } from '../services/UCIdentityService';
 
 const CatalogTree = ({ nodes, selectedIds, onToggleSelection }) => {
+    const { user } = useAuth();
     const [workspaces, setWorkspaces] = useState([]);
     const [selectedWorkspace, setSelectedWorkspace] = useState('');
     const [isAccountMode, setIsAccountMode] = useState(false);
@@ -80,12 +82,12 @@ const CatalogTree = ({ nodes, selectedIds, onToggleSelection }) => {
         const config = StorageService.getConfig();
         if (config.ucAuthType === 'ACCOUNT') {
             setIsAccountMode(true);
-            fetchWorkspaces().then(ws => {
+            fetchWorkspaces(user).then(ws => {
                 setWorkspaces(ws);
                 if (ws.length > 0) setSelectedWorkspace(ws[0].id);
             });
         }
-    }, []);
+    }, [user]); // Re-fetch when user changes
 
     return (
         <div className="tree-container">
