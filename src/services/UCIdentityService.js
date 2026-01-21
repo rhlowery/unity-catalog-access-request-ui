@@ -107,3 +107,25 @@ export const fetchUCIdentities = async () => {
         return null; // Signal to fall back to mock data
     }
 };
+
+export const fetchWorkspaces = async () => {
+    try {
+        const config = StorageService.getConfig();
+        if (config.ucAuthType !== 'ACCOUNT' || !config.ucAccountId) return [];
+
+        // Mock implementation for demo if no real credentials
+        // In real impl, this would hit /api/2.0/accounts/{id}/workspaces
+        console.log(`Fetching workspaces for Account ${config.ucAccountId}...`);
+
+        // Return mock workspaces for now to demonstrate UI
+        return [
+            { id: '1111', name: 'Engineering Workspace', url: 'https://adb-1111.1.azuredatabricks.net' },
+            { id: '2222', name: 'Data Science Workspace', url: 'https://adb-2222.2.azuredatabricks.net' },
+            { id: '3333', name: 'Marketing Workspace', url: 'https://adb-3333.3.azuredatabricks.net' }
+        ];
+
+    } catch (error) {
+        console.error("Failed to fetch workspaces:", error);
+        return [];
+    }
+};
