@@ -105,7 +105,49 @@ const saveRequests = async (data) => {
     return await StorageService.saveRequests(data);
 };
 
-export const getCatalogs = () => Promise.resolve(MOCK_CATALOGS);
+// Mock Data for different modes
+const MOCK_ACCOUNT_CATALOGS = [
+    {
+        id: 'acc_root',
+        name: 'Databricks Account',
+        type: 'ACCOUNT_ROOT',
+        children: [
+            { id: 'ws_prod', name: 'Prod Workspace', type: 'WORKSPACE' },
+            { id: 'ws_dev', name: 'Dev Workspace', type: 'WORKSPACE' },
+            { id: 'ws_staging', name: 'Staging Workspace', type: 'WORKSPACE' },
+        ]
+    }
+];
+
+const MOCK_WORKSPACE_CATALOGS = [
+    {
+        id: 'cat_hive',
+        name: 'hive_metastore',
+        type: 'CATALOG',
+        children: [
+            { id: 'sch_legacy', name: 'default', type: 'SCHEMA', children: [{ id: 'tbl_legacy', name: 'sample_data', type: 'TABLE' }] }
+        ]
+    },
+    ...MOCK_CATALOGS // Include regular catalogs too
+];
+
+export const getCatalogs = async () => {
+    const config = StorageService.getConfig();
+
+    // Simulate Network Delay
+    await new Promise(resolve => setTimeout(resolve, 600));
+
+    if (config.ucAuthType === 'ACCOUNT') {
+        return MOCK_ACCOUNT_CATALOGS;
+    } else if (config.ucAuthType === 'WORKSPACE') {
+        // Return a slightly modified list or try to fetch real
+        // For verify, let's return MOCK_WORKSPACE_CATALOGS which looks different
+        return MOCK_WORKSPACE_CATALOGS;
+    }
+
+    // Default MOCK
+    return MOCK_CATALOGS;
+};
 
 import { fetchUCIdentities } from './UCIdentityService';
 

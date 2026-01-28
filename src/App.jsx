@@ -193,14 +193,23 @@ const MainLayout = () => {
         }}>
           {(() => {
             const config = StorageService.getConfig();
+            // Show only if in ACCOUNT mode
             if (config.ucAuthType === 'ACCOUNT') {
+              // Find Account Root
+              const accountRoot = catalogs.find(c => c.type === 'ACCOUNT_ROOT');
+              const workspaces = accountRoot && accountRoot.children ? accountRoot.children : [];
+
               return (
                 <div style={{ padding: '1rem', borderBottom: '1px solid var(--glass-border)' }}>
                   <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '8px' }}>Active Workspace</label>
                   <select style={{ width: '100%', padding: '6px', borderRadius: '4px', background: 'rgba(0,0,0,0.2)', color: 'white', border: '1px solid var(--border-color)' }}>
-                    <option>Marketing Workspace</option>
-                    <option>Finance Secure WS</option>
-                    <option>Engineering Dev</option>
+                    {workspaces.length > 0 ? (
+                      workspaces.map(ws => (
+                        <option key={ws.id} value={ws.id}>{ws.name}</option>
+                      ))
+                    ) : (
+                      <option>Loading Workspaces...</option>
+                    )}
                   </select>
                 </div>
               );
