@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ShieldCheck, LogOut, User as UserIcon } from 'lucide-react'; // Renamed User to UserIcon for clarity
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { EventBus } from './services/EventBus'; // Import EventBus
-import CatalogTree from './components/CatalogTree';
+import Sidebar from './components/Sidebar';
 import AccessForm from './components/AccessForm';
 import ApproverDashboard from './components/ApproverDashboard';
 import ReviewerTab from './components/ReviewerTab';
@@ -243,48 +243,14 @@ const MainLayout = () => {
       </header>
 
       <main style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-        <aside className="glass-panel" style={{
-          width: '300px',
-          margin: '0 0 1rem 1rem',
-          display: 'flex',
-          flexDirection: 'column'
-        }}>
-          {(() => {
-            const config = StorageService.getConfig();
-            // Show only if in ACCOUNT mode
-            if (config.ucAuthType === 'ACCOUNT') {
-              return (
-                <div style={{ padding: '1rem', borderBottom: '1px solid var(--glass-border)' }}>
-                  <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '8px' }}>Active Workspace</label>
-                  <select
-                    value={selectedWorkspaceId}
-                    onChange={e => setSelectedWorkspaceId(e.target.value)}
-                    style={{ width: '100%', padding: '6px', borderRadius: '4px', background: 'rgba(0,0,0,0.2)', color: 'white', border: '1px solid var(--border-color)' }}>
-                    {workspaces.length > 0 ? (
-                      workspaces.map(ws => (
-                        <option key={ws.id} value={ws.id}>{ws.name}</option>
-                      ))
-                    ) : (
-                      <option>Loading Workspaces...</option>
-                    )}
-                  </select>
-                </div>
-              );
-            }
-            return null;
-          })()}
-
-          <div style={{ padding: '1rem', borderBottom: '1px solid var(--glass-border)' }}>
-            <h3 style={{ fontSize: '0.9rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>
-              Data Catalog
-            </h3>
-          </div>
-          <CatalogTree
-            nodes={catalogs}
-            selectedIds={selectedIds}
-            onToggleSelection={handleToggleSelection}
-          />
-        </aside>
+        <Sidebar
+          catalogs={catalogs}
+          selectedIds={selectedIds}
+          onToggleSelection={handleToggleSelection}
+          workspaces={workspaces}
+          selectedWorkspaceId={selectedWorkspaceId}
+          onWorkspaceChange={setSelectedWorkspaceId}
+        />
 
         <section style={{ flex: 1, overflowY: 'auto', padding: '0 1rem 1rem 1rem' }}>
           {viewMode === 'REQUESTER' && (
