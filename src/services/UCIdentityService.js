@@ -123,12 +123,14 @@ export const fetchWorkspaces = async () => {
         if (!token) throw new Error("No M2M Token");
 
         const headers = { 'Authorization': `Bearer ${token}` };
-        // Valid Endpoint: GET /api/2.0/accounts/{account_id}/workspaces
-        // We use the proxy path /api/accounts/... if setup, or assume direct call?
-        // Since we likely have a proxy for the account console host, we try that.
-        // Assuming standard Databricks Account API URL structure.
+        // Valid Endpoint: GET https://<host>/api/2.0/accounts/{account_id}/workspaces
+        // User requested to use the "host_url" (interpreted as the configured host) instead of hardcoded hostname
 
-        const res = await fetch(`/api/2.0/accounts/${config.ucAccountId}/workspaces`, { headers });
+        const host = config.ucHost || 'accounts.cloud.databricks.com';
+        // Ensure protocol
+        const baseUrl = host.startsWith('http') ? host : `https://${host}`;
+
+        const res = await fetch(`${baseUrl}/api/2.0/accounts/${config.ucAccountId}/workspaces`, { headers });
         if (!res.ok) throw new Error(`Workspaces Fetch Failed: ${res.statusText}`);
 
         const data = await res.json();
