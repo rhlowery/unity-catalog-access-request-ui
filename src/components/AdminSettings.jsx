@@ -93,6 +93,13 @@ const AdminSettings = () => {
                             <label>Active Storage Backend</label>
                             <div className="backend-selector">
                                 <button
+                                    className={`backend-option ${config.type === 'MOCK' ? 'active' : ''}`}
+                                    onClick={() => setConfig({ ...config, type: 'MOCK' })}
+                                >
+                                    <Shield size={24} />
+                                    <span>Mock (Volatile)</span>
+                                </button>
+                                <button
                                     className={`backend-option ${config.type === 'LOCAL' ? 'active' : ''}`}
                                     onClick={() => setConfig({ ...config, type: 'LOCAL' })}
                                 >
@@ -103,8 +110,8 @@ const AdminSettings = () => {
                                     className={`backend-option ${config.type === 'UNITY_CATALOG' ? 'active' : ''}`}
                                     onClick={() => setConfig({ ...config, type: 'UNITY_CATALOG' })}
                                 >
-                                    <Server size={24} />
-                                    <span>Unity Catalog</span>
+                                    <Database size={24} />
+                                    <span>Unity Catalog Table</span>
                                 </button>
                                 <button
                                     className={`backend-option ${config.type === 'RDBMS' ? 'active' : ''}`}
@@ -179,6 +186,7 @@ const AdminSettings = () => {
                                 value={config.identityType}
                                 onChange={e => setConfig({ ...config, identityType: e.target.value })}
                             >
+                                <option value="MOCK">Mock (Development)</option>
                                 <option value="SCIM">SCIM 2.0 (User Sync)</option>
                                 <option value="OAUTH">Generic OAuth 2.0 (OIDC)</option>
                                 <option value="AZURE">Microsoft Azure Enterprise AD</option>

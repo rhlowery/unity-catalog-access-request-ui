@@ -140,28 +140,22 @@ export const getCatalogs = async () => {
     if (config.ucAuthType === 'ACCOUNT') {
         return MOCK_ACCOUNT_CATALOGS;
     } else if (config.ucAuthType === 'WORKSPACE') {
-        // Return a slightly modified list or try to fetch real
-        // For verify, let's return MOCK_WORKSPACE_CATALOGS which looks different
         return MOCK_WORKSPACE_CATALOGS;
     }
 
-    // Default MOCK
+    // Default or ucAuthType === 'MOCK'
     return MOCK_CATALOGS;
 };
 
 import { fetchUCIdentities } from './UCIdentityService';
 
 export const getIdentities = async () => {
-    // Check config to see if we should fetch from UC (either DATABRICKS IDP or SCIM is enabled)
-    // AND check if we are NOT in MOCK mode.
     const config = StorageService.getConfig();
     let shouldUseUC = false;
 
-    // Only try to fetch Real UC data if we are NOT in MOCK mode
-    if (config.ucAuthType !== 'MOCK') {
-        if (config.identityType === 'DATABRICKS') {
-            shouldUseUC = true;
-        } else if (config.scimEnabled) {
+    // Only try to fetch Real UC data if Identity Type is NOT MOCK
+    if (config.identityType !== 'MOCK') {
+        if (config.identityType === 'DATABRICKS' || config.scimEnabled) {
             shouldUseUC = true;
         }
     }
