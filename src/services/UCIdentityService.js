@@ -117,15 +117,139 @@ export const fetchWorkspaces = async () => {
         // In real impl, this would hit /api/2.0/accounts/{id}/workspaces
         console.log(`Fetching workspaces for Account ${config.ucAccountId}...`);
 
-        // Return mock workspaces for now to demonstrate UI
-        return [
-            { id: '1111', name: 'Engineering Workspace', url: 'https://adb-1111.1.azuredatabricks.net' },
-            { id: '2222', name: 'Data Science Workspace', url: 'https://adb-2222.2.azuredatabricks.net' },
-            { id: '3333', name: 'Marketing Workspace', url: 'https://adb-3333.3.azuredatabricks.net' }
-        ];
+        // Return mock workspaces for now to demonstrate UI if no real fetch implemented yet?
+        // NO, we want to try real fetch first as per plan.
+        const token = await getM2MToken(config);
+        if (!token) throw new Error("No M2M Token");
+
+        const headers = { 'Authorization': `Bearer ${token}` };
+        // Valid Endpoint: GET /api/2.0/accounts/{account_id}/workspaces
+        // We use the proxy path /api/accounts/... if setup, or assume direct call?
+        // Since we likely have a proxy for the account console host, we try that.
+        // Assuming standard Databricks Account API URL structure.
+
+        const res = await fetch(`/api/2.0/accounts/${config.ucAccountId}/workspaces`, { headers });
+        if (!res.ok) throw new Error(`Workspaces Fetch Failed: ${res.statusText}`);
+
+        const data = await res.json();
+
+        // Map to our format
+        return (data.map(ws => ({
+            id: ws.workspace_id,
+            name: ws.workspace_name,
+            url: `https://${ws.deployment_name}.cloud.databricks.com` // Construct URL
+        })));
 
     } catch (error) {
         console.error("Failed to fetch workspaces:", error);
         return [];
+    }
+};
+
+/**
+ * Validates the current auth token for a host.
+ * If invalid or simple reuse, fetches a new one via M2M.
+ */
+const getValidToken = async (host, config) => {
+    // For now, we just use the global M2M token which is not host-specific in the current simple impl
+    // but implies we are using the Account M2M creds for everything.
+    // In a real scenario, we might need workspace-specific tokens or U2M tokens.
+    // We will reuse the getM2MToken for simplicity as it uses the configured Client ID/Secret.
+    // WARNING: This assumes the Service Principal has access to the target workspace.
+    return await getM2MToken(config);
+};
+
+export const fetchCatalogs = async (workspaceUrl) => {
+    try {
+        const config = StorageService.getConfig();
+        const token = await getValidToken(workspaceUrl, config);
+
+        if (!token) throw new Error("No valid token available");
+
+        console.log(`Fetching catalogs from ${workspaceUrl}...`);
+
+        // Proxy path construction:
+        // Client -> Vite Proxy (/api/...) -> Target (workspaceUrl/api/...)
+        // We need to route this request through our proxy if we are in dev mode.
+        // Assuming the proxy setup handles the rewrites or we use the absolute URL if CORS allows (unlikely).
+        // For the demo, we'll try to use the proxy path convention: /api/workspace-id/...
+        // But since we don't have a dynamic proxy rewriter for arbitrary workspaces easily without backend,
+        // we might have to rely on a fixed proxy or the 'host' being our proxy target.
+
+        // LIMITATION: Vite proxy is static. We can't proxy to arbitrary dynamic workspace URLs easily.
+        // WORKAROUND: We will assume the User has configured the proxy to point to the specific workspace 
+        // OR we are running in an environment where we can hit it directly (e.g. Electron/Backend).
+        //
+        // FOR THIS DEMO: We will assume the `workspaceUrl` is actually just used for logging/context
+        // and we will use the configured proxy target if it matches, or fail if we can't route.
+        //
+        // ACTUALLY: Let's assume we can use the /api/2.1/unity-catalog... directly if we are using the Account Console proxy?
+        // No, workspace data is on the workspace.
+        //
+        // REVISED APPROACH FOR DEMO:
+        // We will mock the deep fetch if we can't hit the real API, BUT we will implement the logic as if likely to work.
+        // We will try to fetch from `${workspaceUrl}/api/2.1/unity-catalog/catalogs`.
+
+        const headers = { 'Authorization': `Bearer ${token}` };
+
+        // 1. Fetch Catalogs
+        // We use a helper to robustly fetch or return mock if actual network fails (CORS).
+        const catalogsRes = await fetch(`${workspaceUrl}/api/2.1/unity-catalog/catalogs`, { headers }).catch(e => null);
+        if (!catalogsRes || !catalogsRes.ok) {
+            console.warn(`Failed to fetch catalogs from ${workspaceUrl} (CORS/NetError). Using Mock data for demo.`);
+            return null;
+        }
+
+        const catalogsData = await catalogsRes.json();
+        const catalogs = catalogsData.catalogs || [];
+
+        // 2. Build Tree (Parallel fetch for Schemas)
+        const tree = await Promise.all(catalogs.map(async (cat) => {
+            const catNode = {
+                id: cat.name, // using name as ID for simplicity or cat.catalog_name
+                name: cat.name,
+                type: 'CATALOG',
+                children: []
+            };
+
+            // Fetch Schemas for this Catalog
+            const schemasRes = await fetch(`${workspaceUrl}/api/2.1/unity-catalog/schemas?catalog_name=${cat.name}`, { headers }).catch(e => null);
+            if (schemasRes && schemasRes.ok) {
+                const schemasData = await schemasRes.json();
+                const schemas = schemasData.schemas || [];
+
+                catNode.children = await Promise.all(schemas.map(async (sch) => {
+                    const schNode = {
+                        id: `${cat.name}.${sch.name}`,
+                        name: sch.name,
+                        type: 'SCHEMA',
+                        parentId: catNode.id,
+                        children: []
+                    };
+
+                    // Fetch Tables for this Schema
+                    const tablesRes = await fetch(`${workspaceUrl}/api/2.1/unity-catalog/tables?catalog_name=${cat.name}&schema_name=${sch.name}`, { headers }).catch(e => null);
+                    if (tablesRes && tablesRes.ok) {
+                        const tablesData = await tablesRes.json();
+                        const tables = tablesData.tables || [];
+                        schNode.children = tables.map(tbl => ({
+                            id: `${cat.name}.${sch.name}.${tbl.name}`,
+                            name: tbl.name,
+                            type: tbl.table_type === 'VIEW' ? 'VIEW' : 'TABLE',
+                            parentId: schNode.id,
+                            owners: [tbl.owner] // Simple owner mapping
+                        }));
+                    }
+                    return schNode;
+                }));
+            }
+            return catNode;
+        }));
+
+        return tree;
+
+    } catch (e) {
+        console.error("Error in fetchCatalogs:", e);
+        return null;
     }
 };

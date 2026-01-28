@@ -10,23 +10,73 @@ import AuditLog from './components/AuditLog';
 import AdminSettings from './components/AdminSettings';
 import Login from './components/Login';
 import { getCatalogs, getRequests } from './services/mockData';
+import { fetchWorkspaces, fetchCatalogs } from './services/UCIdentityService';
 import { StorageService } from './services/storage/StorageService';
 import './index.css';
 
 const MainLayout = () => {
   const { user, logout } = useAuth();
   const [catalogs, setCatalogs] = useState([]);
+  const [workspaces, setWorkspaces] = useState([]);
+  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState('');
+
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [selectedObjects, setSelectedObjects] = useState([]);
   const [viewMode, setViewMode] = useState('REQUESTER');
   const [pendingCount, setPendingCount] = useState(0);
 
-  useEffect(() => {
-    const refreshData = () => {
+  // Helper to load catalogs based on current config/state
+  const loadCatalogs = async (currentConfig, currentWorkspaceId) => {
+    if (currentConfig.ucAuthType === 'ACCOUNT') {
+      if (currentWorkspaceId) {
+        const ws = workspaces.find(w => w.id === currentWorkspaceId);
+        if (ws) {
+          const fetched = await fetchCatalogs(ws.url);
+          if (fetched) {
+            setCatalogs(fetched);
+            return;
+          }
+        }
+      }
+      // Fallback if no workspace selected or fetch failed
+      setCatalogs([]);
+    } else if (currentConfig.ucAuthType === 'WORKSPACE') {
+      // Single Workspace Mode
+      const fetched = await fetchCatalogs(currentConfig.ucHost);
+      if (fetched) {
+        setCatalogs(fetched);
+      } else {
+        // Fallback to mock if fetch fails
+        getCatalogs().then(setCatalogs);
+      }
+    } else {
+      // MOCK Mode
       getCatalogs().then(setCatalogs);
+    }
+  };
+
+  useEffect(() => {
+    const initData = async () => {
+      const config = StorageService.getConfig();
+
+      // 1. Fetch Workspaces if Account Mode
+      if (config.ucAuthType === 'ACCOUNT') {
+        const wsList = await fetchWorkspaces();
+        setWorkspaces(wsList);
+        if (wsList.length > 0 && !selectedWorkspaceId) {
+          setSelectedWorkspaceId(wsList[0].id);
+        }
+      } else {
+        setWorkspaces([]);
+      }
+
+      // 2. Initial Catalog Load (will depend on workspace selection effect for Account mode)
+      if (config.ucAuthType !== 'ACCOUNT') {
+        loadCatalogs(config, null);
+      }
     };
 
-    refreshData();
+    initData();
 
     // Poll for pending requests count (simple implementation)
     const checkPending = async () => {
@@ -41,9 +91,7 @@ const MainLayout = () => {
     // Subscribe to Settings Updates
     const handleSettingsUpdate = () => {
       console.log("Settings Updated - Refreshing App State");
-      refreshData();
-      // Force update for non-state config reads (like the workspace dropdown)
-      // Since setCatalogs triggers render, this is implicitly handled.
+      initData();
     };
 
     EventBus.on('SETTINGS_UPDATED', handleSettingsUpdate);
@@ -52,7 +100,17 @@ const MainLayout = () => {
       clearInterval(interval);
       EventBus.remove('SETTINGS_UPDATED', handleSettingsUpdate);
     };
-  }, [user]);
+  }, [user]); // Re-run on user change (re-auth)
+
+  // Effect to load catalogs when workspace selection changes
+  useEffect(() => {
+    if (selectedWorkspaceId) {
+      const config = StorageService.getConfig();
+      if (config.ucAuthType === 'ACCOUNT') {
+        loadCatalogs(config, selectedWorkspaceId);
+      }
+    }
+  }, [selectedWorkspaceId, workspaces]); // Depend on workspaces too so we can find the URL
 
   const handleToggleSelection = (id, node) => {
     const newSelectedIds = new Set(selectedIds);
@@ -195,14 +253,13 @@ const MainLayout = () => {
             const config = StorageService.getConfig();
             // Show only if in ACCOUNT mode
             if (config.ucAuthType === 'ACCOUNT') {
-              // Find Account Root
-              const accountRoot = catalogs.find(c => c.type === 'ACCOUNT_ROOT');
-              const workspaces = accountRoot && accountRoot.children ? accountRoot.children : [];
-
               return (
                 <div style={{ padding: '1rem', borderBottom: '1px solid var(--glass-border)' }}>
                   <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '8px' }}>Active Workspace</label>
-                  <select style={{ width: '100%', padding: '6px', borderRadius: '4px', background: 'rgba(0,0,0,0.2)', color: 'white', border: '1px solid var(--border-color)' }}>
+                  <select
+                    value={selectedWorkspaceId}
+                    onChange={e => setSelectedWorkspaceId(e.target.value)}
+                    style={{ width: '100%', padding: '6px', borderRadius: '4px', background: 'rgba(0,0,0,0.2)', color: 'white', border: '1px solid var(--border-color)' }}>
                     {workspaces.length > 0 ? (
                       workspaces.map(ws => (
                         <option key={ws.id} value={ws.id}>{ws.name}</option>

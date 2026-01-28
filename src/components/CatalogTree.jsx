@@ -68,68 +68,11 @@ const TreeNode = ({ node, selectedIds, toggleSelection }) => {
     );
 };
 
-import { useAuth } from '../context/AuthContext';
-import { StorageService } from '../services/storage/StorageService';
-import { fetchWorkspaces } from '../services/UCIdentityService';
+
 
 const CatalogTree = ({ nodes, selectedIds, onToggleSelection }) => {
-    const { user } = useAuth();
-    const [workspaces, setWorkspaces] = useState([]);
-    const [selectedWorkspace, setSelectedWorkspace] = useState('');
-    const [isAccountMode, setIsAccountMode] = useState(false);
-
-    React.useEffect(() => {
-        const config = StorageService.getConfig();
-        if (config.ucAuthType === 'ACCOUNT') {
-            setIsAccountMode(true);
-            fetchWorkspaces(user).then(ws => {
-                setWorkspaces(ws);
-                if (ws.length > 0) setSelectedWorkspace(ws[0].id);
-            });
-        }
-    }, [user]); // Re-fetch when user changes
-
     return (
         <div className="tree-container">
-            {isAccountMode && (
-                <div style={{ marginBottom: '1rem', paddingBottom: '1rem', borderBottom: '1px solid var(--glass-border)' }}>
-                    <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
-                        Active Workspace
-                    </label>
-                    <div style={{ position: 'relative' }}>
-                        <select
-                            value={selectedWorkspace}
-                            onChange={(e) => setSelectedWorkspace(e.target.value)}
-                            style={{
-                                width: '100%',
-                                padding: '8px 12px',
-                                background: 'rgba(255,255,255,0.05)',
-                                border: '1px solid var(--glass-border)',
-                                borderRadius: '6px',
-                                color: 'var(--text-primary)',
-                                outline: 'none',
-                                appearance: 'none',
-                                cursor: 'pointer'
-                            }}
-                        >
-                            {workspaces.map(ws => (
-                                <option key={ws.id} value={ws.id}>{ws.name}</option>
-                            ))}
-                        </select>
-                        <ChevronDown
-                            size={14}
-                            style={{
-                                position: 'absolute',
-                                right: '12px',
-                                top: '50%',
-                                transform: 'translateY(-50%)',
-                                pointerEvents: 'none',
-                                color: 'var(--text-secondary)'
-                            }}
-                        />
-                    </div>
-                </div>
-            )}
             {nodes.map(node => (
                 <TreeNode
                     key={node.id}
