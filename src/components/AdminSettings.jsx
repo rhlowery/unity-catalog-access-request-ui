@@ -351,91 +351,98 @@ const AdminSettings = () => {
                                     });
                                 }}
                             >
+                                <option value="MOCK">Mock (Development)</option>
                                 <option value="WORKSPACE">Single Workspace</option>
                                 <option value="ACCOUNT">Databricks Account (Unified Login)</option>
                             </select>
                         </div>
 
-                        {config.ucAuthType === 'ACCOUNT' && (
-                            <div className="form-group animate-fade-in">
-                                <label>Databricks Account ID</label>
-                                <input
-                                    type="text"
-                                    value={config.ucAccountId}
-                                    placeholder="00000000-0000-0000-0000-000000000000"
-                                    onChange={e => setConfig({ ...config, ucAccountId: e.target.value })}
-                                />
-                            </div>
-                        )}
-
-                        <div className="form-group">
-                            <label>Host URL {config.ucAuthType === 'ACCOUNT' ? '(Account Console)' : '(Workspace)'}</label>
-                            <input
-                                type="text"
-                                value={config.ucHost}
-                                disabled={config.ucAuthType === 'ACCOUNT'}
-                                placeholder={config.ucAuthType === 'ACCOUNT' ? "accounts.cloud.databricks.com" : "https://<workspace-id>.cloud.databricks.com"}
-                                onChange={e => setConfig({ ...config, ucHost: e.target.value })}
-                            />
-                        </div>
-                        <div className="form-group">
-                            <label>Service Principal Client ID</label>
-                            <input
-                                type="text"
-                                value={config.ucClientId}
-                                placeholder="UUID..."
-                                onChange={e => setConfig({ ...config, ucClientId: e.target.value })}
-                            />
-                        </div>
-                        <div className="form-group">
-                            <label>Service Principal Client Secret</label>
-                            <div style={{ marginBottom: '12px' }}>
-                                <select
-                                    value={config.ucClientSecretSource}
-                                    onChange={e => setConfig({ ...config, ucClientSecretSource: e.target.value })}
-                                >
-                                    <option value="PLAIN">Plain Text</option>
-                                    <option value="VAULT">Fetch from Vault</option>
-                                </select>
-                            </div>
-
-                            {config.ucClientSecretSource === 'VAULT' ? (
-                                <div className="pl-4 border-l-2 border-accent" style={{ paddingLeft: '1rem', borderLeft: '2px solid var(--accent-color)' }}>
-                                    <div className="form-group">
-                                        <label className="text-sm">Secret Path</label>
+                        {/* Hide real connection fields if MOCK */}
+                        {config.ucAuthType !== 'MOCK' && (
+                            <>
+                                {config.ucAuthType === 'ACCOUNT' && (
+                                    <div className="form-group animate-fade-in">
+                                        <label>Databricks Account ID</label>
                                         <input
                                             type="text"
-                                            value={config.ucClientSecretVaultPath}
-                                            placeholder="secret/data/my-app/prod"
-                                            onChange={e => setConfig({ ...config, ucClientSecretVaultPath: e.target.value })}
+                                            value={config.ucAccountId}
+                                            placeholder="00000000-0000-0000-0000-000000000000"
+                                            onChange={e => setConfig({ ...config, ucAccountId: e.target.value })}
                                         />
                                     </div>
-                                    <div className="form-group">
-                                        <label className="text-sm">JSON Key</label>
+                                )}
+
+                                <div className="form-group">
+                                    <label>Host URL {config.ucAuthType === 'ACCOUNT' ? '(Account Console)' : '(Workspace)'}</label>
+                                    <input
+                                        type="text"
+                                        value={config.ucHost}
+                                        disabled={config.ucAuthType === 'ACCOUNT'}
+                                        placeholder={config.ucAuthType === 'ACCOUNT' ? "accounts.cloud.databricks.com" : "https://<workspace-id>.cloud.databricks.com"}
+                                        onChange={e => setConfig({ ...config, ucHost: e.target.value })}
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label>Service Principal Client ID</label>
+                                    <input
+                                        type="text"
+                                        value={config.ucClientId}
+                                        placeholder="UUID..."
+                                        onChange={e => setConfig({ ...config, ucClientId: e.target.value })}
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label>Service Principal Client Secret</label>
+                                    <div style={{ marginBottom: '12px' }}>
+                                        <select
+                                            value={config.ucClientSecretSource}
+                                            onChange={e => setConfig({ ...config, ucClientSecretSource: e.target.value })}
+                                        >
+                                            <option value="PLAIN">Plain Text</option>
+                                            <option value="VAULT">Fetch from Vault</option>
+                                        </select>
+                                    </div>
+
+                                    {config.ucClientSecretSource === 'VAULT' ? (
+                                        <div className="pl-4 border-l-2 border-accent" style={{ paddingLeft: '1rem', borderLeft: '2px solid var(--accent-color)' }}>
+                                            <div className="form-group">
+                                                <label className="text-sm">Secret Path</label>
+                                                <input
+                                                    type="text"
+                                                    value={config.ucClientSecretVaultPath}
+                                                    placeholder="secret/data/my-app/prod"
+                                                    onChange={e => setConfig({ ...config, ucClientSecretVaultPath: e.target.value })}
+                                                />
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="text-sm">JSON Key</label>
+                                                <input
+                                                    type="text"
+                                                    value={config.ucClientSecretVaultKey}
+                                                    placeholder="client_secret"
+                                                    onChange={e => setConfig({ ...config, ucClientSecretVaultKey: e.target.value })}
+                                                />
+                                            </div>
+                                        </div>
+                                    ) : (
                                         <input
-                                            type="text"
-                                            value={config.ucClientSecretVaultKey}
-                                            placeholder="client_secret"
-                                            onChange={e => setConfig({ ...config, ucClientSecretVaultKey: e.target.value })}
+                                            type="password"
+                                            value={config.ucClientSecret}
+                                            placeholder="Secret..."
+                                            onChange={e => setConfig({ ...config, ucClientSecret: e.target.value })}
                                         />
+                                    )}
+                                </div>
+                                <div className="mt-6">
+                                    <div className="text-xs text-secondary">
+                                        * Uses OAuth 2.0 Client Credentials flow (M2M) to fetch a short-lived access token.
+                                        <br />
+                                        * <strong className="text-danger">WARNING:</strong> Client Secret is stored locally in this demo. Ensure this is secure in production.
                                     </div>
                                 </div>
-                            ) : (
-                                <input
-                                    type="password"
-                                    value={config.ucClientSecret}
-                                    placeholder="Secret..."
-                                    onChange={e => setConfig({ ...config, ucClientSecret: e.target.value })}
-                                />
-                            )}
-                        </div>
-                        <div className="mt-6">
-                            <div className="text-xs text-secondary">
-                                * Uses OAuth 2.0 Client Credentials flow (M2M) to fetch a short-lived access token.
-                                <br />
-                                * <strong className="text-danger">WARNING:</strong> Client Secret is stored locally in this demo. Ensure this is secure in production.
-                            </div>
-                        </div>
+                            </>
+                        )}
+
                     </div>
                 )}
 

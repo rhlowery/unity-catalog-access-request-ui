@@ -111,13 +111,17 @@ import { fetchUCIdentities } from './UCIdentityService';
 
 export const getIdentities = async () => {
     // Check config to see if we should fetch from UC (either DATABRICKS IDP or SCIM is enabled)
+    // AND check if we are NOT in MOCK mode.
     const config = StorageService.getConfig();
     let shouldUseUC = false;
 
-    if (config.identityType === 'DATABRICKS') {
-        shouldUseUC = true;
-    } else if (config.scimEnabled) {
-        shouldUseUC = true;
+    // Only try to fetch Real UC data if we are NOT in MOCK mode
+    if (config.ucAuthType !== 'MOCK') {
+        if (config.identityType === 'DATABRICKS') {
+            shouldUseUC = true;
+        } else if (config.scimEnabled) {
+            shouldUseUC = true;
+        }
     }
 
     if (shouldUseUC) {
