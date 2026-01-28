@@ -2,12 +2,14 @@ import { LocalStorageAdapter } from './adapters/LocalStorageAdapter';
 import { UnityCatalogAdapter } from './adapters/UnityCatalogAdapter';
 import { RDBMSAdapter } from './adapters/RDBMSAdapter';
 import { GitAdapter } from './adapters/GitAdapter';
+import { VolatileAdapter } from './adapters/VolatileAdapter';
 
 const ADAPTERS = {
     'LOCAL': LocalStorageAdapter,
     'UNITY_CATALOG': UnityCatalogAdapter,
     'RDBMS': RDBMSAdapter,
-    'GIT': GitAdapter
+    'GIT': GitAdapter,
+    'MOCK': VolatileAdapter
 };
 
 const CONFIG_KEY = 'acs_storage_config_v1';
