@@ -8,7 +8,9 @@ const Sidebar = ({
     onToggleSelection,
     workspaces,
     selectedWorkspaceId,
-    onWorkspaceChange
+    onWorkspaceChange,
+    loadingWorkspaces,
+    workspaceError
 }) => {
     return (
         <aside className="glass-panel" style={{
@@ -27,13 +29,18 @@ const Sidebar = ({
                             <select
                                 value={selectedWorkspaceId}
                                 onChange={e => onWorkspaceChange(e.target.value)}
+                                disabled={loadingWorkspaces || !!workspaceError}
                                 style={{ width: '100%', padding: '6px', borderRadius: '4px', background: 'rgba(0,0,0,0.2)', color: 'white', border: '1px solid var(--border-color)' }}>
-                                {workspaces.length > 0 ? (
+                                {loadingWorkspaces ? (
+                                    <option>Loading...</option>
+                                ) : workspaceError ? (
+                                    <option>Error: {workspaceError}</option>
+                                ) : workspaces.length > 0 ? (
                                     workspaces.map(ws => (
                                         <option key={ws.id} value={ws.id}>{ws.name}</option>
                                     ))
                                 ) : (
-                                    <option>Loading...</option>
+                                    <option>No workspaces found</option>
                                 )}
                             </select>
                         </div>

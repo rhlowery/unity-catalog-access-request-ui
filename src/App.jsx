@@ -19,6 +19,8 @@ const MainLayout = () => {
   const [catalogs, setCatalogs] = useState([]);
   const [workspaces, setWorkspaces] = useState([]);
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState('');
+  const [loadingWorkspaces, setLoadingWorkspaces] = useState(false);
+  const [workspaceError, setWorkspaceError] = useState(null);
 
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [selectedObjects, setSelectedObjects] = useState([]);
@@ -61,13 +63,23 @@ const MainLayout = () => {
 
       // 1. Fetch Workspaces if Account Mode
       if (config.ucAuthType === 'ACCOUNT') {
-        const wsList = await fetchWorkspaces();
-        setWorkspaces(wsList);
-        if (wsList.length > 0 && !selectedWorkspaceId) {
-          setSelectedWorkspaceId(wsList[0].id);
+        setLoadingWorkspaces(true);
+        setWorkspaceError(null);
+        try {
+          const wsList = await fetchWorkspaces();
+          setWorkspaces(wsList);
+          if (wsList.length > 0 && !selectedWorkspaceId) {
+            setSelectedWorkspaceId(wsList[0].id);
+          }
+        } catch (err) {
+          setWorkspaceError(err.message || 'Failed to fetch workspaces');
+        } finally {
+          setLoadingWorkspaces(false);
         }
       } else {
         setWorkspaces([]);
+        setLoadingWorkspaces(false);
+        setWorkspaceError(null);
       }
 
       // 2. Initial Catalog Load (will depend on workspace selection effect for Account mode)
@@ -250,6 +262,8 @@ const MainLayout = () => {
           workspaces={workspaces}
           selectedWorkspaceId={selectedWorkspaceId}
           onWorkspaceChange={setSelectedWorkspaceId}
+          loadingWorkspaces={loadingWorkspaces}
+          workspaceError={workspaceError}
         />
 
         <section style={{ flex: 1, overflowY: 'auto', padding: '0 1rem 1rem 1rem' }}>

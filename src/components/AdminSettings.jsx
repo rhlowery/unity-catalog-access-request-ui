@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Save, Server, Database, GitBranch, HardDrive, CheckCircle, Shield, Globe, Lock } from 'lucide-react';
 import { StorageService } from '../services/storage/StorageService';
 import { EventBus } from '../services/EventBus';
+import { clearTokenCache } from '../services/UCIdentityService';
 import './AdminSettings.css';
 
 const AdminSettings = () => {
@@ -11,6 +12,7 @@ const AdminSettings = () => {
 
     const handleSave = () => {
         StorageService.saveConfig(config);
+        clearTokenCache();
         setSaved(true);
         EventBus.dispatch('SETTINGS_UPDATED', { config });
         setTimeout(() => setSaved(false), 2000);

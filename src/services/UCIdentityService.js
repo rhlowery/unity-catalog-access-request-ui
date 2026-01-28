@@ -12,7 +12,9 @@ const API_BASE = '/api/2.0/preview/scim/v2';
 // Simple in-memory cache for demo purposes
 let cachedToken = null;
 
-const getM2MToken = async (config) => {
+export const clearTokenCache = () => { cachedToken = null; };
+
+export const getM2MToken = async (config) => {
     if (cachedToken) return cachedToken;
 
     if (!config.ucClientId || !config.ucClientSecret) {
@@ -125,7 +127,11 @@ export const fetchUCIdentities = async () => {
 export const fetchWorkspaces = async () => {
     try {
         const config = StorageService.getConfig();
-        if (config.ucAuthType !== 'ACCOUNT' || !config.ucAccountId) return [];
+        if (config.ucAuthType !== 'ACCOUNT') return [];
+        if (!config.ucAccountId) {
+            console.warn("[UCIdentityService] ucAccountId is missing in ACCOUNT mode.");
+            return [];
+        }
 
         // Mock implementation for demo if no real credentials
         // In real impl, this would hit /api/2.0/accounts/{id}/workspaces
@@ -169,8 +175,8 @@ export const fetchWorkspaces = async () => {
         })));
 
     } catch (error) {
-        console.error("Failed to fetch workspaces:", error);
-        return [];
+        console.error("[UCIdentityService] Failed to fetch workspaces:", error);
+        throw error; // Rethrow so the UI can catch it
     }
 };
 

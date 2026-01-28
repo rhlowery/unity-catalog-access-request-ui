@@ -5,6 +5,8 @@
  * 
  * Config requires: catalog, schema, table
  */
+import { getM2MToken } from '../../UCIdentityService';
+
 export const UnityCatalogAdapter = {
     name: 'Unity Catalog Table',
     type: 'UNITY_CATALOG',
@@ -31,17 +33,50 @@ export const UnityCatalogAdapter = {
     },
 
     async getLiveGrants(object, config) {
-        // This simulates the ACTUAL permissions on the object in Unity Catalog
-        console.log(`[UC Adapter] Fetching LIVE GRANTS for ${object.name}`);
+        console.log(`[UC Adapter] Fetching LIVE GRANTS for ${object.name} from UC API...`);
 
-        // Default: No grants
+        try {
+            const token = await getM2MToken(config);
+            if (!token) throw new Error("Could not obtain M2M token");
+
+            const host = config.ucHost || 'accounts.cloud.databricks.com';
+            const baseUrl = host.startsWith('http') ? host : `https://${host}`;
+
+            // Unity Catalog Grants API: GET /api/2.1/unity-catalog/permissions/{securable_type}/{full_name}
+            const securableType = object.type === 'CATALOG' ? 'catalog' : object.type === 'SCHEMA' ? 'schema' : 'table';
+            const grantsUrl = `${baseUrl}/api/2.1/unity-catalog/permissions/${securableType}/${object.id}`;
+
+            console.log(`[UC Adapter] Fetching permissions from: ${grantsUrl}`);
+
+            const res = await fetch(grantsUrl, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (!res.ok) {
+                console.warn(`[UC Adapter] Failed to fetch real grants. Falling back to mock logic. Status: ${res.status}`);
+                return this.getMockGrants(object);
+            }
+
+            const data = await res.json();
+            // Map UC PrivilegeAssignments to our internal Grant format
+            return (data.privilege_assignments || []).flatMap(pa =>
+                pa.privileges.map(priv => ({
+                    principal: { name: pa.principal, type: 'UNKNOWN' }, // SCIM lookup would be needed for full detail
+                    permissions: [priv],
+                    source: 'LIVE',
+                    type: 'DIRECT'
+                }))
+            );
+
+        } catch (error) {
+            console.error("[UC Adapter] Error fetching live grants:", error);
+            return this.getMockGrants(object);
+        }
+    },
+
+    getMockGrants(object) {
+        // Fallback mock logic
         const grants = [];
-
-        // MOCK SCENARIO 1: "Configured but Not Applied"
-        // (Handled by having a request in LocalStorage but nothing here)
-
-        // MOCK SCENARIO 2: "Not Recorded" (Red)
-        // We simulate that 'tbl_transactions' has a grant that was made out-of-band (manually in UC console)
         if (object.name === 'transactions') {
             grants.push({
                 principal: { id: 'user_cfo', name: 'Carol CFO', type: 'USER' },
@@ -49,24 +84,7 @@ export const UnityCatalogAdapter = {
                 source: 'LIVE',
                 type: 'DIRECT'
             });
-            grants.push({
-                principal: { id: 'group_finance_admins', name: 'Finance Admins', type: 'GROUP' },
-                permissions: ['SELECT', 'MODIFY'],
-                source: 'LIVE',
-                type: 'DIRECT'
-            });
         }
-
-        // Mock: Add specific grant for "marketing" schema
-        if (object.name === 'marketing') {
-            grants.push({
-                principal: { id: 'user_marketing_lead', name: 'Mike Marketing', type: 'USER' },
-                permissions: ['USE_SCHEMA'],
-                source: 'LIVE',
-                type: 'DIRECT'
-            });
-        }
-
         return grants;
     }
 };
