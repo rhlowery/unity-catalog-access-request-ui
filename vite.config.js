@@ -10,7 +10,8 @@ export default defineConfig(({ mode }) => {
     server: {
       proxy: {
         '/api': {
-          target: env.VITE_DATABRICKS_HOST || 'https://dbc-placeholder.cloud.databricks.com',
+          // Target should ideally be the configured host. Fallback to accounts.cloud.databricks.com
+          target: env.VITE_DATABRICKS_HOST || 'https://accounts.cloud.databricks.com',
           changeOrigin: true,
           secure: false,
           headers: {

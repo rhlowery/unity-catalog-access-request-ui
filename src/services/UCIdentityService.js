@@ -142,10 +142,14 @@ export const fetchWorkspaces = async () => {
         const data = await res.json();
 
         // Map to our format
+        // Derive the domain from the baseUrl (e.g. cloud.databricks.com or azuredatabricks.net)
+        const hostUrl = new URL(baseUrl);
+        const domain = hostUrl.hostname.split('.').slice(1).join('.'); // takes "cloud.databricks.com" from "accounts.cloud.databricks.com"
+
         return (data.map(ws => ({
             id: ws.workspace_id,
             name: ws.workspace_name,
-            url: `https://${ws.deployment_name}.cloud.databricks.com` // Construct URL
+            url: `https://${ws.deployment_name}.${domain}` // Use derived domain
         })));
 
     } catch (error) {
