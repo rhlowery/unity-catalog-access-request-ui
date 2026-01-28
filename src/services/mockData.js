@@ -110,15 +110,27 @@ export const getCatalogs = () => Promise.resolve(MOCK_CATALOGS);
 import { fetchUCIdentities } from './UCIdentityService';
 
 export const getIdentities = async () => {
-    // 1. Try to fetch real data from Unity Catalog
-    const realData = await fetchUCIdentities();
+    // Check config to see if we should fetch from UC (either DATABRICKS IDP or SCIM is enabled)
+    const config = StorageService.getConfig();
+    let shouldUseUC = false;
 
-    if (realData) {
-        return [
-            ...realData.users,
-            ...realData.groups,
-            ...realData.servicePrincipals
-        ];
+    if (config.identityType === 'DATABRICKS') {
+        shouldUseUC = true;
+    } else if (config.scimEnabled) {
+        shouldUseUC = true;
+    }
+
+    if (shouldUseUC) {
+        // 1. Try to fetch real data from Unity Catalog
+        const realData = await fetchUCIdentities();
+
+        if (realData) {
+            return [
+                ...realData.users,
+                ...realData.groups,
+                ...realData.servicePrincipals
+            ];
+        }
     }
 
     // 2. Fallback to Mock Data

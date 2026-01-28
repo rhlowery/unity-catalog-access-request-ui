@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Save, Server, Database, GitBranch, HardDrive, CheckCircle, Shield, Globe, Lock } from 'lucide-react';
 import { StorageService } from '../services/storage/StorageService';
+import { EventBus } from '../services/EventBus';
 import './AdminSettings.css';
 
 const AdminSettings = () => {
@@ -11,6 +12,7 @@ const AdminSettings = () => {
     const handleSave = () => {
         StorageService.saveConfig(config);
         setSaved(true);
+        EventBus.dispatch('SETTINGS_UPDATED', { config });
         setTimeout(() => setSaved(false), 2000);
     };
 
@@ -181,8 +183,20 @@ const AdminSettings = () => {
                                 <option value="OAUTH">Generic OAuth 2.0 (OIDC)</option>
                                 <option value="AZURE">Microsoft Azure Enterprise AD</option>
                                 <option value="SAML">SAML 2.0 (SSO)</option>
+                                <option value="DATABRICKS">Databricks / Unity Catalog</option>
                             </select>
                         </div>
+
+                        {config.identityType === 'DATABRICKS' && (
+                            <div className="config-section animate-fade-in" style={{ borderTop: 'none', marginTop: 0, paddingTop: 0 }}>
+                                <h4><Globe size={18} style={{ display: 'inline', marginRight: 8 }} /> Databricks Identity</h4>
+                                <p className="text-secondary text-sm mb-4">
+                                    Use the Users and Groups defined in the connected Unity Catalog workspace/account.
+                                    <br />
+                                    <span className="text-muted">Requires "Unity Catalog Connection" to be configured.</span>
+                                </p>
+                            </div>
+                        )}
 
                         {config.identityType === 'SCIM' && (
                             <div className="config-section animate-fade-in" style={{ borderTop: 'none', marginTop: 0, paddingTop: 0 }}>

@@ -128,5 +128,28 @@ export const GitAdapter = {
         };
         saveGitState(state);
         return true;
+    },
+
+    async getGrants(object, config) {
+        // Similar to Load logic, but specific for Reviewer Tab
+        const allReqs = await this.load(config);
+
+        const grants = [];
+        allReqs
+            .filter(r => ['APPROVED', 'MERGED'].includes(r.status)) // In GitOps, MERGED is equivalent to APPROVED
+            .forEach(r => {
+                const targetsObject = r.requestedObjects.some(o => o.id === object.id);
+                if (targetsObject) {
+                    r.principals.forEach(principal => {
+                        grants.push({
+                            principal: principal,
+                            permissions: r.permissions,
+                            source: 'CONFIGURED',
+                            requestId: r.id
+                        });
+                    });
+                }
+            });
+        return grants;
     }
 };

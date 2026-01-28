@@ -101,5 +101,20 @@ export const StorageService = {
             else all.push(request);
             return await adapter.save(all, config);
         }
+    },
+
+    async getGrants(object) {
+        const adapter = this.getAdapter();
+        const config = this.getConfig();
+        if (adapter.getGrants) {
+            return await adapter.getGrants(object, config);
+        }
+        return [];
+    },
+
+    async getLiveGrants(object) {
+        // Always goes to UnityCatalogAdapter for "Live" state
+        const config = this.getConfig();
+        return await UnityCatalogAdapter.getLiveGrants(object, config);
     }
 };

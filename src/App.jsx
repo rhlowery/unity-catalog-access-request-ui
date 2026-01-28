@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { ShieldCheck, LogOut, User as UserIcon } from 'lucide-react'; // Renamed User to UserIcon for clarity
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { EventBus } from './services/EventBus'; // Import EventBus
 import CatalogTree from './components/CatalogTree';
 import AccessForm from './components/AccessForm';
 import ApproverDashboard from './components/ApproverDashboard';
+import ReviewerTab from './components/ReviewerTab';
 import AuditLog from './components/AuditLog';
 import AdminSettings from './components/AdminSettings';
 import Login from './components/Login';
@@ -20,25 +22,36 @@ const MainLayout = () => {
   const [pendingCount, setPendingCount] = useState(0);
 
   useEffect(() => {
-    getCatalogs().then(setCatalogs);
+    const refreshData = () => {
+      getCatalogs().then(setCatalogs);
+    };
+
+    refreshData();
 
     // Poll for pending requests count (simple implementation)
     const checkPending = async () => {
       const reqs = await getRequests();
-      // Since we don't know the exact active persona here, we just check if *any* request is pending globally
-      // or check for specific user. But the requirement implies "requests THEY need to approve".
-      // For simplicity in this mock/demo, we'll sum up pending for ANY of the standard mock personas 
-      // OR ideally, we'd know the user's groups.
-      // Let's count *total* pending requests for now as a signal to check the dashboard.
-      // Refinement: We can check if `user.id` or their groups are in `approvalState` as PENDING.
-      // Mock simplification: We will just count ALL pending requests to prompt action.
       const pending = reqs.filter(r => r.status === 'PENDING').length;
       setPendingCount(pending);
     };
 
     checkPending();
     const interval = setInterval(checkPending, 5000); // Poll every 5s
-    return () => clearInterval(interval);
+
+    // Subscribe to Settings Updates
+    const handleSettingsUpdate = () => {
+      console.log("Settings Updated - Refreshing App State");
+      refreshData();
+      // Force update for non-state config reads (like the workspace dropdown)
+      // Since setCatalogs triggers render, this is implicitly handled.
+    };
+
+    EventBus.on('SETTINGS_UPDATED', handleSettingsUpdate);
+
+    return () => {
+      clearInterval(interval);
+      EventBus.remove('SETTINGS_UPDATED', handleSettingsUpdate);
+    };
   }, [user]);
 
   const handleToggleSelection = (id, node) => {
@@ -116,6 +129,13 @@ const MainLayout = () => {
                   {pendingCount}
                 </span>
               )}
+            </button>
+            <button
+              className={`btn ${viewMode === 'REVIEWER' ? 'btn-primary' : 'btn-ghost'}`}
+              style={viewMode !== 'REVIEWER' ? { border: 'none', background: 'transparent', color: 'var(--text-secondary)' } : {}}
+              onClick={() => setViewMode('REVIEWER')}
+            >
+              Reviewer
             </button>
             {user?.groups?.some(g => ['group_security', 'group_platform_admins'].includes(g)) && (
               <>
@@ -208,6 +228,11 @@ const MainLayout = () => {
             />
           )}
           {viewMode === 'APPROVER' && <ApproverDashboard />}
+          {viewMode === 'REVIEWER' && (
+            <ReviewerTab
+              selectedObject={selectedObjects[selectedObjects.length - 1]}
+            />
+          )}
           {viewMode === 'AUDIT' && <AuditLog />}
           {viewMode === 'SETTINGS' && <AdminSettings />}
         </section>

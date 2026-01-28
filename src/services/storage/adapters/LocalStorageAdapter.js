@@ -27,5 +27,28 @@ export const LocalStorageAdapter = {
             all.push(request);
         }
         return await this.save(all);
+    },
+
+    async getGrants(object, config) {
+        const requests = await this.load();
+        // 1. Filter for APPROVED requests that target this object
+        // 2. Flatten to list of grants { principal, permissions }
+        const grants = [];
+        requests
+            .filter(r => r.status === 'APPROVED')
+            .forEach(r => {
+                const targetsObject = r.requestedObjects.some(o => o.id === object.id);
+                if (targetsObject) {
+                    r.principals.forEach(principal => {
+                        grants.push({
+                            principal: principal,
+                            permissions: r.permissions,
+                            source: 'CONFIGURED',
+                            requestId: r.id
+                        });
+                    });
+                }
+            });
+        return grants;
     }
 };
