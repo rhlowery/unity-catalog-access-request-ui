@@ -1,0 +1,63 @@
+<ui:composition xmlns="http://www.w3.org/1999/xhtml" xmlns:h="http://xmlns.jcp.org/jsf/html"
+    xmlns:ui="http://xmlns.jcp.org/jsf/facelets" xmlns:p="http://primefaces.org/ui"
+    xmlns:f="http://xmlns.jcp.org/jsf/core" template="/WEB-INF/template.xhtml">
+
+    <ui:define name="content">
+        <h:form id="settingsForm">
+            <div class="admin-settings animate-fade-in">
+                <h2>System Configuration</h2>
+                <p class="text-secondary mb-4">Manage storage backends, identity providers, and platform connections.
+                </p>
+
+                <div class="settings-tabs">
+                    <p:commandButton value="Storage"
+                        styleClass="tab-btn #{adminSettingsBean.activeTab == 'STORAGE' ? 'active' : ''}"
+                        actionListener="#{adminSettingsBean.setTab('STORAGE')}" update="settingsContent" />
+                    <p:commandButton value="Identity"
+                        styleClass="tab-btn #{adminSettingsBean.activeTab == 'IDENTITY' ? 'active' : ''}"
+                        actionListener="#{adminSettingsBean.setTab('IDENTITY')}" update="settingsContent" />
+                    <p:commandButton value="Unity Catalog"
+                        styleClass="tab-btn #{adminSettingsBean.activeTab == 'UNITY_CATALOG' ? 'active' : ''}"
+                        actionListener="#{adminSettingsBean.setTab('UNITY_CATALOG')}" update="settingsContent" />
+                </div>
+
+                <h:panelGroup id="settingsContent" layout="block" styleClass="glass-panel settings-card">
+                    <ui:fragment rendered="#{adminSettingsBean.activeTab == 'STORAGE'}">
+                        <h4>Storage Configuration</h4>
+                        <div class="form-group">
+                            <label>Storage Type</label>
+                            <h:selectOneMenu value="#{adminSettingsBean.config.type}" styleClass="form-control">
+                                <f:selectItem itemLabel="Local File" itemValue="LOCAL" />
+                                <f:selectItem itemLabel="RDBMS" itemValue="RDBMS" />
+                                <f:selectItem itemLabel="Git" itemValue="GIT" />
+                                <f:selectItem itemLabel="Mock (Volatile)" itemValue="MOCK" />
+                            </h:selectOneMenu>
+                        </div>
+                    </ui:fragment>
+
+                    <ui:fragment rendered="#{adminSettingsBean.activeTab == 'UNITY_CATALOG'}">
+                        <h4>Unity Catalog Configuration</h4>
+                        <div class="form-group">
+                            <label>Client ID</label>
+                            <h:inputText value="#{adminSettingsBean.config.ucClientId}" styleClass="form-control" />
+                        </div>
+                        <div class="form-group">
+                            <label>Client Secret</label>
+                            <h:inputSecret value="#{adminSettingsBean.config.ucClientSecret}"
+                                styleClass="form-control" />
+                        </div>
+                        <div class="form-group">
+                            <label>Host URL</label>
+                            <h:inputText value="#{adminSettingsBean.config.ucHost}" styleClass="form-control" />
+                        </div>
+                    </ui:fragment>
+                </h:panelGroup>
+
+                <div class="settings-actions">
+                    <p:commandButton value="Save Configuration" action="#{adminSettingsBean.save}" update="growl"
+                        styleClass="btn-primary" />
+                </div>
+            </div>
+        </h:form>
+    </ui:define>
+</ui:composition>

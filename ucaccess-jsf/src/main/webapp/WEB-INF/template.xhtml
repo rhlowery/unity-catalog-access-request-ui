@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:h="http://xmlns.jcp.org/jsf/html"
+    xmlns:ui="http://xmlns.jcp.org/jsf/facelets" xmlns:p="http://primefaces.org/ui">
+
+<h:head>
+    <title>UC Access Manager</title>
+    <h:outputStylesheet library="css" name="App.css" />
+    <h:outputStylesheet library="css" name="AdminSettings.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap"
+        rel="stylesheet" />
+</h:head>
+
+<h:body>
+    <div class="app-container">
+        <header class="app-header">
+            <div class="logo">
+                <div class="logo-icon"></div>
+                <h1>Unity Catalog Access</h1>
+            </div>
+            <nav class="main-nav">
+                <h:link outcome="index" styleClass="nav-link">Dashboard</h:link>
+                <h:link outcome="settings" styleClass="nav-link">Settings</h:link>
+            </nav>
+            <div class="user-profile">
+                <span class="avatar"></span>
+            </div>
+        </header>
+
+        <main class="app-main">
+            <ui:insert name="content">
+                <!-- Content goes here -->
+            </ui:insert>
+        </main>
+    </div>
+
+    <p:growl id="growl" showDetail="true" life="3000" />
+</h:body>
+
+</html>
