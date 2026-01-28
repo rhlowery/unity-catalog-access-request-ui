@@ -29,9 +29,12 @@ const getM2MToken = async (config) => {
         body.append('client_secret', config.ucClientSecret);
         body.append('scope', 'all-apis');
 
-        // We use the proxy '/api' prefix to handle CORS to the Databricks host
-        // The token endpoint is usually /oidc/v1/token on the workspace URL
-        const tokenRes = await fetch('/api/oidc/v1/token', {
+        // Use the configured host for the token endpoint
+        const host = config.ucHost || 'accounts.cloud.databricks.com';
+        const baseUrl = host.startsWith('http') ? host : `https://${host}`;
+
+        // The token endpoint is usually /oidc/v1/token on the workspace URL or account URL
+        const tokenRes = await fetch(`${baseUrl}/oidc/v1/token`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded'
@@ -62,12 +65,15 @@ export const fetchUCIdentities = async () => {
             headers['Authorization'] = `Bearer ${accessToken}`;
         }
 
-        console.log(`Fetching identities from Unity Catalog via ${hostInfo}...`);
+        const host = config.ucHost || 'accounts.cloud.databricks.com';
+        const baseUrl = host.startsWith('http') ? host : `https://${host}`;
+
+        console.log(`Fetching identities from Unity Catalog via ${baseUrl}...`);
 
         const [usersRes, groupsRes, spRes] = await Promise.allSettled([
-            fetch(`${API_BASE}/Users`, { headers }),
-            fetch(`${API_BASE}/Groups`, { headers }),
-            fetch(`${API_BASE}/ServicePrincipals`, { headers })
+            fetch(`${baseUrl}${API_BASE}/Users`, { headers }),
+            fetch(`${baseUrl}${API_BASE}/Groups`, { headers }),
+            fetch(`${baseUrl}${API_BASE}/ServicePrincipals`, { headers })
         ]);
 
         const users = usersRes.status === 'fulfilled' ? await usersRes.value.json() : { Resources: [] };
