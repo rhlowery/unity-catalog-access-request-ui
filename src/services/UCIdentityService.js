@@ -32,9 +32,12 @@ const getM2MToken = async (config) => {
         // Use the configured host for the token endpoint
         const host = config.ucHost || 'accounts.cloud.databricks.com';
         const baseUrl = host.startsWith('http') ? host : `https://${host}`;
+        const tokenUrl = `${baseUrl}/oidc/v1/token`;
+
+        console.log(`[UCIdentityService] Token Exchange URL: ${tokenUrl}`);
 
         // The token endpoint is usually /oidc/v1/token on the workspace URL or account URL
-        const tokenRes = await fetch(`${baseUrl}/oidc/v1/token`, {
+        const tokenRes = await fetch(tokenUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded'
@@ -42,13 +45,18 @@ const getM2MToken = async (config) => {
             body: body
         });
 
-        if (!tokenRes.ok) throw new Error('Token exchange failed');
+        if (!tokenRes.ok) {
+            const errorBody = await tokenRes.text().catch(() => 'No body');
+            console.error(`[UCIdentityService] Token exchange failed. Status: ${tokenRes.status} ${tokenRes.statusText}, Body: ${errorBody}`);
+            throw new Error(`Token exchange failed with status ${tokenRes.status}`);
+        }
 
         const data = await tokenRes.json();
         cachedToken = data.access_token;
+        console.log("[UCIdentityService] Token successfully retrieved.");
         return data.access_token;
     } catch (e) {
-        console.error("M2M Token Exchange Error:", e);
+        console.error("[UCIdentityService] M2M Token Exchange Error:", e);
         return null;
     }
 };
@@ -135,11 +143,19 @@ export const fetchWorkspaces = async () => {
         const host = config.ucHost || 'accounts.cloud.databricks.com';
         // Ensure protocol
         const baseUrl = host.startsWith('http') ? host : `https://${host}`;
+        const workspacesUrl = `${baseUrl}/api/2.0/accounts/${config.ucAccountId}/workspaces`;
 
-        const res = await fetch(`${baseUrl}/api/2.0/accounts/${config.ucAccountId}/workspaces`, { headers });
-        if (!res.ok) throw new Error(`Workspaces Fetch Failed: ${res.statusText}`);
+        console.log(`[UCIdentityService] Fetching Workspaces URL: ${workspacesUrl}`);
+
+        const res = await fetch(workspacesUrl, { headers });
+        if (!res.ok) {
+            const errorBody = await res.text().catch(() => 'No body');
+            console.error(`[UCIdentityService] Workspaces Fetch Failed. Status: ${res.status} ${res.statusText}, Body: ${errorBody}`);
+            throw new Error(`Workspaces Fetch Failed: ${res.statusText}`);
+        }
 
         const data = await res.json();
+        console.log(`[UCIdentityService] Successfully fetched ${data.length || 0} workspaces.`);
 
         // Map to our format
         // Derive the domain from the baseUrl (e.g. cloud.databricks.com or azuredatabricks.net)
@@ -203,17 +219,26 @@ export const fetchCatalogs = async (workspaceUrl) => {
         // We will try to fetch from `${workspaceUrl}/api/2.1/unity-catalog/catalogs`.
 
         const headers = { 'Authorization': `Bearer ${token}` };
+        const catalogsUrl = `${workspaceUrl}/api/2.1/unity-catalog/catalogs`;
+
+        console.log(`[UCIdentityService] Fetching Catalogs URL: ${catalogsUrl}`);
 
         // 1. Fetch Catalogs
         // We use a helper to robustly fetch or return mock if actual network fails (CORS).
-        const catalogsRes = await fetch(`${workspaceUrl}/api/2.1/unity-catalog/catalogs`, { headers }).catch(e => null);
+        const catalogsRes = await fetch(catalogsUrl, { headers }).catch(e => {
+            console.error(`[UCIdentityService] Network error fetching catalogs from ${workspaceUrl}:`, e);
+            return null;
+        });
+
         if (!catalogsRes || !catalogsRes.ok) {
-            console.warn(`Failed to fetch catalogs from ${workspaceUrl} (CORS/NetError). Using Mock data for demo.`);
+            const status = catalogsRes ? `${catalogsRes.status} ${catalogsRes.statusText}` : 'Network Error';
+            console.warn(`[UCIdentityService] Failed to fetch catalogs from ${workspaceUrl} (${status}). Using Mock data for demo.`);
             return null;
         }
 
         const catalogsData = await catalogsRes.json();
         const catalogs = catalogsData.catalogs || [];
+        console.log(`[UCIdentityService] Found ${catalogs.length} catalogs in ${workspaceUrl}.`);
 
         // 2. Build Tree (Parallel fetch for Schemas)
         const tree = await Promise.all(catalogs.map(async (cat) => {
