@@ -9,9 +9,9 @@ import ReviewerTab from './components/ReviewerTab';
 import AuditLog from './components/AuditLog';
 import AdminSettings from './components/AdminSettings';
 import Login from './components/Login';
-import { getCatalogs, getRequests } from './services/mockData';
-import { fetchWorkspaces, fetchCatalogs } from './services/UCIdentityService';
 import { StorageService } from './services/storage/StorageService';
+import { CatalogService } from './services/catalog/CatalogService';
+import { getRequests } from './services/mockData';
 import './index.css';
 
 const MainLayout = () => {
@@ -33,7 +33,7 @@ const MainLayout = () => {
       if (currentWorkspaceId) {
         const ws = workspaces.find(w => w.id === currentWorkspaceId);
         if (ws) {
-          const fetched = await fetchCatalogs(ws.url);
+          const fetched = await CatalogService.fetchCatalogs(ws.url);
           if (fetched) {
             setCatalogs(fetched);
             return;
@@ -44,16 +44,16 @@ const MainLayout = () => {
       setCatalogs([]);
     } else if (currentConfig.ucAuthType === 'WORKSPACE') {
       // Single Workspace Mode
-      const fetched = await fetchCatalogs(currentConfig.ucHost);
+      const fetched = await CatalogService.fetchCatalogs(currentConfig.ucHost);
       if (fetched) {
         setCatalogs(fetched);
       } else {
         // Fallback to mock if fetch fails
-        getCatalogs().then(setCatalogs);
+        CatalogService.fetchCatalogs(null).then(setCatalogs);
       }
     } else {
       // MOCK Mode
-      getCatalogs().then(setCatalogs);
+      CatalogService.fetchCatalogs(null).then(setCatalogs);
     }
   };
 
@@ -66,7 +66,7 @@ const MainLayout = () => {
         setLoadingWorkspaces(true);
         setWorkspaceError(null);
         try {
-          const wsList = await fetchWorkspaces();
+          const wsList = await CatalogService.fetchWorkspaces();
           setWorkspaces(wsList);
           if (wsList.length > 0 && !selectedWorkspaceId) {
             setSelectedWorkspaceId(wsList[0].id);

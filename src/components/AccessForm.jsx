@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, Users, Shield, CheckCircle, X } from 'lucide-react';
-import { getIdentities, PERMISSIONS, submitRequest } from '../services/mockData';
+import { IdentityService } from '../services/identity/IdentityService';
+import { PERMISSIONS, submitRequest } from '../services/mockData';
 import { useAuth } from '../context/AuthContext';
 import './AccessForm.css';
 
@@ -15,7 +16,15 @@ const AccessForm = ({ selectedObjects, onClearSelection }) => {
     const [successMessage, setSuccessMessage] = useState('');
 
     useEffect(() => {
-        getIdentities().then(setIdentities);
+        const loadIdentities = async () => {
+            const data = await IdentityService.fetchIdentities();
+            setIdentities([
+                ...data.users,
+                ...data.groups,
+                ...data.servicePrincipals
+            ]);
+        };
+        loadIdentities();
     }, []);
 
     const handlePrincipalToggle = (id) => {

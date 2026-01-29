@@ -6,6 +6,7 @@
  */
 
 import { StorageService } from './storage/StorageService';
+import { SecretsService } from './secrets/SecretsService';
 
 const API_BASE = '/api/2.0/preview/scim/v2';
 
@@ -17,7 +18,14 @@ export const clearTokenCache = () => { cachedToken = null; };
 export const getM2MToken = async (config) => {
     if (cachedToken) return cachedToken;
 
-    if (!config.ucClientId || !config.ucClientSecret) {
+    // Resolve Secret if from Vault
+    const clientSecret = await SecretsService.resolveSecret(
+        config.ucClientSecretVaultPath,
+        config.ucClientSecretVaultKey,
+        config.ucClientSecret
+    );
+
+    if (!config.ucClientId || !clientSecret) {
         console.warn("Missing UC Client ID/Secret for M2M Auth.");
         return null;
     }
@@ -28,7 +36,7 @@ export const getM2MToken = async (config) => {
         const body = new URLSearchParams();
         body.append('grant_type', 'client_credentials');
         body.append('client_id', config.ucClientId);
-        body.append('client_secret', config.ucClientSecret);
+        body.append('client_secret', clientSecret);
         body.append('scope', 'all-apis');
 
         // Use the configured host for the token endpoint
