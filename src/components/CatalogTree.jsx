@@ -70,7 +70,8 @@ const TreeNode = ({ node, selectedIds, toggleSelection }) => {
 
 
 
-const CatalogTree = ({ nodes, selectedIds, onToggleSelection }) => {
+const CatalogTree = ({ nodes = [], selectedIds, onToggleSelection }) => {
+    if (!nodes) return null;
     return (
         <div className="tree-container">
             {nodes.map(node => (

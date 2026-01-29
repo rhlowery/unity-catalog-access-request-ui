@@ -15,15 +15,29 @@ let cachedToken = null;
 
 export const clearTokenCache = () => { cachedToken = null; };
 
+const getAccountBaseUrl = (config) => {
+    if (config.ucHost) return config.ucHost.startsWith('http') ? config.ucHost : `https://${config.ucHost}`;
+
+    // Azure uses a different account console domain
+    if (config.ucCloudProvider === 'AZURE') {
+        return 'https://accounts.azuredatabricks.net';
+    }
+    // AWS and GCP use the standard domain
+    return 'https://accounts.cloud.databricks.com';
+};
+
 export const getM2MToken = async (config) => {
     if (cachedToken) return cachedToken;
 
     // Resolve Secret if from Vault
-    const clientSecret = await SecretsService.resolveSecret(
-        config.ucClientSecretVaultPath,
-        config.ucClientSecretVaultKey,
-        config.ucClientSecret
-    );
+    let clientSecret = config.ucClientSecret;
+    if (config.ucClientSecretSource === 'VAULTED') {
+        clientSecret = await SecretsService.resolveSecret(
+            config.vaultSecretPath,
+            config.ucClientSecretVaultKey,
+            config.ucClientSecret // Use current value as fallback
+        );
+    }
 
     if (!config.ucClientId || !clientSecret) {
         console.warn("Missing UC Client ID/Secret for M2M Auth.");
@@ -39,9 +53,7 @@ export const getM2MToken = async (config) => {
         body.append('client_secret', clientSecret);
         body.append('scope', 'all-apis');
 
-        // Use the configured host for the token endpoint
-        const host = config.ucHost || 'accounts.cloud.databricks.com';
-        const baseUrl = host.startsWith('http') ? host : `https://${host}`;
+        const baseUrl = getAccountBaseUrl(config);
         const tokenUrl = `${baseUrl}/oidc/v1/token`;
 
         console.log(`[UCIdentityService] Token Exchange URL: ${tokenUrl}`);
@@ -73,7 +85,7 @@ export const getM2MToken = async (config) => {
 
 export const fetchUCIdentities = async () => {
     try {
-        const config = StorageService.getConfig();
+        const config = await StorageService.getResolvedConfig();
         const hostInfo = config.ucHost ? `Configured Host (${config.ucHost})` : 'Env/Proxy Host';
 
         // 1. Get Token via M2M
@@ -83,8 +95,7 @@ export const fetchUCIdentities = async () => {
             headers['Authorization'] = `Bearer ${accessToken}`;
         }
 
-        const host = config.ucHost || 'accounts.cloud.databricks.com';
-        const baseUrl = host.startsWith('http') ? host : `https://${host}`;
+        const baseUrl = getAccountBaseUrl(config);
 
         // Determine SCIM API Path
         // Account level: /api/2.0/accounts/{account_id}/scim/v2
@@ -145,7 +156,7 @@ export const fetchUCIdentities = async () => {
 
 export const fetchWorkspaces = async () => {
     try {
-        const config = StorageService.getConfig();
+        const config = await StorageService.getResolvedConfig();
         if (config.ucAuthType !== 'ACCOUNT') return [];
         if (!config.ucAccountId) {
             console.warn("[UCIdentityService] ucAccountId is missing in ACCOUNT mode.");
@@ -165,9 +176,7 @@ export const fetchWorkspaces = async () => {
         // Valid Endpoint: GET https://<host>/api/2.0/accounts/{account_id}/workspaces
         // User requested to use the "host_url" (interpreted as the configured host) instead of hardcoded hostname
 
-        const host = config.ucHost || 'accounts.cloud.databricks.com';
-        // Ensure protocol
-        const baseUrl = host.startsWith('http') ? host : `https://${host}`;
+        const baseUrl = getAccountBaseUrl(config);
         const workspacesUrl = `${baseUrl}/api/2.0/accounts/${config.ucAccountId}/workspaces`;
 
         console.log(`[UCIdentityService] Fetching Workspaces URL: ${workspacesUrl}`);
@@ -214,7 +223,7 @@ const getValidToken = async (host, config) => {
 
 export const fetchCatalogs = async (workspaceUrl) => {
     try {
-        const config = StorageService.getConfig();
+        const config = await StorageService.getResolvedConfig();
         const token = await getValidToken(workspaceUrl, config);
 
         if (!token) throw new Error("No valid token available");

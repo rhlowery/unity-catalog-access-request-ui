@@ -11,6 +11,14 @@ export const DatabricksCatalogAdapter = {
     type: 'DATABRICKS',
 
     async fetchWorkspaces(config) {
+        if (config.ucAuthType === 'WORKSPACE') {
+            const host = config.ucHost || 'primary-workspace';
+            const derivedName = host.replace(/^https?:\/\//, '').split('.')[0] || 'Primary Workspace';
+            const name = config.ucWorkspaceName || (derivedName.charAt(0).toUpperCase() + derivedName.slice(1));
+            return [
+                { id: 'ws_single', name, url: host.startsWith('http') ? host : `https://${host}` }
+            ];
+        }
         return await fetchWorkspaces();
     },
 

@@ -49,11 +49,11 @@ const MainLayout = () => {
         setCatalogs(fetched);
       } else {
         // Fallback to mock if fetch fails
-        CatalogService.fetchCatalogs(null).then(setCatalogs);
+        CatalogService.fetchCatalogs(null).then(data => setCatalogs(data || []));
       }
     } else {
       // MOCK Mode
-      CatalogService.fetchCatalogs(null).then(setCatalogs);
+      CatalogService.fetchCatalogs(null).then(data => setCatalogs(data || []));
     }
   };
 

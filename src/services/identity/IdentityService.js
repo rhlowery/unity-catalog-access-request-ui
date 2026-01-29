@@ -23,14 +23,14 @@ export const IdentityService = {
 
     async fetchIdentities() {
         const adapter = this.getAdapter();
-        const config = StorageService.getConfig();
+        const config = await StorageService.getResolvedConfig();
         console.log(`[IdentityService] Fetching identities using ${adapter.name}`);
         return await adapter.fetchIdentities(config);
     },
 
     async getCurrentUser() {
         const adapter = this.getAdapter();
-        const config = StorageService.getConfig();
+        const config = await StorageService.getResolvedConfig();
         return await adapter.getCurrentUser(config);
     }
 };

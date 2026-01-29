@@ -17,56 +17,142 @@ const CONFIG_KEY = 'acs_storage_config_v1';
 // Default Config
 const DEFAULT_CONFIG = {
     type: 'LOCAL',
-    // UC Config
+    // UC Storage Config
     ucCatalog: 'main',
     ucSchema: 'analytics',
     ucTable: 'access_audit_log',
+
     // RDBMS Config
     rdbmsConn: 'jdbc:postgresql://localhost:5432/access_db',
     rdbmsUser: 'admin',
-    // Git Config
-    gitProvider: 'GITHUB', // GITHUB, GITLAB, GITLAB_SELF_HOSTED
-    gitHost: 'github.com',
-    gitRepo: 'org/repo', // Normalized label
-    gitBranch: 'main',
+    rdbmsPassword: '',
+    rdbmsPasswordSource: 'PLAIN', // PLAIN, VAULTED
+    rdbmsPasswordVaultKey: 'database_password',
 
-    // Identity Provider (SSO/SCIM/OAuth)
-    identityType: 'OAUTH', // OAUTH, AZURE, or SAML
+    // Git Config
+    gitProvider: 'GITHUB',
+    gitHost: 'github.com',
+    gitRepo: 'org/repo',
+    gitBranch: 'main',
+    gitToken: '',
+    gitTokenSource: 'PLAIN', // PLAIN, VAULTED
+    gitTokenVaultKey: 'git_token',
+
+    // Identity Provider
+    identityType: 'OAUTH',
     scimEnabled: false,
     azureTenantId: '',
     samlSsoUrl: '',
     samlCert: '',
+    samlCertSource: 'PLAIN', // PLAIN, VAULTED
+    samlCertVaultKey: 'saml_cert',
     scimUrl: '',
     scimToken: '',
+    scimTokenSource: 'PLAIN', // PLAIN, VAULTED
+    scimTokenVaultKey: 'scim_token',
     oauthClientId: '',
     oauthClientSecret: '',
+    oauthClientSecretSource: 'PLAIN', // PLAIN, VAULTED
+    oauthClientSecretVaultKey: 'identity_client_secret',
     oauthAuthUrl: '',
     oauthTokenUrl: '',
 
     // Unity Catalog Global
-    ucAuthType: 'WORKSPACE', // WORKSPACE or ACCOUNT
+    ucAuthType: 'WORKSPACE',
     ucAccountId: '',
     ucHost: '',
     ucClientId: '',
-    ucClientSecret: '', // Used if Source is PLAIN
-    ucClientSecretSource: 'PLAIN', // PLAIN or VAULT
-    ucClientSecretVaultPath: '',
-    ucClientSecretVaultKey: '',
+    ucClientSecret: '',
+    ucClientSecretSource: 'PLAIN', // PLAIN, VAULTED
+    ucClientSecretVaultKey: 'client_secret',
+    ucCloudProvider: 'AWS',
+    ucWorkspaceName: '',
 
-    // Vault Config
+    // Global Secret Management
+    globalSecretProvider: 'PLAIN', // PLAIN, VAULT, MOCK_VAULT
     vaultUrl: '',
     vaultToken: '',
-    vaultNamespace: ''
+    vaultNamespace: '',
+    vaultSecretPath: 'secret/data/uc-access-app'
 };
 
 export const StorageService = {
     getConfig() {
         const stored = localStorage.getItem(CONFIG_KEY);
-        return stored ? { ...DEFAULT_CONFIG, ...JSON.parse(stored) } : DEFAULT_CONFIG;
+        // Migration: map old ucClientSecretSource to globalSecretProvider if it's a provider type
+        let config = stored ? { ...DEFAULT_CONFIG, ...JSON.parse(stored) } : DEFAULT_CONFIG;
+        if (['VAULT', 'MOCK_VAULT'].includes(config.ucClientSecretSource)) {
+            config.globalSecretProvider = config.ucClientSecretSource;
+            config.ucClientSecretSource = 'VAULTED';
+        }
+        return config;
     },
 
     saveConfig(config) {
         localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
+    },
+
+    async getResolvedConfig() {
+        const config = this.getConfig();
+        const { SecretsService } = await import('../secrets/SecretsService');
+
+        let resolvedConfig = { ...config };
+
+        // Resolve RDBMS Password
+        if (config.rdbmsPasswordSource === 'VAULTED') {
+            resolvedConfig.rdbmsPassword = await SecretsService.resolveSecret(
+                config.vaultSecretPath,
+                config.rdbmsPasswordVaultKey,
+                config.rdbmsPassword
+            );
+        }
+
+        // Resolve UC Client Secret
+        if (config.ucClientSecretSource === 'VAULTED') {
+            resolvedConfig.ucClientSecret = await SecretsService.resolveSecret(
+                config.vaultSecretPath,
+                config.ucClientSecretVaultKey,
+                config.ucClientSecret
+            );
+        }
+
+        // Resolve Git Token
+        if (config.gitTokenSource === 'VAULTED') {
+            resolvedConfig.gitToken = await SecretsService.resolveSecret(
+                config.vaultSecretPath,
+                config.gitTokenVaultKey,
+                config.gitToken
+            );
+        }
+
+        // Resolve SAML Cert
+        if (config.samlCertSource === 'VAULTED') {
+            resolvedConfig.samlCert = await SecretsService.resolveSecret(
+                config.vaultSecretPath,
+                config.samlCertVaultKey,
+                config.samlCert
+            );
+        }
+
+        // Resolve SCIM Token
+        if (config.scimTokenSource === 'VAULTED') {
+            resolvedConfig.scimToken = await SecretsService.resolveSecret(
+                config.vaultSecretPath,
+                config.scimTokenVaultKey,
+                config.scimToken
+            );
+        }
+
+        // Resolve OAuth Client Secret
+        if (config.oauthClientSecretSource === 'VAULTED') {
+            resolvedConfig.oauthClientSecret = await SecretsService.resolveSecret(
+                config.vaultSecretPath,
+                config.oauthClientSecretVaultKey,
+                config.oauthClientSecret
+            );
+        }
+
+        return resolvedConfig;
     },
 
     getAdapter() {
@@ -76,27 +162,25 @@ export const StorageService = {
 
     async loadRequests() {
         const adapter = this.getAdapter();
-        const config = this.getConfig();
+        const config = await this.getResolvedConfig();
         console.log(`[StorageService] Loading using ${adapter.name}`);
         return await adapter.load(config);
     },
 
     async saveRequests(data) {
         const adapter = this.getAdapter();
-        const config = this.getConfig();
+        const config = await this.getResolvedConfig();
         console.log(`[StorageService] Saving all using ${adapter.name}`);
         return await adapter.save(data, config);
     },
 
     async upsertRequest(request) {
         const adapter = this.getAdapter();
-        const config = this.getConfig();
+        const config = await this.getResolvedConfig();
         console.log(`[StorageService] Upserting request ${request.id} using ${adapter.name}`);
-        // If adapter supports upsert, use it. Otherwise fall back to load -> modify -> save
         if (adapter.upsertRequest) {
             return await adapter.upsertRequest(request, config);
         } else {
-            // Fallback for adapters that don't implement granular updates
             const all = await adapter.load(config);
             const index = all.findIndex(r => r.id === request.id);
             if (index !== -1) all[index] = request;
@@ -107,7 +191,7 @@ export const StorageService = {
 
     async getGrants(object) {
         const adapter = this.getAdapter();
-        const config = this.getConfig();
+        const config = await this.getResolvedConfig();
         if (adapter.getGrants) {
             return await adapter.getGrants(object, config);
         }
