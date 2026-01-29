@@ -112,11 +112,5 @@ export const StorageService = {
             return await adapter.getGrants(object, config);
         }
         return [];
-    },
-
-    async getLiveGrants(object) {
-        // Always goes to UnityCatalogAdapter for "Live" state
-        const config = this.getConfig();
-        return await UnityCatalogAdapter.getLiveGrants(object, config);
     }
 };

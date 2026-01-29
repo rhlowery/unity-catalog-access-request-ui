@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Shield, AlertTriangle, CheckCircle, XCircle, Info } from 'lucide-react';
 import { StorageService } from '../services/storage/StorageService';
-import './ReviewerTab.css';
+import { CatalogService } from '../services/catalog/CatalogService';
 
 const ReviewerTab = ({ selectedObject }) => {
     // ...
@@ -21,7 +21,7 @@ const ReviewerTab = ({ selectedObject }) => {
         setLoading(true);
         try {
             const configured = await StorageService.getGrants(selectedObject);
-            const live = await StorageService.getLiveGrants(selectedObject);
+            const live = await CatalogService.getLiveGrants(selectedObject);
             setConfiguredGrants(configured);
             setLiveGrants(live);
             compareGrants(configured, live);
