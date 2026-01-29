@@ -307,38 +307,40 @@ const AdminSettings = () => {
                             </div>
                         )}
 
-                        {/* SCIM Configuration (Decoupled) */}
-                        <div className="config-section" style={{ borderTop: '1px solid rgba(255,255,255,0.1)', marginTop: '2rem', paddingTop: '1.5rem' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
-                                <div>
-                                    <h4 style={{ marginBottom: '4px' }}><Shield size={18} style={{ display: 'inline', marginRight: 8 }} /> User Synchronization (SCIM)</h4>
-                                    <p className="text-secondary text-sm" style={{ margin: 0 }}>Automatically sync users and groups from your IDP.</p>
+                        {/* SCIM Configuration (Decoupled) - Hidden if using Databricks or Mock natively */}
+                        {!['DATABRICKS', 'MOCK'].includes(config.identityType) && (
+                            <div className="config-section" style={{ borderTop: '1px solid rgba(255,255,255,0.1)', marginTop: '2rem', paddingTop: '1.5rem' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                                    <div>
+                                        <h4 style={{ marginBottom: '4px' }}><Shield size={18} style={{ display: 'inline', marginRight: 8 }} /> User Synchronization (SCIM)</h4>
+                                        <p className="text-secondary text-sm" style={{ margin: 0 }}>Automatically sync users and groups from your IDP.</p>
+                                    </div>
+                                    <div className="checkbox-wrapper">
+                                        <label className="switch">
+                                            <input
+                                                type="checkbox"
+                                                checked={config.scimEnabled}
+                                                onChange={e => setConfig({ ...config, scimEnabled: e.target.checked })}
+                                            />
+                                            <span className="slider round"></span>
+                                        </label>
+                                    </div>
                                 </div>
-                                <div className="checkbox-wrapper">
-                                    <label className="switch">
-                                        <input
-                                            type="checkbox"
-                                            checked={config.scimEnabled}
-                                            onChange={e => setConfig({ ...config, scimEnabled: e.target.checked })}
-                                        />
-                                        <span className="slider round"></span>
-                                    </label>
-                                </div>
-                            </div>
 
-                            {config.scimEnabled && (
-                                <div className="animate-fade-in">
-                                    <div className="form-group">
-                                        <label>SCIM Endpoint URL</label>
-                                        <input type="text" value={config.scimUrl} placeholder="https://api.my-idp.com/scim/v2" onChange={e => setConfig({ ...config, scimUrl: e.target.value })} />
+                                {config.scimEnabled && (
+                                    <div className="animate-fade-in">
+                                        <div className="form-group">
+                                            <label>SCIM Endpoint URL</label>
+                                            <input type="text" value={config.scimUrl} placeholder="https://api.my-idp.com/scim/v2" onChange={e => setConfig({ ...config, scimUrl: e.target.value })} />
+                                        </div>
+                                        <div className="form-group">
+                                            <label>SCIM API Token</label>
+                                            <input type="password" value={config.scimToken} placeholder="Bearer Token..." onChange={e => setConfig({ ...config, scimToken: e.target.value })} />
+                                        </div>
                                     </div>
-                                    <div className="form-group">
-                                        <label>SCIM API Token</label>
-                                        <input type="password" value={config.scimToken} placeholder="Bearer Token..." onChange={e => setConfig({ ...config, scimToken: e.target.value })} />
-                                    </div>
-                                </div>
-                            )}
-                        </div>
+                                )}
+                            </div>
+                        )}
                     </div>
                 )}
 

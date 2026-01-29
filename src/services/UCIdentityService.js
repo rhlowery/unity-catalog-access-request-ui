@@ -86,12 +86,23 @@ export const fetchUCIdentities = async () => {
         const host = config.ucHost || 'accounts.cloud.databricks.com';
         const baseUrl = host.startsWith('http') ? host : `https://${host}`;
 
-        console.log(`Fetching identities from Unity Catalog via ${baseUrl}...`);
+        // Determine SCIM API Path
+        // Account level: /api/2.0/accounts/{account_id}/scim/v2
+        // Workspace level: /api/2.0/preview/scim/v2
+        let scimPath = '/api/2.0/preview/scim/v2';
+        if (config.ucAuthType === 'ACCOUNT') {
+            if (!config.ucAccountId) {
+                throw new Error("Missing Account ID for Account SCIM fetch");
+            }
+            scimPath = `/api/2.0/accounts/${config.ucAccountId}/scim/v2`;
+        }
+
+        console.log(`Fetching identities from Unity Catalog via ${baseUrl}${scimPath}...`);
 
         const [usersRes, groupsRes, spRes] = await Promise.allSettled([
-            fetch(`${baseUrl}${API_BASE}/Users`, { headers }),
-            fetch(`${baseUrl}${API_BASE}/Groups`, { headers }),
-            fetch(`${baseUrl}${API_BASE}/ServicePrincipals`, { headers })
+            fetch(`${baseUrl}${scimPath}/Users`, { headers }),
+            fetch(`${baseUrl}${scimPath}/Groups`, { headers }),
+            fetch(`${baseUrl}${scimPath}/ServicePrincipals`, { headers })
         ]);
 
         const users = usersRes.status === 'fulfilled' ? await usersRes.value.json() : { Resources: [] };
