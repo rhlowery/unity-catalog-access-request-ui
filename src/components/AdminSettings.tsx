@@ -694,6 +694,127 @@ const AdminSettings = () => {
                                         <br />Example: <code>requests,approvals,audit_log</code>
                                     </p>
                                 </div>
+
+                                {config.ucAuthType === 'ACCOUNT' && (
+                                    <div className="form-group"><label>Databricks Account ID</label><input type="text" value={config.ucAccountId} onChange={e => setConfig({ ...config, ucAccountId: e.target.value })} placeholder="00000000-0000-0000-0000-000000000000" /></div>
+                                )}
+
+                                <div className="form-group">
+                                    <label>Host URL {config.ucAuthType === 'ACCOUNT' ? '(Account Console)' : '(Workspace)'}</label>
+                                    <input
+                                        type="text"
+                                        value={config.ucHost}
+                                        placeholder={config.ucAuthType === 'ACCOUNT' ? "accounts.cloud.databricks.com" : "https://<workspace-id>.cloud.databricks.com"}
+                                        onChange={e => setConfig({ ...config, ucHost: e.target.value })}
+                                    />
+                                </div>
+
+                                <div className="form-group"><label>Service Principal Client ID</label><input type="text" value={config.ucClientId} onChange={e => setConfig({ ...config, ucClientId: e.target.value })} placeholder="UUID..." /></div>
+
+                                <div className="form-group">
+                                    <label>Service Principal Client Secret</label>
+                                    <div style={{ marginBottom: '12px', display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                        <select
+                                            value={config.ucClientSecretSource}
+                                            onChange={e => setConfig({ ...config, ucClientSecretSource: e.target.value })}
+                                            style={{ width: 'auto' }}
+                                        >
+                                            <option value="PLAIN">Plain Text</option>
+                                            <option value="VAULTED">Vaulted (Configured Provider)</option>
+                                        </select>
+                                        <span className="text-xs text-secondary">Source Provider</span>
+                                    </div>
+
+                                    {config.ucClientSecretSource === 'VAULTED' ? (
+                                        <div className="pl-4 border-l-2 border-accent" style={{ borderLeft: '2px solid var(--accent-color)', paddingLeft: '1rem' }}>
+                                            <div className="form-group">
+                                                <label className="text-xs">Vault JSON Key</label>
+                                                <input
+                                                    type="text"
+                                                    value={config.ucClientSecretVaultKey}
+                                                    placeholder="client_secret"
+                                                    onChange={e => setConfig({ ...config, ucClientSecretVaultKey: e.target.value })}
+                                                />
+                                                <small className="text-secondary" style={{ fontSize: '10px' }}>Resolving from: {config.vaultSecretPath}</small>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <input
+                                            type="password"
+                                            value={config.ucClientSecret}
+                                            placeholder="Secret..."
+                                            onChange={e => setConfig({ ...config, ucClientSecret: e.target.value })}
+                                        />
+                                    )}
+                                </div>
+
+                                <div className="mt-6">
+                                    <div className="text-xs text-secondary">
+                                        * Uses OAuth 2.0 Client Credentials flow (M2M) to fetch a short-lived access token.
+                                        <br />
+                                        * <strong className="text-danger">WARNING:</strong> Configuration stored locally in this demo. Use Vault for production secrets.
+                                    </div>
+                                </div>
                             </>
                         )}
                     </div>
+                )}
+
+                 <div className="form-actions mt-6">
+                    <button className="btn btn-primary btn-large" onClick={handleSave}>
+                        {saved ? <><CheckCircle size={20} /> Configuration Saved</> : <><Save size={20} /> Save Configuration</>}
+                    </button>
+                </div>
+            </div>
+
+            {/* MOCK VAULT SECRETS MODAL */}
+            {isMockVaultModalOpen && (
+                <div className="modal-overlay">
+                    <div className="glass-panel modal-content animate-fade-in" style={{ maxWidth: '600px', width: '90%' }}>
+                        <div className="modal-header">
+                            <h3><Lock size={18} /> Manage Mock Vault Secrets</h3>
+                            <button className="btn-icon" onClick={() => setIsMockVaultModalOpen(false)}>
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className="modal-body">
+                            <p className="text-secondary text-sm mb-3">
+                                Edit the mock secrets in JSON format. The keys represent paths, and values are objects with key-value pairs.
+                            </p>
+                            <textarea
+                                value={mockVaultJson}
+                                onChange={e => setMockVaultJson(e.target.value)}
+                                style={{
+                                    width: '100%',
+                                    height: '300px',
+                                    fontFamily: 'monospace',
+                                    fontSize: '13px',
+                                    padding: '12px',
+                                    background: 'rgba(0,0,0,0.3)',
+                                    color: '#fff',
+                                    border: '1px solid var(--glass-border)',
+                                    borderRadius: '4px'
+                                }}
+                                placeholder='{ "secret/path": { "key": "value" } }'
+                            />
+                        </div>
+                        <div className="modal-footer mt-4" style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                            <button className="btn btn-secondary" onClick={() => setIsMockVaultModalOpen(false)}>Cancel</button>
+                            <button className="btn btn-primary" onClick={() => {
+                                try {
+                                    JSON.parse(mockVaultJson); // Validate JSON
+                                    localStorage.setItem('acs_mock_vault_secrets_v1', mockVaultJson);
+                                    setIsMockVaultModalOpen(false);
+                                } catch {
+                                    alert("Invalid JSON format. Please correct it.");
+                                }
+                            }}>Save Mock Secrets</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+export default AdminSettings;

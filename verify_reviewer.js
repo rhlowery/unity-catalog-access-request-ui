@@ -1,5 +1,6 @@
 
 // Mock localStorage
+const global = {};
 global.localStorage = {
     store: {},
     getItem: function (key) { return this.store[key] || null; },

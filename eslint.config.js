@@ -15,7 +15,15 @@ export default defineConfig([
     ],
     languageOptions: {
       ecmaVersion: 2020,
-      globals: globals.browser,
+      globals: {
+        ...globals.browser,
+        // Jest/Vitest globals
+        ...globals.jest,
+        // Vitest specific
+        vi: 'readonly',
+        // Config globals
+        process: 'readonly'
+      },
       parserOptions: {
         ecmaVersion: 'latest',
         ecmaFeatures: { jsx: true },
@@ -23,7 +31,17 @@ export default defineConfig([
       },
     },
     rules: {
-      'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
+      'no-unused-vars': [
+        'error', 
+        { 
+          varsIgnorePattern: '^_',
+          argsIgnorePattern: '^_',
+          destructuredArrayIgnorePattern: '^_',
+          caughtErrorsIgnorePattern: '^_'
+        }
+      ],
+      // Allow process in config files
+      'no-restricted-globals': 'off'
     },
   },
 ])
