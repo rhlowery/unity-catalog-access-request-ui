@@ -71,9 +71,8 @@ npm run preview
     - Then approve as `Carol CFO` (Owner).
 5.  **Audit**: Check the **Audit Log** tab to see the full history.
 
-## Technology Stack
-
+## Technology S
 - **Framework**: React + Vite
-- **Styling**: Vanilla CSS (CSS Variables, Glassmorphism)
+- **Styling**: Vanilla CSS (CSS Variables, Glassmor
 - **Icons**: Lucide React
 - **Persistence**: LocalStorage

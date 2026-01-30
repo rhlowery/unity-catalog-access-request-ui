@@ -9,14 +9,17 @@ const Sidebar = ({
     selectedWorkspaceId,
     onWorkspaceChange,
     loadingWorkspaces,
-    workspaceError
+    workspaceError,
+    width = '300px'
 }) => {
     return (
         <aside className="glass-panel" style={{
-            width: '300px',
-            margin: '0 0 1rem 1rem',
+            width,
+            margin: '0',
             display: 'flex',
-            flexDirection: 'column'
+            flexDirection: 'column',
+            height: '100%',
+            overflow: 'hidden'
         }}>
             {(() => {
                 const config = StorageService.getConfig();
@@ -46,18 +49,20 @@ const Sidebar = ({
                     );
                 }
                 return null;
-            })()}
+             })()}
 
-            <div style={{ padding: '1rem', borderBottom: '1px solid var(--glass-border)' }}>
+            <div style={{ padding: '1rem', borderBottom: '1px solid var(--glass-border)', flexShrink: 0 }}>
                 <h3 style={{ fontSize: '0.9rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>
                     Data Catalog
                 </h3>
             </div>
-            <CatalogTree
-                nodes={catalogs}
-                selectedIds={selectedIds}
-                onToggleSelection={onToggleSelection}
-            />
+            <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
+                <CatalogTree
+                    nodes={catalogs}
+                    selectedIds={selectedIds}
+                    onToggleSelection={onToggleSelection}
+                />
+            </div>
         </aside>
     );
 };

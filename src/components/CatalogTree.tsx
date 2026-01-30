@@ -2,10 +2,11 @@ import React, { useState } from 'react';
 import { Database, Folder, Table, Eye, Brain, Box, Server, ScrollText, HardDrive, Globe, Key, ChevronDown, ChevronRight } from 'lucide-react';
 import './CatalogTree.css';
 
-const NodeIcon = ({ type }) => {
-    switch (type) {
-        case 'CATALOG': return <Database size={16} className="node-icon icon-catalog" />;
-        case 'SCHEMA': return <Folder size={16} className="node-icon icon-schema" />;
+export const NodeIcon = ({ type }) => {
+    const iconType = type || 'TABLE';
+    switch (iconType) {
+        case 'CATALOG': return <Folder size={16} className="node-icon icon-catalog" />;
+        case 'SCHEMA': return <Database size={16} className="node-icon icon-schema" />;
         case 'TABLE': return <Table size={16} className="node-icon icon-table" />;
         case 'VIEW': return <Eye size={16} className="node-icon icon-view" />;
         case 'MODEL': return <Brain size={16} className="node-icon icon-model" />;
@@ -14,7 +15,7 @@ const NodeIcon = ({ type }) => {
         case 'LOCATION': return <Globe size={16} className="node-icon icon-location" />;
         case 'CREDENTIAL': return <Key size={16} className="node-icon icon-credential" />;
         case 'COMPUTE': return <Server size={16} className="node-icon icon-compute" />;
-        default: return <Folder size={16} className="node-icon" />;
+        default: return <Table size={16} className="node-icon" />;
     }
 };
 
@@ -22,6 +23,7 @@ const TreeNode = ({ node, selectedIds, toggleSelection }) => {
     const [expanded, setExpanded] = useState(false);
     const hasChildren = node.children && node.children.length > 0;
     const isSelected = selectedIds.has(node.id);
+    const nodeType = node.type || 'TABLE';
 
     const handleToggle = (e) => {
         e.stopPropagation();
@@ -48,7 +50,7 @@ const TreeNode = ({ node, selectedIds, toggleSelection }) => {
                     onClick={(e) => e.stopPropagation()}
                 />
 
-                <NodeIcon type={node.type} />
+                <NodeIcon type={nodeType} />
                 <span className="node-label">{node.name}</span>
             </div>
 

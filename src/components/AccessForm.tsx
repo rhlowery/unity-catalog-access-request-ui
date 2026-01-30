@@ -3,6 +3,7 @@ import { Shield, X, User, Users, CheckCircle } from 'lucide-react';
 import { IdentityService } from '../services/identity/IdentityService';
 import { PERMISSIONS, submitRequest } from '../services/mockData';
 import { useAuth } from '../context/AuthProvider';
+import { NodeIcon } from './CatalogTree';
 import './AccessForm.css';
 
 const AccessForm = ({ selectedObjects, onClearSelection }) => {
@@ -86,6 +87,7 @@ const AccessForm = ({ selectedObjects, onClearSelection }) => {
                 <div className="tags-container">
                     {selectedObjects.map(obj => (
                         <span key={obj.id} className="tag object-tag">
+                            <NodeIcon type={obj.type} />
                             {obj.type}: {obj.name}
                         </span>
                     ))}

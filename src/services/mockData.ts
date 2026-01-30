@@ -54,7 +54,7 @@ export const MOCK_CATALOGS = [
                 parentId: 'cat_dev',
                 children: [
                     { id: 'tbl_test_data', name: 'test_data', type: 'TABLE', parentId: 'sch_sandbox', owners: ['user_dev'] },
-                ]
+                    ]
             }
         ]
     },
@@ -68,7 +68,243 @@ export const MOCK_CATALOGS = [
             { id: 'wh_serverless', name: 'Serverless SQL Warehouse', type: 'COMPUTE', owners: ['group_finance_admins'] },
             { id: 'cluster_gpu', name: 'GPU Cluster (ML)', type: 'COMPUTE', owners: ['group_data_scientists', 'group_cloud_ops'] }
         ]
-    }
+    },
+    {
+        id: 'cat_risk_analytics',
+        name: 'risk_analytics',
+        type: 'CATALOG',
+        children: [
+            {
+                id: 'sch_credit_risk',
+                name: 'credit_risk',
+                type: 'SCHEMA',
+                parentId: 'cat_risk_analytics',
+                children: [
+                    { id: 'tbl_credit_scores', name: 'credit_scores', type: 'TABLE', parentId: 'sch_credit_risk', owners: ['group_risk_analysts', 'user_cro'] },
+                    { id: 'tbl_default_rates', name: 'default_rates', type: 'TABLE', parentId: 'sch_credit_risk', owners: ['group_risk_analysts'] },
+                    { id: 'tbl_exposure', name: 'credit_exposure', type: 'TABLE', parentId: 'sch_credit_risk', owners: ['group_risk_analysts', 'user_cfo'] },
+                    { id: 'tbl_collateral', name: 'collateral_data', type: 'TABLE', parentId: 'sch_credit_risk', owners: ['group_risk_analysts'] },
+                    { id: 'tbl_payment_history', name: 'payment_history', type: 'TABLE', parentId: 'sch_credit_risk', owners: ['group_risk_analysts'] },
+                ],
+            },
+            {
+                id: 'sch_market_risk',
+                name: 'market_risk',
+                type: 'SCHEMA',
+                parentId: 'cat_risk_analytics',
+                children: [
+                    { id: 'tbl_var_rates', name: 'variance_rates', type: 'TABLE', parentId: 'sch_market_risk', owners: ['group_risk_analysts', 'user_cfo'] },
+                    { id: 'tbl_positions', name: 'trading_positions', type: 'TABLE', parentId: 'sch_market_risk', owners: ['group_risk_analysts', 'user_cro'] },
+                    { id: 'tbl_volatility', name: 'volatility_metrics', type: 'TABLE', parentId: 'sch_market_risk', owners: ['group_risk_analysts'] },
+                    { id: 'tbl_fx_exposure', name: 'fx_exposure', type: 'TABLE', parentId: 'sch_market_risk', owners: ['group_risk_analysts'] },
+                    { id: 'tbl_stress_tests', name: 'stress_test_results', type: 'TABLE', parentId: 'sch_market_risk', owners: ['group_risk_analysts'] },
+                ],
+            },
+            {
+                id: 'sch_operational_risk',
+                name: 'operational_risk',
+                type: 'SCHEMA',
+                parentId: 'cat_risk_analytics',
+                children: [
+                    { id: 'tbl_incidents', name: 'risk_incidents', type: 'TABLE', parentId: 'sch_operational_risk', owners: ['group_risk_analysts', 'user_cro'] },
+                    { id: 'tbl_controls', name: 'risk_controls', type: 'TABLE', parentId: 'sch_operational_risk', owners: ['group_risk_analysts'] },
+                    { id: 'tbl_assessments', name: 'risk_assessments', type: 'TABLE', parentId: 'sch_operational_risk', owners: ['group_risk_analysts'] },
+                    { id: 'tbl_losses', name: 'operational_losses', type: 'TABLE', parentId: 'sch_operational_risk', owners: ['group_risk_analysts', 'user_cfo'] },
+                    { id: 'tbl_mitigation', name: 'mitigation_plans', type: 'TABLE', parentId: 'sch_operational_risk', owners: ['group_risk_analysts'] },
+                ],
+            },
+            {
+                id: 'sch_model_risk',
+                name: 'model_risk',
+                type: 'SCHEMA',
+                parentId: 'cat_risk_analytics',
+                children: [
+                    { id: 'model_credit_scoring', name: 'credit_scoring_model', type: 'MODEL', parentId: 'sch_model_risk', owners: ['group_risk_analysts', 'group_data_scientists'] },
+                    { id: 'model_fraud_detection', name: 'fraud_detection_model', type: 'MODEL', parentId: 'sch_model_risk', owners: ['group_risk_analysts', 'group_data_scientists'] },
+                    { id: 'tbl_model_performance', name: 'model_performance', type: 'TABLE', parentId: 'sch_model_risk', owners: ['group_data_scientists'] },
+                    { id: 'tbl_backtesting', name: 'backtest_results', type: 'TABLE', parentId: 'sch_model_risk', owners: ['group_risk_analysts'] },
+                    { id: 'tbl_model_validations', name: 'model_validations', type: 'TABLE', parentId: 'sch_model_risk', owners: ['group_data_scientists'] },
+                ],
+            },
+        ],
+    },
+    {
+        id: 'cat_customer_analytics',
+        name: 'customer_analytics',
+        type: 'CATALOG',
+        children: [
+            {
+                id: 'sch_customer_360',
+                name: 'customer_360',
+                type: 'SCHEMA',
+                parentId: 'cat_customer_analytics',
+                children: [
+                    { id: 'tbl_customers', name: 'customer_master', type: 'TABLE', parentId: 'sch_customer_360', owners: ['group_customer_analysts', 'user_cmo'] },
+                    { id: 'tbl_demographics', name: 'customer_demographics', type: 'TABLE', parentId: 'sch_customer_360', owners: ['group_customer_analysts'] },
+                    { id: 'tbl_accounts', name: 'customer_accounts', type: 'TABLE', parentId: 'sch_customer_360', owners: ['group_customer_analysts', 'user_cfo'] },
+                    { id: 'tbl_transactions', name: 'customer_transactions', type: 'TABLE', parentId: 'sch_customer_360', owners: ['group_customer_analysts'] },
+                    { id: 'tbl_preferences', name: 'customer_preferences', type: 'TABLE', parentId: 'sch_customer_360', owners: ['group_customer_analysts'] },
+                ],
+            },
+            {
+                id: 'sch_behavioral',
+                name: 'behavioral_analytics',
+                type: 'SCHEMA',
+                parentId: 'cat_customer_analytics',
+                children: [
+                    { id: 'tbl_web_analytics', name: 'web_analytics_events', type: 'TABLE', parentId: 'sch_behavioral', owners: ['group_customer_analysts', 'group_data_scientists'] },
+                    { id: 'tbl_mobile_analytics', name: 'mobile_app_events', type: 'TABLE', parentId: 'sch_behavioral', owners: ['group_customer_analysts', 'group_data_scientists'] },
+                    { id: 'tbl_product_usage', name: 'product_usage_metrics', type: 'TABLE', parentId: 'sch_behavioral', owners: ['group_customer_analysts'] },
+                    { id: 'tbl_journey_mapping', name: 'customer_journey', type: 'TABLE', parentId: 'sch_behavioral', owners: ['group_customer_analysts'] },
+                    { id: 'tbl_segmentation', name: 'customer_segments', type: 'TABLE', parentId: 'sch_behavioral', owners: ['group_data_scientists'] },
+                ],
+            },
+            {
+                id: 'sch_churn_prediction',
+                name: 'churn_prediction',
+                type: 'SCHEMA',
+                parentId: 'cat_customer_analytics',
+                children: [
+                    { id: 'tbl_churn_scores', name: 'churn_scores', type: 'TABLE', parentId: 'sch_churn_prediction', owners: ['group_customer_analysts', 'group_data_scientists'] },
+                    { id: 'tbl_churn_factors', name: 'churn_factors', type: 'TABLE', parentId: 'sch_churn_prediction', owners: ['group_data_scientists'] },
+                    { id: 'tbl_retention_campaigns', name: 'retention_campaigns', type: 'TABLE', parentId: 'sch_churn_prediction', owners: ['group_customer_analysts'] },
+                    { id: 'tbl_ltv_analysis', name: 'lifetime_value_analysis', type: 'TABLE', parentId: 'sch_churn_prediction', owners: ['group_customer_analysts', 'user_cmo'] },
+                    { id: 'tbl_nps_surveys', name: 'nps_survey_results', type: 'TABLE', parentId: 'sch_churn_prediction', owners: ['group_customer_analysts'] },
+                ],
+            },
+            {
+                id: 'sch_customer_support',
+                name: 'customer_support',
+                type: 'SCHEMA',
+                parentId: 'cat_customer_analytics',
+                children: [
+                    { id: 'tbl_support_tickets', name: 'support_tickets', type: 'TABLE', parentId: 'sch_customer_support', owners: ['group_support_analysts', 'user_cmo'] },
+                    { id: 'tbl_csat_scores', name: 'customer_satisfaction', type: 'TABLE', parentId: 'sch_customer_support', owners: ['group_support_analysts'] },
+                    { id: 'tbl_issue_categories', name: 'issue_categories', type: 'TABLE', parentId: 'sch_customer_support', owners: ['group_support_analysts'] },
+                    { id: 'tbl_response_times', name: 'response_time_metrics', type: 'TABLE', parentId: 'sch_customer_support', owners: ['group_support_analysts'] },
+                    { id: 'tbl_feedback', name: 'customer_feedback', type: 'TABLE', parentId: 'sch_customer_support', owners: ['group_support_analysts'] },
+                ],
+            },
+        ],
+    },
+    {
+        id: 'cat_compliance',
+        name: 'compliance_data',
+        type: 'CATALOG',
+        children: [
+            {
+                id: 'sch_regulatory',
+                name: 'regulatory_reporting',
+                type: 'SCHEMA',
+                parentId: 'cat_compliance',
+                children: [
+                    { id: 'tbl_sar_reports', name: 'sar_reports', type: 'TABLE', parentId: 'sch_regulatory', owners: ['group_compliance_team', 'user_cfo'] },
+                    { id: 'tbl_kyc_records', name: 'kyc_records', type: 'TABLE', parentId: 'sch_regulatory', owners: ['group_compliance_team'] },
+                    { id: 'tbl_aml_flags', name: 'aml_flags', type: 'TABLE', parentId: 'sch_regulatory', owners: ['group_compliance_team', 'user_cro'] },
+                    { id: 'tbl_sanctions', name: 'sanctions_screening', type: 'TABLE', parentId: 'sch_regulatory', owners: ['group_compliance_team'] },
+                    { id: 'tbl_audit_trails', name: 'audit_trails', type: 'TABLE', parentId: 'sch_regulatory', owners: ['group_compliance_team', 'group_security'] },
+                ],
+            },
+            {
+                id: 'sch_gdpr',
+                name: 'gdpr_compliance',
+                type: 'SCHEMA',
+                parentId: 'cat_compliance',
+                children: [
+                    { id: 'tbl_data_consent', name: 'data_consent_records', type: 'TABLE', parentId: 'sch_gdpr', owners: ['group_compliance_team', 'group_legal'] },
+                    { id: 'tbl_data_subject_requests', name: 'dsr_tracking', type: 'TABLE', parentId: 'sch_gdpr', owners: ['group_compliance_team'] },
+                    { id: 'tbl_right_to_deletion', name: 'right_to_deletion', type: 'TABLE', parentId: 'sch_gdpr', owners: ['group_compliance_team', 'group_legal'] },
+                    { id: 'tbl_breach_logs', name: 'data_breach_logs', type: 'TABLE', parentId: 'sch_gdpr', owners: ['group_compliance_team', 'group_security'] },
+                    { id: 'tbl_pia_records', name: 'privacy_impact_assessments', type: 'TABLE', parentId: 'sch_gdpr', owners: ['group_compliance_team', 'group_legal'] },
+                ],
+            },
+            {
+                id: 'sch_sox',
+                name: 'sox_controls',
+                type: 'SCHEMA',
+                parentId: 'cat_compliance',
+                children: [
+                    { id: 'tbl_control_framework', name: 'control_frameworks', type: 'TABLE', parentId: 'sch_sox', owners: ['group_compliance_team', 'user_cfo'] },
+                    { id: 'tbl_control_testing', name: 'control_test_results', type: 'TABLE', parentId: 'sch_sox', owners: ['group_compliance_team'] },
+                    { id: 'tbl_deficiencies', name: 'control_deficiencies', type: 'TABLE', parentId: 'sch_sox', owners: ['group_compliance_team', 'user_cro'] },
+                    { id: 'tbl_remediation', name: 'remediation_plans', type: 'TABLE', parentId: 'sch_sox', owners: ['group_compliance_team'] },
+                    { id: 'tbl_sox_certifications', name: 'sox_certifications', type: 'TABLE', parentId: 'sch_sox', owners: ['group_compliance_team'] },
+                ],
+            },
+            {
+                id: 'sch_trade_compliance',
+                name: 'trade_compliance',
+                type: 'SCHEMA',
+                parentId: 'cat_compliance',
+                children: [
+                    { id: 'tbl_trade_surveillance', name: 'trade_surveillance', type: 'TABLE', parentId: 'sch_trade_compliance', owners: ['group_compliance_team', 'user_cro'] },
+                    { id: 'tbl_market_abuse', name: 'market_abuse_detection', type: 'TABLE', parentId: 'sch_trade_compliance', owners: ['group_compliance_team'] },
+                    { id: 'tbl_trade_restrictions', name: 'trade_restrictions', type: 'TABLE', parentId: 'sch_trade_compliance', owners: ['group_compliance_team'] },
+                    { id: 'tbl_sanctioned_entities', name: 'sanctioned_entities', type: 'TABLE', parentId: 'sch_trade_compliance', owners: ['group_compliance_team'] },
+                    { id: 'tbl_trade_reporting', name: 'trade_reports', type: 'TABLE', parentId: 'sch_trade_compliance', owners: ['group_compliance_team', 'user_cro'] },
+                ],
+            },
+        ],
+    },
+    {
+        id: 'cat_treasury',
+        name: 'treasury_operations',
+        type: 'CATALOG',
+        children: [
+            {
+                id: 'sch_cash_management',
+                name: 'cash_management',
+                type: 'SCHEMA',
+                parentId: 'cat_treasury',
+                children: [
+                    { id: 'tbl_cash_positions', name: 'cash_positions', type: 'TABLE', parentId: 'sch_cash_management', owners: ['group_treasury', 'user_cfo'] },
+                    { id: 'tbl_liquidity_forecast', name: 'liquidity_forecasts', type: 'TABLE', parentId: 'sch_cash_management', owners: ['group_treasury'] },
+                    { id: 'tbl_bank_balances', name: 'bank_account_balances', type: 'TABLE', parentId: 'sch_cash_management', owners: ['group_treasury', 'user_cfo'] },
+                    { id: 'tbl_funding_requests', name: 'funding_requests', type: 'TABLE', parentId: 'sch_cash_management', owners: ['group_treasury'] },
+                    { id: 'tbl_fx_positions', name: 'fx_positions', type: 'TABLE', parentId: 'sch_cash_management', owners: ['group_treasury', 'user_cro'] },
+                ],
+            },
+            {
+                id: 'sch_debt_management',
+                name: 'debt_management',
+                type: 'SCHEMA',
+                parentId: 'cat_treasury',
+                children: [
+                    { id: 'tbl_debt_facilities', name: 'debt_facilities', type: 'TABLE', parentId: 'sch_debt_management', owners: ['group_treasury', 'user_cfo'] },
+                    { id: 'tbl_loan_schedules', name: 'loan_amortization', type: 'TABLE', parentId: 'sch_debt_management', owners: ['group_treasury'] },
+                    { id: 'tbl_interest_rates', name: 'interest_rate_fixings', type: 'TABLE', parentId: 'sch_debt_management', owners: ['group_treasury'] },
+                    { id: 'tbl_covenants', name: 'debt_covenants', type: 'TABLE', parentId: 'sch_debt_management', owners: ['group_treasury', 'group_compliance_team'] },
+                    { id: 'tbl_borrowing_costs', name: 'borrowing_costs', type: 'TABLE', parentId: 'sch_debt_management', owners: ['group_treasury'] },
+                ],
+            },
+            {
+                id: 'sch_investment',
+                name: 'investment_portfolio',
+                type: 'SCHEMA',
+                parentId: 'cat_treasury',
+                children: [
+                    { id: 'tbl_securities', name: 'securities_master', type: 'TABLE', parentId: 'sch_investment', owners: ['group_treasury', 'user_cfo'] },
+                    { id: 'tbl_portfolio_holdings', name: 'portfolio_holdings', type: 'TABLE', parentId: 'sch_investment', owners: ['group_treasury'] },
+                    { id: 'tbl_market_values', name: 'market_valuations', type: 'TABLE', parentId: 'sch_investment', owners: ['group_treasury'] },
+                    { id: 'tbl_performance', name: 'investment_performance', type: 'TABLE', parentId: 'sch_investment', owners: ['group_treasury', 'user_cfo'] },
+                    { id: 'tbl_reconciliation', name: 'position_reconciliations', type: 'TABLE', parentId: 'sch_investment', owners: ['group_treasury', 'group_risk_analysts'] },
+                ],
+            },
+            {
+                id: 'sch_fx_hedging',
+                name: 'fx_hedging',
+                type: 'SCHEMA',
+                parentId: 'cat_treasury',
+                children: [
+                    { id: 'tbl_fx_forwards', name: 'fx_forward_contracts', type: 'TABLE', parentId: 'sch_fx_hedging', owners: ['group_treasury', 'user_cro'] },
+                    { id: 'tbl_fx_options', name: 'fx_options', type: 'TABLE', parentId: 'sch_fx_hedging', owners: ['group_treasury'] },
+                    { id: 'tbl_hedging_ratios', name: 'hedge_effectiveness', type: 'TABLE', parentId: 'sch_fx_hedging', owners: ['group_treasury'] },
+                    { id: 'tbl_fx_exposures', name: 'fx_exposure_by_currency', type: 'TABLE', parentId: 'sch_fx_hedging', owners: ['group_treasury', 'user_cro'] },
+                    { id: 'tbl_hedging_costs', name: 'hedging_costs', type: 'TABLE', parentId: 'sch_fx_hedging', owners: ['group_treasury', 'user_cfo'] },
+                ],
+            },
+        ],
+    },
 ];
 
 export const MOCK_IDENTITIES = {

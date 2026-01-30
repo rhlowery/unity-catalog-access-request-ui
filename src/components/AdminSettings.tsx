@@ -26,8 +26,7 @@ const AdminSettings = () => {
 
     return (
         <div className="admin-settings animate-fade-in">
-            <h2>System Configuration</h2>
-            <p className="text-secondary mb-4">Manage storage backends, identity providers, and platform connections.</p>
+            <p className="text-secondary mb-4">Manage storage backends, identity providers, and catalog connections.</p>
 
             <div className="settings-tabs">
                 <button

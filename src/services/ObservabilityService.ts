@@ -1,12 +1,14 @@
 /**
  * ObservabilityService - Simplified Error Logging and Monitoring
- * 
+ *
  * Provides:
  * - Error logging with unique IDs
  * - Local storage based error tracking
  * - Basic metrics without external dependencies
  * - Development-friendly debugging tools
  */
+
+import { EventBus } from './EventBus';
 
 // Note: OpenTelemetry dependencies are optional for full observability
 // This version works without external dependencies for error boundaries
@@ -219,6 +221,7 @@ export const ObservabilityService = {
     clearErrorLog() {
         try {
             localStorage.removeItem('acs_error_log');
+            EventBus.dispatch('ERROR_LOG_CLEARED', null);
             return true;
         } catch (e) {
             console.warn('Failed to clear error log:', e);
