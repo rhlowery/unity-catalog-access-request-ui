@@ -21,15 +21,19 @@ A premium, standalone React application for managing Unity Catalog access reques
 
 ## Installation
 
+**IMPORTANT: You must install dependencies before running the project.**
+
 1.  Clone or download this repository.
 2.  Navigate to the project directory:
     ```bash
     cd unity-catalog-access-request-ui
     ```
-3.  Install dependencies:
+3.  **Install dependencies (required):**
     ```bash
     npm install
     ```
+
+> If you see an error like "command not found: vite" or "package 'vite' not found", it means you haven't run `npm install` yet.
 
 ## Running Locally (Development)
 
