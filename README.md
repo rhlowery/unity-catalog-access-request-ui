@@ -1,6 +1,6 @@
-# Access Control Service
+# ACS UI
 
-A premium, standalone React application for managing data access requests within a Unity Catalog environment.
+A premium, standalone React application for managing Unity Catalog access requests.
 
 ## Features
 

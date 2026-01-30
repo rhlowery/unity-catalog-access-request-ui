@@ -136,7 +136,7 @@ const MainLayout = () => {
       }}>
         <div className="flex-center" style={{ gap: '12px' }}>
           <ShieldCheck size={24} color="var(--accent-color)" />
-          <h1 style={{ fontSize: '1.25rem', fontWeight: 600 }}>Access Control Service</h1>
+          <h1 style={{ fontSize: '1.25rem', fontWeight: 600 }}>Access Control System</h1>
         </div>
 
         <div className="flex-center" style={{ gap: '16px' }}>
