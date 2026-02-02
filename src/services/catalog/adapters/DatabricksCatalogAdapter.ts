@@ -5,12 +5,11 @@ import { UnityCatalogAdapter as StorageUCAdapter } from '../../storage/adapters/
 /**
  * Real Databricks Catalog Connectivity Adapter
  */
-export const DatabricksCatalogAdapter = {
-    ...ICatalogAdapter,
+export const DatabricksCatalogAdapter: ICatalogAdapter = {
     name: 'Databricks UC',
     type: 'DATABRICKS',
 
-    async fetchWorkspaces(config) {
+    async fetchWorkspaces(config: any) {
         if (config.ucAuthType === 'WORKSPACE') {
             const host = config.ucHost || 'primary-workspace';
             const derivedName = host.replace(/^https?:\/\//, '').split('.')[0] || 'Primary Workspace';

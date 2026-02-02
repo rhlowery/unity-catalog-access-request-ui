@@ -5,21 +5,23 @@ import { IIdentityAdapter, IdentityUser } from './IIdentityAdapter';
 
 const ADAPTERS: Record<string, IIdentityAdapter> = {
     'MOCK': MockIdentityAdapter,
+    'OAUTH': MockIdentityAdapter, // Fallback to mock for demo
+    'SAML': MockIdentityAdapter, // Fallback to mock for demo
     'DATABRICKS': DatabricksIdentityAdapter,
+    'GOOGLE': MockIdentityAdapter, // OAuth providers - fallback to mock
+    'MICROSOFT': MockIdentityAdapter,
+    'GENERIC_OAUTH': MockIdentityAdapter,
 };
 
 export const IdentityService = {
     getAdapter(): IIdentityAdapter {
         const config = StorageService.getConfig();
-        // Fallback logic for configuration
-        let type: string = config.identityType || 'MOCK';
-
-        // If SCIM is enabled, we likely want the Databricks adapter for identity fetching
-        if (config.scimEnabled && type === 'MOCK') {
-            type = 'DATABRICKS';
-        }
-
-        return ADAPTERS[type] || MockIdentityAdapter;
+        const type = config.identityType || 'MOCK';
+        
+        console.log(`[IdentityService] Config identityType: ${type}`);
+        const selectedAdapter = ADAPTERS[type] || MockIdentityAdapter;
+        console.log(`[IdentityService] Selected adapter: ${selectedAdapter.name}`);
+        return selectedAdapter;
     },
 
     async fetchIdentities(): Promise<{ users: IdentityUser[]; groups: IdentityUser[]; servicePrincipals: IdentityUser[] }> {

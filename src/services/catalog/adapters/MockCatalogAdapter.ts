@@ -1,7 +1,7 @@
-import { ICatalogAdapter } from '../ICatalogAdapter';
+import { ICatalogAdapter, Workspace, CatalogNode } from '../ICatalogAdapter';
 import { MOCK_CATALOGS } from '../../mockData';
 
-const MOCK_ACCOUNT_CATALOGS = [
+const MOCK_ACCOUNT_CATALOGS: CatalogNode[] = [
     {
         id: 'acc_root',
         name: 'Databricks Account',
@@ -14,24 +14,23 @@ const MOCK_ACCOUNT_CATALOGS = [
     }
 ];
 
-export const MockCatalogAdapter = {
-    ...ICatalogAdapter,
+export const MockCatalogAdapter: ICatalogAdapter = {
     name: 'Mock Catalog',
     type: 'MOCK',
 
-    async fetchWorkspaces(_config) {
+    async fetchWorkspaces(config: any): Promise<Workspace[]> {
         return [
             { id: 'ws_prod', name: 'Prod Workspace', url: 'https://prod.cloud.databricks.com' },
             { id: 'ws_dev', name: 'Dev Workspace', url: 'https://dev.cloud.databricks.com' }
         ];
     },
 
-    async fetchCatalogs(_workspaceUrl, _config) {
+    async fetchCatalogs(workspaceUrl: string, config: any): Promise<CatalogNode[]> {
         await new Promise(resolve => setTimeout(resolve, 500));
         return MOCK_CATALOGS;
     },
 
-    async getLiveGrants(_object, _config) {
+    async getLiveGrants(object: any, config: any): Promise<any[]> {
         return [];
     }
 };

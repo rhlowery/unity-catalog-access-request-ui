@@ -2,18 +2,16 @@
  * Interface for Secrets Adapters.
  * Handles retrieval of sensitive information.
  */
-export const ISecretsAdapter = {
-    name: 'Abstract Secrets Adapter',
-    type: 'ABSTRACT',
+export interface ISecretsAdapter {
+    name: string;
+    type: string;
 
     /**
      * Fetches a secret value.
-     * @param {string} path - Path to the secret.
-     * @param {string} key - Key within the secret.
-     * @param {Object} config - The global app configuration.
-     * @returns {Promise<string|null>}
+     * @param path - Path to the secret.
+     * @param key - Key within the secret.
+     * @param config - The global app configuration.
+     * @returns Secret value or null
      */
-    async getSecret(_path, _key, _config) {
-        throw new Error('Not implemented');
-    }
-};
+    getSecret(path: string, key: string, config: any): Promise<string | null>;
+}

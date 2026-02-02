@@ -109,6 +109,269 @@
     border-top: 1px solid var(--glass-border);
 }
 
+/* User Selection Styles - REMOVED - Now using Mock User Tabs */
+
+/* Mock User Selection Tabs */
+.mock-tabs {
+    display: flex;
+    gap: 20px;
+    min-height: 400px;
+}
+
+.mock-tab-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.mock-details-panel {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: var(--border-radius);
+    padding: 20px;
+    border: 1px solid var(--glass-border);
+}
+
+.mock-tab-header {
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--glass-border);
+}
+
+.mock-user-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.mock-user-tab {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 16px;
+    border-radius: var(--border-radius);
+    background: rgba(255, 255, 255, 0.02);
+    border: 2px solid var(--glass-border);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-align: left;
+    position: relative;
+}
+
+.mock-user-tab:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: var(--accent-color);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+}
+
+.mock-user-tab.active {
+    background: rgba(88, 166, 255, 0.1);
+    border-color: var(--accent-color);
+    box-shadow: 0 0 20px rgba(88, 166, 255, 0.2);
+}
+
+.mock-user-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    flex-shrink: 0;
+    font-size: 18px;
+    margin-bottom: 8px;
+}
+
+.mock-user-info {
+    flex: 1;
+    text-align: center;
+}
+
+.mock-user-name {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+}
+
+.mock-user-role {
+    font-size: 0.8rem;
+    color: var(--accent-color);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    background: rgba(88, 166, 255, 0.1);
+}
+
+.mock-user-email {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+}
+
+.mock-user-groups {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.mock-details-content h4 {
+    margin: 0 0 16px 0;
+    font-size: 1rem;
+    color: var(--text-primary);
+}
+
+.mock-details-content ul {
+    margin: 0;
+    padding-left: 20px;
+}
+
+.mock-details-content li {
+    margin-bottom: 8px;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    line-height: 1.4;
+}
+
+.mock-back-panel {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+@media (max-width: 768px) {
+    .mock-tabs {
+        flex-direction: column;
+    }
+    
+    .mock-user-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Provider Selection Styles */
+.provider-selector h3 {
+    margin: 0 0 24px 0;
+    text-align: center;
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.provider-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.provider-card {
+    padding: 24px;
+    border-radius: var(--border-radius);
+    border: 2px solid var(--glass-border);
+    background: rgba(255, 255, 255, 0.02);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-align: center;
+}
+
+.provider-card:hover {
+    background: rgba(255, 255, 255, 0.05);
+    transform: translateY(-4px);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
+}
+
+.provider-card.active {
+    background: rgba(88, 166, 255, 0.1);
+    border-color: var(--accent-color);
+    box-shadow: 0 0 20px rgba(88, 166, 255, 0.2);
+}
+
+.provider-card svg {
+    margin-bottom: 16px;
+    color: var(--accent-color);
+}
+
+.provider-card h4 {
+    margin: 0 0 8px 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.provider-card p {
+    margin: 0;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    line-height: 1.4;
+}
+
+/* Databricks Specific Styles */
+.databricks-login {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.db-input {
+    padding: 12px;
+    border-radius: 6px;
+    border: 1px solid var(--glass-border);
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    transition: border-color 0.2s ease;
+}
+
+.db-input:focus {
+    outline: none;
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.1);
+}
+
+.databricks-options {
+    text-align: center;
+    padding-top: 16px;
+    border-top: 1px solid var(--glass-border);
+}
+
+.saml-config {
+    margin-top: 20px;
+    padding: 16px;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: var(--border-radius);
+    border: 1px solid var(--glass-border);
+}
+
+.config-item {
+    margin-bottom: 12px;
+    text-align: left;
+}
+
+.config-item label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.config-item input {
+    width: 100%;
+    padding: 10px;
+    border-radius: 4px;
+    border: 1px solid var(--glass-border);
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-primary);
+    font-size: 0.9rem;
+}
+
 .text-xs {
     font-size: 0.75rem;
     line-height: 1.4;

@@ -2,36 +2,49 @@
  * Interface for Catalog Connectivity Adapters.
  * Handles fetching of workspaces, catalogs, schemas, and tables.
  */
-export const ICatalogAdapter = {
-    name: 'Abstract Catalog Adapter',
-    type: 'ABSTRACT',
+export interface ICatalogAdapter {
+    name: string;
+    type: string;
 
     /**
      * Fetches available workspaces (if applicable).
-     * @param {Object} config - The global app configuration.
-     * @returns {Promise<Array>}
+     * @param config - The global app configuration.
+     * @returns List of workspaces.
      */
-    async fetchWorkspaces(config) {
-        throw new Error('Not implemented');
-    },
+    fetchWorkspaces(config: any): Promise<Workspace[]>;
 
     /**
      * Fetches catalog tree for a specific workspace.
-     * @param {string} workspaceUrl - The URL of workspace.
-     * @param {Object} config - The global app configuration.
-     * @returns {Promise<Array>} - Hierarchical catalog tree.
+     * @param workspaceUrl - The URL of workspace.
+     * @param config - The global app configuration.
+     * @returns Hierarchical catalog tree.
      */
-    async fetchCatalogs(workspaceUrl, config) {
-        throw new Error('Not implemented');
-    },
+    fetchCatalogs(workspaceUrl: string, config: any): Promise<CatalogNode[]>;
 
     /**
      * Fetches live grants for an object directly from catalog.
-     * @param {Object} object - The object to check.
-     * @param {Object} config - The global app configuration.
-     * @returns {Promise<Array>}
+     * @param object - The object to check.
+     * @param config - The global app configuration.
+     * @returns List of live grants.
      */
-    async getLiveGrants(object, config) {
-        throw new Error('Not implemented');
-    }
-};
+    getLiveGrants(object: any, config: any): Promise<any[]>;
+}
+
+export interface Workspace {
+    id: string;
+    name: string;
+    url?: string;
+    [key: string]: any;
+}
+
+export interface CatalogNode {
+    id: string;
+    name: string;
+    type: string; // More flexible to match mock data
+    children?: CatalogNode[];
+    parentId?: string;
+    owners?: string[];
+    catalog?: string;
+    schema?: string;
+    [key: string]: any;
+}

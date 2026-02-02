@@ -17,6 +17,8 @@ const CONFIG_KEY = 'acs_storage_config_v1';
 // Default Config
 const DEFAULT_CONFIG = {
     type: 'LOCAL',
+    // Identity Provider - Default to provider selection (admin chooses)
+    identityType: '',
     // UC Storage Config
     ucCatalog: 'main',
     ucSchema: 'analytics',
@@ -38,8 +40,7 @@ const DEFAULT_CONFIG = {
     gitTokenSource: 'PLAIN', // PLAIN, VAULTED
     gitTokenVaultKey: 'git_token',
 
-    // Identity Provider
-    identityType: 'OAUTH',
+    // Identity Provider - Default to Mock for development
     scimEnabled: false,
     azureTenantId: '',
     samlSsoUrl: '',

@@ -8,6 +8,19 @@ export interface User {
   initials?: string;
   provider?: string;
   groups?: string[];
+  // Mock identity specific properties
+  requiresUserSelection?: boolean;
+  availableUsers?: Array<{
+    id: string;
+    name: string;
+    email: string;
+    type: string;
+    initials: string;
+    provider?: string;
+    groups: string[];
+    role: string;
+    description: string;
+  }>;
 }
 
 export interface AuthContextType {

@@ -6,8 +6,7 @@ import { ISecretsAdapter } from '../ISecretsAdapter';
  */
 const MOCK_VAULT_KEY = 'acs_mock_vault_secrets_v1';
 
-export const MockVaultAdapter = {
-    ...ISecretsAdapter,
+export const MockVaultAdapter: ISecretsAdapter = {
     name: 'Mock Vault',
     type: 'MOCK_VAULT',
 
@@ -16,7 +15,7 @@ export const MockVaultAdapter = {
      * Expectations: localStorage contains a JSON object where keys are paths 
      * and values are objects containing keys.
      */
-    async getSecret(path: string, key: string, _config: any) {
+    async getSecret(path: string, key: string, _config: any): Promise<string | null> {
         try {
             const raw = localStorage.getItem(MOCK_VAULT_KEY);
             if (!raw) return null;

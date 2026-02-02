@@ -307,17 +307,65 @@ export const MOCK_CATALOGS = [
     },
 ];
 
+export const MOCK_USERS = [
+    {
+        id: 'user_standard',
+        name: 'Alex Analyst',
+        email: 'alex@company.com',
+        type: 'USER',
+        initials: 'AA',
+        role: 'STANDARD_USER',
+        groups: ['group_all_users', 'group_finance_analysts'],
+        description: 'Standard user with basic access to finance data'
+    },
+    {
+        id: 'user_finance_approver',
+        name: 'Sarah Finance',
+        email: 'sarah.f@company.com',
+        type: 'USER',
+        initials: 'SF',
+        role: 'FINANCE_APPROVER',
+        groups: ['group_all_users', 'group_finance_admins', 'group_finance_analysts'],
+        description: 'Finance approver with elevated permissions for financial data'
+    },
+    {
+        id: 'user_marketing_approver',
+        name: 'Mike Marketing',
+        email: 'mike.m@company.com',
+        type: 'USER',
+        initials: 'MM',
+        role: 'MARKETING_APPROVER',
+        groups: ['group_all_users', 'group_marketing_admins', 'group_marketing_analysts'],
+        description: 'Marketing approver with permissions for marketing data and campaigns'
+    },
+    {
+        id: 'user_security_admin',
+        name: 'Jane Security',
+        email: 'jane.s@company.com',
+        type: 'USER',
+        initials: 'JS',
+        role: 'SECURITY_ADMIN',
+        groups: ['group_all_users', 'group_security', 'group_platform_admins', 'group_audit_admins'],
+        description: 'Security admin with full system access and audit capabilities'
+    }
+];
+
 export const MOCK_IDENTITIES = {
     users: [
-        { id: 'user_alice', name: 'Alice Johnson', email: 'alice@example.com', type: 'USER' },
-        { id: 'user_bob', name: 'Bob Smith', email: 'bob@example.com', type: 'USER' },
-        { id: 'user_cfo', name: 'Carol CFO', email: 'cfo@example.com', type: 'USER' },
-        { id: 'user_marketing_lead', name: 'Mike Marketing', email: 'mike@example.com', type: 'USER' },
-        { id: 'user_dev', name: 'Dave Developer', email: 'dave@example.com', type: 'USER' },
+        { id: 'user_standard', name: 'Alex Analyst', email: 'alex@company.com', type: 'USER' },
+        { id: 'user_finance_approver', name: 'Sarah Finance', email: 'sarah.f@company.com', type: 'USER' },
+        { id: 'user_marketing_approver', name: 'Mike Marketing', email: 'mike.m@company.com', type: 'USER' },
+        { id: 'user_security_admin', name: 'Jane Security', email: 'jane.s@company.com', type: 'USER' },
     ],
     groups: [
-        { id: 'group_finance_admins', name: 'Finance Admins', type: 'GROUP' },
+        { id: 'group_all_users', name: 'All Users', type: 'GROUP' },
         { id: 'group_finance_analysts', name: 'Finance Analysts', type: 'GROUP' },
+        { id: 'group_finance_admins', name: 'Finance Admins', type: 'GROUP' },
+        { id: 'group_marketing_analysts', name: 'Marketing Analysts', type: 'GROUP' },
+        { id: 'group_marketing_admins', name: 'Marketing Admins', type: 'GROUP' },
+        { id: 'group_security', name: 'Security Team', type: 'GROUP' },
+        { id: 'group_platform_admins', name: 'Platform Admins', type: 'GROUP' },
+        { id: 'group_audit_admins', name: 'Audit Admins', type: 'GROUP' },
         { id: 'group_data_scientists', name: 'Data Scientists', type: 'GROUP' },
     ],
     servicePrincipals: [
