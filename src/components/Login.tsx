@@ -473,29 +473,4 @@ const Login = () => {
     }
 };
 
-    const handleEmergencyReset = async () => {
-        console.log('[Login] Emergency reset initiated');
-        
-        // Validate reset key
-        if (resetKey.join('') === EMERGENCY_RESET_KEY) {
-            console.log('[Login] Emergency reset key validated');
-            
-            // Set mock identity provider and restart
-            const config = StorageService.getConfig();
-            const updatedConfig = { ...config, identityType: 'MOCK' };
-            StorageService.saveConfig(updatedConfig);
-            
-            // Clear any existing user and show reset success message
-            await selectMockUser('user_standard'); // Reset to standard user
-            setShowEmergencyReset(false);
-            
-            setTimeout(() => {
-                window.location.reload();
-            }, 2000);
-        } else {
-            console.log('[Login] Invalid emergency reset key');
-            setShowEmergencyReset(false);
-        }
-    };
-
 export default Login;
