@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { ShieldCheck, LogOut, X, CheckCircle, AlertCircle, Shield, Settings, PanelLeftOpen, PanelLeftClose } from 'lucide-react';
+import { ShieldCheck, LogOut, X, CheckCircle, AlertCircle, Shield, Settings, PanelLeftOpen, PanelLeftClose, Menu } from 'lucide-react';
 import { useAuth } from '../context/AuthProvider';
 import ErrorBoundary from './ErrorBoundary';
 import Sidebar from './Sidebar';
@@ -13,10 +13,6 @@ import { StorageService } from '../services/storage/StorageService';
 import { ObservabilityService } from '../services/ObservabilityService';
 import { EventBus } from '../services/EventBus';
 import { getRequests } from '../services/mockData';
-
-const SIDEBAR_MIN_WIDTH = 150;
-const SIDEBAR_MAX_WIDTH = 600;
-const SIDEBAR_DEFAULT_WIDTH = 300;
 
 const MainLayout = () => {
   const { user, logout } = useAuth();
@@ -32,128 +28,142 @@ const MainLayout = () => {
   const [pendingCount, setPendingCount] = useState(0);
   const [errorCount, setErrorCount] = useState(0);
   const [showSettings, setShowSettings] = useState(false);
-  const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_DEFAULT_WIDTH);
+  const [sidebarWidth, setSidebarWidth] = useState(300);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
+    // Load saved settings
     const savedWidth = localStorage.getItem('acs_sidebar_width');
     const savedCollapsed = localStorage.getItem('acs_sidebar_collapsed');
+    
     if (savedWidth) {
-      setSidebarWidth(parseInt(savedWidth));
+      setSidebarWidth(parseInt(savedWidth, 10));
     }
-    if (savedCollapsed === 'true') {
-      setIsSidebarCollapsed(true);
+    if (savedCollapsed) {
+      setIsSidebarCollapsed(savedCollapsed === 'true');
     }
-  }, []);
 
-  const loadCatalogs = useCallback(async (currentConfig, currentWorkspaceId) => {
-    if (currentConfig.ucAuthType === 'ACCOUNT') {
-      if (currentWorkspaceId) {
-        const ws = workspaces.find(w => w.id === currentWorkspaceId);
-        if (ws) {
-          const fetched = await CatalogService.fetchCatalogs(ws.url);
-          if (fetched) {
-            setCatalogs(fetched);
-            return;
-          }
-        }
-      }
-      setCatalogs([]);
-    } else if (currentConfig.ucAuthType === 'WORKSPACE') {
-      const fetched = await CatalogService.fetchCatalogs(currentConfig.ucHost);
-      if (fetched) {
-        setCatalogs(fetched);
-      } else {
-        CatalogService.fetchCatalogs(null).then(data => setCatalogs(data || []));
-      }
-    } else {
-      CatalogService.fetchCatalogs(null).then(data => setCatalogs(data || []));
-    }
-  }, [workspaces]);
-
-  useEffect(() => {
-    const initData = async () => {
-      const config = StorageService.getConfig();
-
-      if (config.ucAuthType === 'ACCOUNT') {
-        setLoadingWorkspaces(true);
-        setWorkspaceError(null);
-        try {
-          const wsList = await CatalogService.fetchWorkspaces();
-          setWorkspaces(wsList);
-          if (wsList.length > 0 && !selectedWorkspaceId) {
-            setSelectedWorkspaceId(wsList[0].id);
-          }
-        } catch (err) {
-          setWorkspaceError(err.message || 'Failed to fetch workspaces');
-        } finally {
-          setLoadingWorkspaces(false);
-        }
-      } else {
-        setWorkspaces([]);
-        setLoadingWorkspaces(false);
-        setWorkspaceError(null);
-      }
-
-      if (config.ucAuthType !== 'ACCOUNT') {
-        loadCatalogs(config, null);
+    // Mobile responsiveness
+    const checkMobile = () => {
+      const mobile = window.innerWidth <= 768;
+      setIsMobile(mobile);
+      if (mobile && !isSidebarCollapsed) {
+        setIsSidebarCollapsed(true);
       }
     };
 
-    initData();
-
-    const checkPending = async () => {
-      const reqs = await getRequests();
-      const pending = reqs.filter(r => r.status === 'PENDING').length;
-      setPendingCount(pending);
-    };
-
-    checkPending();
-    const interval = setInterval(checkPending, 5000);
-
-    return () => clearInterval(interval);
-  }, [user, loadCatalogs]);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, [isSidebarCollapsed]);
 
   useEffect(() => {
-    if (selectedWorkspaceId) {
-      const config = StorageService.getConfig();
-      if (config.ucAuthType === 'ACCOUNT') {
-        loadCatalogs(config, selectedWorkspaceId);
+    const handleGlobalMouseUp = () => {
+      if (isResizing) {
+        setIsResizing(false);
+        localStorage.setItem('acs_sidebar_width', sidebarWidth.toString());
       }
-    }
-  }, [selectedWorkspaceId, workspaces]);
-
-  useEffect(() => {
-    const checkErrors = () => {
-      const errors = ObservabilityService.getRecentErrors(50);
-      const count = Array.isArray(errors) ? errors.filter(e => e && e.id).length : 0;
-      setErrorCount(count);
     };
 
-    checkErrors();
-    const interval = setInterval(checkErrors, 5000);
-
-    // Listen for error log clear event
-    EventBus.on('ERROR_LOG_CLEARED', () => {
-      setErrorCount(0);
-    });
-
-    return () => {
-      clearInterval(interval);
-      EventBus.remove('ERROR_LOG_CLEARED', () => {});
-    };
-  }, []);
-
-  useEffect(() => {
     if (isResizing) {
-      document.body.style.cursor = 'col-resize';
-      document.body.style.userSelect = 'none';
-    } else {
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
+      document.addEventListener('mouseup', handleGlobalMouseUp);
+      return () => document.removeEventListener('mouseup', handleGlobalMouseUp);
     }
-  }, [isResizing]);
+  }, [isResizing, sidebarWidth]);
+
+  // Load workspaces when component mounts or auth changes
+  useEffect(() => {
+    const loadWorkspaces = async () => {
+      try {
+        const config = StorageService.getConfig();
+        console.log('[MainLayout] Config loaded:', config);
+        if (config.ucAuthType === 'ACCOUNT') {
+          console.log('[MainLayout] Loading workspaces for ACCOUNT mode');
+          setLoadingWorkspaces(true);
+          setWorkspaceError(null);
+          const workspaceData = await CatalogService.fetchWorkspaces();
+          console.log('[MainLayout] Workspace data:', workspaceData);
+          setWorkspaces(workspaceData || []);
+          
+          // Set first workspace as default if none selected
+          if (!selectedWorkspaceId && workspaceData?.length > 0) {
+            console.log('[MainLayout] Setting default workspace:', workspaceData[0].id);
+            setSelectedWorkspaceId(workspaceData[0].id);
+          }
+        } else if (config.ucAuthType === 'WORKSPACE') {
+          console.log('[MainLayout] In WORKSPACE mode, using default workspace');
+          // In workspace mode, set a default workspace ID to trigger catalog loading
+          if (!selectedWorkspaceId) {
+            setSelectedWorkspaceId('default_workspace');
+          }
+        } else {
+          console.log('[MainLayout] Unknown auth mode, setting default workspace');
+          if (!selectedWorkspaceId) {
+            setSelectedWorkspaceId('default_workspace');
+          }
+        }
+      } catch (error) {
+        console.error('Error loading workspaces:', error);
+        setWorkspaceError(error.message || 'Failed to load workspaces');
+        // Set default workspace even on error
+        if (!selectedWorkspaceId) {
+          setSelectedWorkspaceId('default_workspace');
+        }
+      } finally {
+        setLoadingWorkspaces(false);
+      }
+    };
+
+    if (user) {
+      loadWorkspaces();
+    }
+  }, [user, selectedWorkspaceId]);
+
+  // Load catalogs when workspace changes or user logs in
+  useEffect(() => {
+    const loadCatalogs = async () => {
+      if (!user) {
+        console.log('[MainLayout] No user, skipping catalog load');
+        return;
+      }
+      
+      try {
+        const config = StorageService.getConfig();
+        console.log('[MainLayout] Loading catalogs, config:', config);
+        
+        // In WORKSPACE mode, we can load catalogs directly without workspace ID
+        // In ACCOUNT mode, wait for workspace selection
+        if (config.ucAuthType === 'WORKSPACE' || selectedWorkspaceId) {
+          console.log('[MainLayout] Loading catalogs for workspace:', selectedWorkspaceId || 'WORKSPACE mode');
+          const catalogData = await CatalogService.fetchCatalogs(selectedWorkspaceId || 'workspace');
+          console.log('[MainLayout] Catalog data received:', catalogData);
+          setCatalogs(catalogData || []);
+        } else {
+          console.log('[MainLayout] Waiting for workspace selection in ACCOUNT mode');
+        }
+      } catch (error) {
+        console.error('Error loading catalogs:', error);
+        setCatalogs([]);
+      }
+    };
+
+    loadCatalogs();
+  }, [user, selectedWorkspaceId]);
+
+  const clearSelection = useCallback(() => {
+    setSelectedIds(new Set());
+    setSelectedObjects([]);
+  }, []);
+
+
+
+  const handleToggle = useCallback(() => {
+    const newCollapsed = !isSidebarCollapsed;
+    setIsSidebarCollapsed(newCollapsed);
+    localStorage.setItem('acs_sidebar_collapsed', newCollapsed ? 'true' : 'false');
+  }, [isSidebarCollapsed]);
 
   const handleToggleSelection = useCallback((id, node) => {
     const newSelectedIds = new Set(selectedIds);
@@ -171,32 +181,29 @@ const MainLayout = () => {
     setSelectedObjects(newSelectedObjects);
   }, [selectedIds, selectedObjects]);
 
-  const clearSelection = useCallback(() => {
-    setSelectedIds(new Set());
-    setSelectedObjects([]);
-  }, []);
-
-  const handleResizeStart = useCallback(() => {
+  const handleResizeStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
     setIsResizing(true);
-  }, []);
-
-  const handleResize = useCallback((e) => {
-    if (isResizing) {
-      const newWidth = Math.max(SIDEBAR_MIN_WIDTH, Math.min(SIDEBAR_MAX_WIDTH, e.clientX - 5));
+    
+    const startX = e.clientX;
+    const startWidth = sidebarWidth;
+    
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      const deltaX = moveEvent.clientX - startX;
+      const newWidth = Math.max(150, Math.min(600, startWidth + deltaX));
       setSidebarWidth(newWidth);
-    }
-  }, [isResizing]);
-
-  const handleResizeEnd = useCallback(() => {
-    setIsResizing(false);
-    localStorage.setItem('acs_sidebar_width', sidebarWidth.toString());
+    };
+    
+    const handleMouseUp = () => {
+      setIsResizing(false);
+      localStorage.setItem('acs_sidebar_width', sidebarWidth.toString());
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+    
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
   }, [sidebarWidth]);
-
-  const toggleSidebar = useCallback(() => {
-    const newCollapsed = !isSidebarCollapsed;
-    setIsSidebarCollapsed(newCollapsed);
-    localStorage.setItem('acs_sidebar_collapsed', newCollapsed ? 'true' : 'false');
-  }, [isSidebarCollapsed]);
 
   return (
     <div id="app-root" style={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -210,6 +217,16 @@ const MainLayout = () => {
         borderLeft: 0, borderRight: 0, borderTop: 0
       }}>
         <div className="flex-center" style={{ gap: '12px' }}>
+          {isMobile && (
+            <button
+              className="btn btn-ghost"
+              style={{ border: 'none', background: 'transparent', color: 'var(--text-primary)', padding: '4px' }}
+              onClick={handleToggle}
+              title="Toggle Sidebar"
+            >
+              <Menu size={24} />
+            </button>
+          )}
           <ShieldCheck size={24} color="var(--accent-color)" />
           <h1 style={{ fontSize: '1.25rem', fontWeight: 600 }}>Access Control System</h1>
         </div>
@@ -221,106 +238,132 @@ const MainLayout = () => {
       </header>
 
       <main style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-            <div
-              style={{
-                width: isSidebarCollapsed ? 0 : sidebarWidth,
-                minWidth: isSidebarCollapsed ? 0 : SIDEBAR_MIN_WIDTH,
-                maxWidth: SIDEBAR_MAX_WIDTH,
-                transition: isResizing ? 'none' : 'width 0.2s ease',
-                flexShrink: 0,
-                marginLeft: '5px'
-              }}
-          >
-             <ErrorBoundary>
-               <Sidebar
-                 catalogs={catalogs}
-                 selectedIds={selectedIds}
-                 onToggleSelection={handleToggleSelection}
-                 workspaces={workspaces}
-                 selectedWorkspaceId={selectedWorkspaceId}
-                 onWorkspaceChange={setSelectedWorkspaceId}
-                 loadingWorkspaces={loadingWorkspaces}
-                 workspaceError={workspaceError}
-                 width={`${sidebarWidth}px`}
-               />
-             </ErrorBoundary>
-           </div>
-
-            <div
-              style={{
-                position: 'absolute',
-                left: `${sidebarWidth + 5}px`,
-                width: '4px',
-                height: '100%',
-                cursor: 'col-resize',
-                background: 'transparent',
-                zIndex: 10,
-                flexShrink: 0
-              }}
-              onMouseDown={handleResizeStart}
-            />
-
-           <div
-             onMouseMove={handleResize}
-             onMouseUp={handleResizeEnd}
-             onMouseLeave={handleResizeEnd}
-             style={{ display: isResizing ? 'block' : 'none', position: 'fixed', left: 0, right: 0, top: 0, bottom: 0, zIndex: 9999 }}
-           />
-
-            <section style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-          <div className="glass-panel" style={{
-            width: '100%',
-            height: '100%',
-            maxWidth: '1200px',
-            overflowY: 'auto',
-            padding: '1.5rem',
-            display: 'flex',
-            flexDirection: 'column',
-            borderRadius: 'var(--border-radius)'
+        <div style={{ display: 'flex', flex: 1, position: 'relative' }}>
+          {/* First panel: Collapsible Sidebar */}
+          <div style={{
+            width: isSidebarCollapsed ? 0 : sidebarWidth,
+            minWidth: isSidebarCollapsed ? 0 : 150,
+            maxWidth: isSidebarCollapsed ? 0 : 600,
+            transition: isResizing ? 'none' : 'width 0.2s ease',
+            flexShrink: 0,
+            position: isSidebarCollapsed ? 'absolute' : 'relative',
+            left: isSidebarCollapsed ? '5px' : '0'
           }}>
             <ErrorBoundary>
-              <ContentView
-                viewMode={viewMode}
-                selectedObjects={selectedObjects}
-                onClearSelection={clearSelection}
+              <Sidebar
+                catalogs={catalogs}
+                selectedIds={selectedIds}
+                onToggleSelection={handleToggleSelection}
+                workspaces={workspaces}
+                selectedWorkspaceId={selectedWorkspaceId}
+                onWorkspaceChange={setSelectedWorkspaceId}
+                loadingWorkspaces={loadingWorkspaces}
+                workspaceError={workspaceError}
+                width={`${sidebarWidth}px`}
               />
             </ErrorBoundary>
+
+            {/* Sidebar resize handle when not collapsed and not mobile */}
+            {!isSidebarCollapsed && !isMobile && (
+              <div
+                style={{
+                  position: 'absolute',
+                  right: '-5px',
+                  width: '4px',
+                  height: '100%',
+                  cursor: 'col-resize',
+                  background: isResizing ? 'var(--accent-color)' : 'transparent',
+                  zIndex: 10,
+                  transition: 'background 0.2s ease'
+                }}
+                onMouseDown={handleResizeStart}
+                className="sidebar-resize-handle"
+              />
+            )}
           </div>
-        </section>
+
+          {/* Virtual MovableSplitter between sidebar and main panels - hidden on mobile */}
+          {!isMobile && (
+            <div
+              style={{
+                width: '5px',
+                flexShrink: 0,
+                background: isResizing ? 'var(--accent-color)' : 'var(--glass-border)',
+                cursor: 'col-resize',
+                position: 'relative',
+                transition: isResizing ? 'none' : 'background 0.2s ease, transform 0.1s ease'
+              }}
+              onMouseDown={handleResizeStart}
+              className="main-splitter"
+              onMouseEnter={(e) => {
+                if (!isResizing) {
+                  e.currentTarget.style.background = 'var(--accent-color)';
+                  e.currentTarget.style.transform = 'scaleX(1.2)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!isResizing) {
+                  e.currentTarget.style.background = 'var(--glass-border)';
+                  e.currentTarget.style.transform = 'scaleX(1)';
+                }
+              }}
+            />
+          )}
+
+          {/* Second panel: Main content */}
+          <div
+            style={{
+              flex: 1,
+              position: 'relative',
+              overflow: 'hidden'
+            }}
+          >
+            <div className="glass-panel" style={{
+              width: '100%',
+              height: '100%',
+              overflowY: 'auto',
+              padding: '1.5rem',
+              display: 'flex',
+              flexDirection: 'column',
+              borderRadius: 'var(--border-radius)'
+            }}>
+              <ErrorBoundary>
+                <ContentView
+                  viewMode={viewMode}
+                  selectedObjects={selectedObjects}
+                  onClearSelection={clearSelection}
+                />
+              </ErrorBoundary>
+            </div>
+          </div>
+
+          {/* Third panel: Fixed 5px buffer to browser edge */}
+          <div style={{ 
+            width: '5px',
+            flexShrink: 0,
+            background: 'transparent'
+          }} />
+        </div>
       </main>
 
       <footer style={{
         padding: '0.5rem 2rem',
         borderTop: '1px solid var(--glass-border)',
         display: 'flex',
-        justifyContent: 'space-between',
+        justifyContent: 'flex-end',
         alignItems: 'center',
         fontSize: '0.75rem',
-        color: 'var(--text-secondary)',
-        gap: '1rem'
+        color: 'var(--text-secondary)'
       }}>
-        <div>
+        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
           <button
             className="btn btn-ghost"
             style={{ border: 'none', background: 'transparent', color: 'var(--text-secondary)', padding: '4px' }}
-            onClick={toggleSidebar}
-            title={isSidebarCollapsed ? 'Show Sidebar' : 'Hide Sidebar'}
+            onClick={() => setShowSettings(true)}
+            title="Settings"
           >
-            {isSidebarCollapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
+            <Settings size={16} />
           </button>
-        </div>
-
-        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-          {user?.groups?.some((g: any) => ['group_security', 'group_platform_admins'].includes(g)) && (
-            <button
-              className="btn btn-ghost"
-              style={{ border: 'none', background: 'transparent', color: 'var(--text-secondary)', padding: '4px' }}
-              onClick={() => setShowSettings(true)}
-              title="Settings"
-            >
-              <Settings size={16} />
-            </button>
-          )}
           Developed with AI
         </div>
       </footer>

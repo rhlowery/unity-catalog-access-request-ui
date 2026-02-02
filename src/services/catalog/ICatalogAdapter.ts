@@ -11,7 +11,7 @@ export const ICatalogAdapter = {
      * @param {Object} config - The global app configuration.
      * @returns {Promise<Array>}
      */
-    async fetchWorkspaces() {
+    async fetchWorkspaces(config) {
         throw new Error('Not implemented');
     },
 
@@ -21,7 +21,7 @@ export const ICatalogAdapter = {
      * @param {Object} config - The global app configuration.
      * @returns {Promise<Array>} - Hierarchical catalog tree.
      */
-    async fetchCatalogs() {
+    async fetchCatalogs(workspaceUrl, config) {
         throw new Error('Not implemented');
     },
 
@@ -31,7 +31,7 @@ export const ICatalogAdapter = {
      * @param {Object} config - The global app configuration.
      * @returns {Promise<Array>}
      */
-    async getLiveGrants() {
+    async getLiveGrants(object, config) {
         throw new Error('Not implemented');
     }
 };
