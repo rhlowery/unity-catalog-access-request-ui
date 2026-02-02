@@ -28,4 +28,6 @@ export interface AuthContextType {
   loading: boolean;
   login: (provider: string) => Promise<User>;
   logout: () => void;
+  sessionExpiring?: (data: { session: any; minutesUntilExpiry: number; message: string }) => void;
+  sessionExpired?: (data: { session: any; message: string }) => void;
 }

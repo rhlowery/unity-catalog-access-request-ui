@@ -1,14 +1,7 @@
-/**
- * ObservabilityService - Simplified Error Logging and Monitoring
- *
- * Provides:
- * - Error logging with unique IDs
- * - Local storage based error tracking
- * - Basic metrics without external dependencies
- * - Development-friendly debugging tools
- */
-
 import { EventBus } from './EventBus';
+import { AuditIntegrityManager } from './audit/AuditIntegrityManager2';
+import { SecureAuditStorage } from './audit/SecureAuditStorage';
+import type { AuditEntry } from './audit/AuditTypes';
 
 // Note: OpenTelemetry dependencies are optional for full observability
 // This version works without external dependencies for error boundaries
@@ -16,7 +9,9 @@ import { EventBus } from './EventBus';
 // Configuration (can be overridden via AdminSettings)
 let config = {
     enabled: true,
-    logLevel: 'INFO' // DEBUG, INFO, WARN, ERROR
+    logLevel: 'INFO', // DEBUG, INFO, WARN, ERROR
+    enableAuditIntegrity: true,
+    auditRetentionDays: 90
 };
 
 // Service identification
@@ -25,22 +20,80 @@ const _serviceInfo = {
     version: '1.0.0',
 };
 
-// Simple metrics storage
+// Enhanced metrics storage with audit tracking
 const metrics = {
     requests: [],
     errors: [],
     storageOps: [],
     apiCalls: [],
-    authAttempts: []
+    authAttempts: [],
+    auditEvents: [],
+    integrityViolations: []
+};
+
+// Audit integrity components
+let auditIntegrityManager: AuditIntegrityManager | null = null;
+let auditStorage: SecureAuditStorage | null = null;
+
+// Initialize audit integrity on load
+const initializeAuditIntegrity = () => {
+    if (config.enableAuditIntegrity) {
+        auditIntegrityManager = new AuditIntegrityManager({
+            enableDigitalSignatures: true,
+            enableHashChaining: true,
+            integrityKey: 'ACS_AUDIT_INTEGRITY_2024'
+        });
+        
+        auditStorage = new SecureAuditStorage();
+        
+        // Verify existing audit integrity on startup
+        verifyAuditIntegrity();
+        
+        console.log('[Observability] Audit integrity initialized');
+    }
+};
+
+const verifyAuditIntegrity = async () => {
+    if (!auditStorage) return;
+    
+    try {
+        const integrity = await auditStorage.verifyIntegrity();
+        
+        if (!integrity.valid) {
+            console.error('[Observability] Audit integrity issues detected:', integrity.issues);
+            
+            // Log integrity violations
+            integrity.issues.forEach(issue => {
+                logIntegrityEvent('AUDIT_INTEGRITY_VIOLATION', {
+                    issue,
+                    timestamp: Date.now(),
+                    severity: 'HIGH'
+                });
+            });
+            
+            // Dispatch event for UI notification
+            const event = new CustomEvent('auditIntegrityViolation', {
+                detail: { issues: integrity.issues }
+            });
+            window.dispatchEvent(event);
+        } else {
+            console.log('[Observability] Audit integrity verified successfully');
+        }
+    } catch (error) {
+        console.error('[Observability] Failed to verify audit integrity:', error);
+    }
 };
 
 // Initialize on load
-console.log('[Observability] Basic error logging initialized');
+console.log('[Observability] Enhanced observability with audit integrity initialized');
+initializeAuditIntegrity();
 
-    // Structured Logger
+// Structured Logger
 const LOG_LEVELS = { DEBUG: 0, INFO: 1, WARN: 2, ERROR: 3 };
 
 const log = (level, message, attributes = {}) => {
+    if (!config.enabled) return;
+    
     if (LOG_LEVELS[level] < LOG_LEVELS[config.logLevel]) return;
 
     // Simplified logging without OpenTelemetry
@@ -54,178 +107,264 @@ const log = (level, message, attributes = {}) => {
         message,
         traceId,
         spanId,
-        ...attributes,
+        service: _serviceInfo.name,
+        version: _serviceInfo.version,
+        ...attributes
     };
 
-    const logFn = level === 'ERROR' ? console.error : level === 'WARN' ? console.warn : console.log;
-    logFn(JSON.stringify(logEntry));
+    // Console logging with proper formatting
+    const formattedMessage = `[${logEntry.timestamp}] ${level}: ${message}`;
+    
+    switch (level) {
+        case 'DEBUG':
+            console.debug(formattedMessage, logEntry);
+            break;
+        case 'INFO':
+            console.info(formattedMessage, logEntry);
+            break;
+        case 'WARN':
+            console.warn(formattedMessage, logEntry);
+            break;
+        case 'ERROR':
+            console.error(formattedMessage, logEntry);
+            // Also store in metrics
+            metrics.errors.push({
+                ...logEntry,
+                errorId: `err_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`
+            });
+            break;
+    }
+
+    // Store in local storage for debugging
+    try {
+        const stored = localStorage.getItem('acs_observability_logs');
+        const logs = stored ? JSON.parse(stored) : [];
+        logs.push(logEntry);
+        
+        // Keep only last 500 logs
+        const recentLogs = logs.slice(-500);
+        localStorage.setItem('acs_observability_logs', JSON.stringify(recentLogs));
+    } catch (storageError) {
+        console.warn('Failed to store log in localStorage:', storageError);
+    }
 };
 
-export const ObservabilityService = {
-    // Update configuration
-    updateConfig(newConfig) {
-        config = { ...config, ...newConfig };
-    },
+// Audit-specific logging with integrity
+const logAuditEvent = async (type: string, actor: string, action: string, target: string, details: any = {}) => {
+    if (!config.enabled || !auditIntegrityManager || !auditStorage) return;
 
-    getConfig() {
-        return config;
-    },
-
-    // Simplified metrics recording
-    recordRequest(status) {
-        metrics.requests.push({
-            timestamp: new Date().toISOString(),
-            status
-        });
-        this._trimMetrics('requests');
-    },
-
-    recordApprovalLatency(durationMs, decision) {
-        // Store in requests for simplicity
-        this.recordRequest(`approval_${decision}_${durationMs}ms`);
-    },
-
-    recordStorageOp(adapter, operation) {
-        metrics.storageOps.push({
-            timestamp: new Date().toISOString(),
-            adapter,
-            operation
-        });
-        this._trimMetrics('storageOps');
-    },
-
-    recordApiCall(endpoint, status) {
-        metrics.apiCalls.push({
-            timestamp: new Date().toISOString(),
-            endpoint,
-            status
-        });
-        this._trimMetrics('apiCalls');
-    },
-
-    recordAuth(provider, success) {
-        metrics.authAttempts.push({
-            timestamp: new Date().toISOString(),
-            provider,
-            success
-        });
-        this._trimMetrics('authAttempts');
-    },
-
-    // Helper to keep metrics arrays bounded
-    _trimMetrics(metricType) {
-        if (metrics[metricType].length > 100) {
-            metrics[metricType] = metrics[metricType].slice(-50);
-        }
-    },
-
-    // Get metrics for debugging
-    getMetrics() {
-        return { ...metrics };
-    },
-
-    // Record errors (simplified metrics)
-    recordError(type, attributes = {}) {
-        metrics.errors.push({
-            timestamp: new Date().toISOString(),
+    try {
+        const auditEntry: AuditEntry = {
+            id: `audit_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+            timestamp: Date.now(),
             type,
-            ...attributes
+            actor,
+            action,
+            target,
+            details
+        };
+
+        // Add integrity features
+        const signedEntry = auditIntegrityManager.getSignedEntry(auditEntry);
+        
+        // Chain with previous entry
+        const previousEntries = await auditStorage.getEntries(1);
+        const previousEntry = previousEntries.length > 0 ? previousEntries[0] : null;
+        auditIntegrityManager.chainEntries(previousEntry, signedEntry);
+        
+        // Store the signed entry
+        await auditStorage.storeEntry(signedEntry);
+        
+        // Add to metrics
+        metrics.auditEvents.push({
+            ...signedEntry,
+            loggedAt: Date.now()
         });
-        this._trimMetrics('errors');
+        
+        console.log(`[Observability] Audit event logged: ${type} by ${actor}`);
+        
+        // Dispatch audit event for other components
+        const event = new CustomEvent('auditEvent', {
+            detail: signedEntry
+        });
+        window.dispatchEvent(event);
+        
+    } catch (error) {
+        console.error('[Observability] Failed to log audit event:', error);
+        log('ERROR', 'Audit logging failed', { type, actor, action, error: error.message });
+    }
+};
+
+const logIntegrityEvent = (type: string, details: any) => {
+    metrics.integrityViolations.push({
+        type,
+        timestamp: Date.now(),
+        details
+    });
+    
+    log('WARN', `Integrity Event: ${type}`, details);
+};
+
+const logSessionEvent = (type: string, sessionId: string, userId: string, details: any = {}) => {
+    logAuditEvent('SESSION', userId, type, sessionId, {
+        sessionType: type,
+        ...details
+    });
+};
+
+const logAccessEvent = (type: string, actor: string, resource: string, details: any = {}) => {
+    logAuditEvent('ACCESS', actor, type, resource, details);
+};
+
+const logApprovalEvent = (type: string, actor: string, requestId: string, decision: string, details: any = {}) => {
+    logAuditEvent('APPROVAL', actor, type, requestId, {
+        decision,
+        ...details
+    });
+};
+
+// Enhanced ObservabilityService
+export const ObservabilityService = {
+    // Configuration
+    configure(newConfig) {
+        config = { ...config, ...newConfig };
+        if (newConfig.enableAuditIntegrity !== undefined) {
+            initializeAuditIntegrity();
+        }
+        log('INFO', 'Observability configuration updated', { config: newConfig });
     },
 
-    // Logging
+    // Core logging
     debug(message, attributes) {
         log('DEBUG', message, attributes);
     },
-
+    
     info(message, attributes) {
         log('INFO', message, attributes);
     },
-
+    
     warn(message, attributes) {
         log('WARN', message, attributes);
     },
-
-    error(message, attributes) {
-        log('ERROR', message, attributes);
+    
+    error(message, errorInfo = {}) {
+        log('ERROR', message, errorInfo);
     },
 
-    // Error logging for ErrorBoundary
-    logError(error, errorInfo) {
-        const errorId = this.generateErrorId();
-        
-        // Log structured error
-        this.error('React Error Boundary caught error', {
-            errorId,
-            errorMessage: error.message,
-            errorStack: error.stack,
-            componentStack: errorInfo?.componentStack,
-            userAgent: navigator.userAgent,
-            url: window.location.href,
-            timestamp: new Date().toISOString()
+    // Audit-specific methods
+    async logAccessRequest(actor, resource, permissions, justification) {
+        await logAccessEvent('REQUESTED', actor, resource, {
+            permissions,
+            justification
         });
+    },
 
-        // Record error metric
-        this.recordError('react_error_boundary', {
-            errorId,
-            errorName: error.name
+    async logAccessGranted(actor, resource, permissions) {
+        await logAccessEvent('GRANTED', actor, resource, { permissions });
+    },
+
+    async logAccessDenied(actor, resource, reason) {
+        await logAccessEvent('DENIED', actor, resource, { reason });
+    },
+
+    async logApproval(actor, requestId, decision, reason) {
+        await logApprovalEvent('DECISION', actor, requestId, decision, { reason });
+    },
+
+    async logSessionCreated(sessionId, userId, provider, ipAddress) {
+        await logSessionEvent('CREATED', sessionId, userId, {
+            provider,
+            ipAddress
         });
+    },
 
-        // Store error details locally for debugging
+    async logSessionExpired(sessionId, userId, reason) {
+        await logSessionEvent('EXPIRED', sessionId, userId, { reason });
+    },
+
+    async logSessionRenewed(sessionId, userId) {
+        await logSessionEvent('RENEWED', sessionId, userId);
+    },
+
+    // Audit integrity methods
+    async verifyAuditIntegrity() {
+        return await verifyAuditIntegrity();
+    },
+
+    async getAuditEntries(limit) {
+        if (!auditStorage) return [];
+        return await auditStorage.getEntries(limit);
+    },
+
+    async cleanupAuditLogs(daysToKeep) {
+        if (!auditStorage) return 0;
+        return await auditStorage.cleanupOldEntries(daysToKeep);
+    },
+
+    // Metrics and monitoring
+    getMetrics() {
+        return {
+            ...metrics,
+            uptime: Date.now() - performance.now(),
+            memoryUsage: (performance as any).memory ? {
+                used: (performance as any).memory.usedJSHeapSize,
+                total: (performance as any).memory.totalJSHeapSize
+            } : null
+        };
+    },
+
+    clearMetrics() {
+        Object.keys(metrics).forEach(key => {
+            metrics[key] = [];
+        });
+    },
+
+    // Health check
+    async healthCheck() {
         try {
-            const errorLog = JSON.parse(localStorage.getItem('acs_error_log') || '[]');
-            errorLog.push({
-                id: errorId,
+            const integrity = auditStorage ? await auditStorage.verifyIntegrity() : { valid: true, issues: [] };
+            const metricCount = Object.values(metrics).reduce((sum, arr) => sum + arr.length, 0);
+            
+            return {
+                status: 'healthy',
                 timestamp: new Date().toISOString(),
-                error: {
-                    name: error.name,
-                    message: error.message,
-                    stack: error.stack
-                },
-                componentStack: errorInfo?.componentStack,
-                userAgent: navigator.userAgent,
-                url: window.location.href
-            });
-            
-            // Keep only last 50 errors
-            if (errorLog.length > 50) {
-                errorLog.splice(0, errorLog.length - 50);
-            }
-            
-            localStorage.setItem('acs_error_log', JSON.stringify(errorLog));
-        } catch (e) {
-            console.warn('Failed to store error log:', e);
+                integrity,
+                metrics: {
+                    totalEvents: metricCount,
+                    auditEvents: metrics.auditEvents.length,
+                    errors: metrics.errors.length,
+                    integrityViolations: metrics.integrityViolations.length
+                }
+            };
+        } catch (error) {
+            return {
+                status: 'unhealthy',
+                timestamp: new Date().toISOString(),
+                error: error.message
+            };
         }
+    },
 
+    // Error logging methods for components
+    logError(error: Error, errorInfo?: any): string {
+        const errorId = `err_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+        this.error('Component error', {
+            errorId,
+            error: error.message,
+            stack: error.stack,
+            ...errorInfo
+        });
         return errorId;
     },
 
-    // Generate unique error ID
-    generateErrorId() {
-        return 'err_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-    },
-
-    // Get recent errors for debugging
-    getRecentErrors(limit = 10) {
-        try {
-            const errorLog = JSON.parse(localStorage.getItem('acs_error_log') || '[]');
-            return errorLog.slice(-limit);
-        } catch (e) {
-            console.warn('Failed to retrieve error log:', e);
-            return [];
-        }
+    // Get recent errors for admin panel
+    getRecentErrors(limit: number = 50) {
+        return metrics.errors.slice(-limit);
     },
 
     // Clear error log
     clearErrorLog() {
-        try {
-            localStorage.removeItem('acs_error_log');
-            EventBus.dispatch('ERROR_LOG_CLEARED', null);
-            return true;
-        } catch (e) {
-            console.warn('Failed to clear error log:', e);
-            return false;
-        }
-    },
+        metrics.errors = [];
+        log('INFO', 'Error log cleared');
+    }
 };
