@@ -182,7 +182,7 @@ const MainLayout = () => {
 
   const handleResize = useCallback((e) => {
     if (isResizing) {
-      const newWidth = Math.max(SIDEBAR_MIN_WIDTH, Math.min(SIDEBAR_MAX_WIDTH, e.clientX));
+      const newWidth = Math.max(SIDEBAR_MIN_WIDTH, Math.min(SIDEBAR_MAX_WIDTH, e.clientX - 5));
       setSidebarWidth(newWidth);
     }
   }, [isResizing]);
@@ -220,7 +220,7 @@ const MainLayout = () => {
         </div>
       </header>
 
-      <main style={{ display: 'flex', flex: 1, overflow: 'hidden', gap: '5px' }}>
+      <main style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
             <div
               style={{
                 width: isSidebarCollapsed ? 0 : sidebarWidth,
@@ -246,16 +246,19 @@ const MainLayout = () => {
              </ErrorBoundary>
            </div>
 
-           <div
-             style={{
-               width: '4px',
-               cursor: 'col-resize',
-               background: 'transparent',
-               zIndex: 10,
-               flexShrink: 0
-             }}
-             onMouseDown={handleResizeStart}
-           />
+            <div
+              style={{
+                position: 'absolute',
+                left: `${sidebarWidth + 5}px`,
+                width: '4px',
+                height: '100%',
+                cursor: 'col-resize',
+                background: 'transparent',
+                zIndex: 10,
+                flexShrink: 0
+              }}
+              onMouseDown={handleResizeStart}
+            />
 
            <div
              onMouseMove={handleResize}
@@ -264,7 +267,7 @@ const MainLayout = () => {
              style={{ display: isResizing ? 'block' : 'none', position: 'fixed', left: 0, right: 0, top: 0, bottom: 0, zIndex: 9999 }}
            />
 
-            <section style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', marginRight: '5px' }}>
+            <section style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
           <div className="glass-panel" style={{
             width: '100%',
             height: '100%',
