@@ -6,7 +6,6 @@ const AccessForm = lazy(() => import('./AccessForm'));
 const ApproverDashboard = lazy(() => import('./ApproverDashboard'));
 const ReviewerTab = lazy(() => import('./ReviewerTab'));
 const AuditLog = lazy(() => import('./AuditLog'));
-const AdminSettings = lazy(() => import('./AdminSettings'));
 
 // Loading fallback component
 const ComponentLoader = () => (
@@ -154,4 +153,4 @@ const ContentView = React.memo(({ viewMode, selectedObjects, onClearSelection }:
   return content;
 });
 
-export { ViewModeTabs, UserControls, ContentView, AdminSettings, ComponentLoader };
+export { ViewModeTabs, UserControls, ContentView, ComponentLoader };

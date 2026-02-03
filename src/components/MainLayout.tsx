@@ -5,7 +5,9 @@ import ErrorBoundary from './ErrorBoundary';
 import Sidebar from './Sidebar';
 import { CatalogService } from '../services/catalog/CatalogService';
 import { StorageService } from '../services/storage/StorageService';
-import { ViewModeTabs, UserControls, ContentView, AdminSettings, ComponentLoader } from './OptimizedComponents';
+import { ViewModeTabs, UserControls, ContentView, ComponentLoader } from './OptimizedComponents';
+import { lazy } from 'react';
+const AdminSettings = lazy(() => import('./AdminSettings'));
 
 const MainLayout = () => {
   const { user, logout } = useAuth();

@@ -8,7 +8,7 @@
     display: flex;
     gap: 1rem;
     margin-bottom: 2rem;
-    border-bottom: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--glass-border);
     padding-bottom: 1px;
 }
 
@@ -53,7 +53,7 @@
 .form-group input,
 .form-group select {
     background: rgba(0, 0, 0, 0.2);
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--glass-border);
     padding: 10px 12px;
     border-radius: 6px;
     color: white;
@@ -82,7 +82,7 @@
     gap: 12px;
     padding: 1.5rem;
     background: rgba(255, 255, 255, 0.03);
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--glass-border);
     border-radius: 8px;
     color: var(--text-secondary);
     cursor: pointer;
@@ -122,7 +122,7 @@
 .config-section {
     margin-top: 2rem;
     padding-top: 2rem;
-    border-top: 1px solid var(--border-color);
+    border-top: 1px solid var(--glass-border);
 }
 
 .config-section h4 {

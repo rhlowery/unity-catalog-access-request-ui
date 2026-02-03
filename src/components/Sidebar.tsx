@@ -32,7 +32,7 @@ const Sidebar = ({
                                 value={selectedWorkspaceId}
                                 onChange={e => onWorkspaceChange(e.target.value)}
                                 disabled={loadingWorkspaces || !!workspaceError}
-                                style={{ width: '100%', padding: '6px', borderRadius: '4px', background: 'rgba(0,0,0,0.2)', color: 'white', border: '1px solid var(--border-color)' }}>
+                                style={{ width: '100%', padding: '6px', borderRadius: '4px', background: 'rgba(0,0,0,0.2)', color: 'white', border: '1px solid var(--glass-border)' }}>
                                 {loadingWorkspaces ? (
                                     <option>Loading...</option>
                                 ) : workspaceError ? (

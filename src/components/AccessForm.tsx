@@ -173,7 +173,7 @@ const AccessForm = ({ selectedObjects, onClearSelection }) => {
                                 type="number"
                                 min="1"
                                 className="input-text"
-                                style={{ width: '100px', padding: '8px', borderRadius: '4px', border: '1px solid var(--border-color)', background: 'var(--glass-bg)', color: 'var(--text-primary)' }}
+                                style={{ width: '100px', padding: '8px', borderRadius: '4px', border: '1px solid var(--glass-border)', background: 'var(--glass-bg)', color: 'var(--text-primary)' }}
                                 value={timeConstraint.value}
                                 onChange={(e) => setTimeConstraint({ ...timeConstraint, value: parseInt(e.target.value as string) || 1 })}
                             />
@@ -187,7 +187,7 @@ const AccessForm = ({ selectedObjects, onClearSelection }) => {
                                 <input
                                     type="date"
                                     className="input-text"
-                                    style={{ padding: '8px', borderRadius: '4px', border: '1px solid var(--border-color)', background: 'var(--glass-bg)', color: 'var(--text-primary)' }}
+                                    style={{ padding: '8px', borderRadius: '4px', border: '1px solid var(--glass-border)', background: 'var(--glass-bg)', color: 'var(--text-primary)' }}
                                     value={timeConstraint.start}
                                     onChange={(e) => setTimeConstraint({ ...timeConstraint, start: e.target.value })}
                                 />
@@ -197,7 +197,7 @@ const AccessForm = ({ selectedObjects, onClearSelection }) => {
                                 <input
                                     type="date"
                                     className="input-text"
-                                    style={{ padding: '8px', borderRadius: '4px', border: '1px solid var(--border-color)', background: 'var(--glass-bg)', color: 'var(--text-primary)' }}
+                                    style={{ padding: '8px', borderRadius: '4px', border: '1px solid var(--glass-border)', background: 'var(--glass-bg)', color: 'var(--text-primary)' }}
                                     value={timeConstraint.end}
                                     onChange={(e) => setTimeConstraint({ ...timeConstraint, end: e.target.value })}
                                 />

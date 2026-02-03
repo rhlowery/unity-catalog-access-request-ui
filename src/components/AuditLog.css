@@ -119,6 +119,11 @@
     padding: 1.5rem;
 }
 
+.modal-footer {
+    padding: 1rem 1.5rem;
+    border-top: 1px solid var(--glass-border);
+}
+
 .btn-close {
     background: none;
     border: none;

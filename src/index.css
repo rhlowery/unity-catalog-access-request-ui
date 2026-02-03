@@ -16,6 +16,8 @@
   --success: #238636;
   --warning: #d29922;
   --border-radius: 8px;
+  --border-color: var(--glass-border);
+  --accent-light: #79c0ff;
   --transition-speed: 0.2s;
   --font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
@@ -46,6 +48,76 @@ body {
 
 .flex-center { display: flex; align-items: center; justify-content: center; }
 .text-secondary { color: var(--text-secondary); }
+.text-sm { font-size: 0.875rem; }
+.text-xs { font-size: 0.75rem; }
+.uppercase { text-transform: uppercase; }
+.tracking-wider { letter-spacing: 0.05em; }
+.pl-4 { padding-left: 1rem; }
+.border-l-2 { border-left: 2px solid; }
+.border-accent { border-color: var(--accent-color); }
+.btn-icon {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.btn-icon:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* Switch/Toggle component */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 50px;
+  height: 24px;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--bg-tertiary);
+  transition: 0.4s;
+  border-radius: 24px;
+  border: 1px solid var(--glass-border);
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 2px;
+  background-color: white;
+  transition: 0.4s;
+  border-radius: 50%;
+}
+
+input:checked + .slider {
+  background-color: var(--accent-color);
+  border-color: var(--accent-color);
+}
+
+input:checked + .slider:before {
+  transform: translateX(26px);
+}
 
 /* Button base styles */
 .btn {
