@@ -121,7 +121,8 @@ Given('an emergency is declared', () => {
 });
 
 When('I request emergency access', () => {
-  cy.intercept('POST', '/api/emergency/access', {
+  cy.window().then((win) => {
+    cy.intercept('POST', '/api/emergency/access', {
       body: {
         urgency: 'CRITICAL',
         justification: 'System outage requires immediate administrative access',

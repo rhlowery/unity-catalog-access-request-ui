@@ -309,19 +309,18 @@ When('I submit an access request with proper justification', () => {
           permissions: ['SELECT', 'READ'],
           justification: 'Q4 2024 financial report preparation',
           businessJustification: 'Quarterly financial analysis requiring access to sensitive financial data'
+        },
+        auditEntry: {
+          id: 'audit-req-1',
+          timestamp: Date.now(),
+          type: 'REQUEST_CREATED',
+          actor: win.currentUser?.id,
+          action: 'SUBMITTED',
+          target: 'sensitive_financial_data',
+          details: expect.any(Object)
         }
-      },
-      auditEntry: {
-        id: 'audit-req-1',
-        timestamp: Date.now(),
-        type: 'REQUEST_CREATED',
-        actor: win.currentUser?.id,
-        action: 'SUBMITTED',
-        target: 'sensitive_financial_data',
-        details: expect.any(Object)
       }
-    };
-  }).as('accessRequest');
+    }).as('accessRequest');
 });
 
 And('the request should be created in "PENDING" status', () => {
@@ -388,7 +387,7 @@ And('I approve the request', () => {
             name: 'Test Approver'
           }
         }
-      };
+      }
     }).as('approvalRequest');
   });
 });
@@ -502,7 +501,7 @@ When('I initiate a break-glass request', () => {
           duration: '30_minutes',
           requestedBy: 'Emergency Response Team'
         }
-      };
+      }
     });
   }).as('breakGlassRequest');
    
@@ -743,7 +742,7 @@ And('a security incident response should be initiated', () => {
         responseLevel: 'CRITICAL',
         action: 'INVALIDATE_ALL_SESSIONS',
         timestamp: expect.any(String)
-      };
+      }
     }).as('incidentResponse');
    
     expect(win.incidentResponse.responseLevel).to.equal('CRITICAL');
@@ -882,4 +881,5 @@ And('I try to decrypt data with the old key after rotation', () => {
 
 Then('I should see a key version deprecated error', () => {
   cy.get('[data-testid="key-deprecated-error"]').should('contain', 'Key version deprecated');
+});
 });

@@ -37,6 +37,6 @@
     }
   },
   "include": ["src", "cypress", "cypress/types"],
-  "exclude": ["node_modules", "dist", "**/*.test.*", "**/*.spec.*"],
+  "exclude": ["node_modules", "dist", "**/*.test.*", "**/*.spec.*", "cypress/**/*"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }
