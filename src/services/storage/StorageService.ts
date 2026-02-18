@@ -5,8 +5,30 @@ import { VolatileAdapter } from './adapters/VolatileAdapter';
 import { SecretsService as GlobalSecretsService } from '../secrets/SecretsService';
 import { UnityCatalogAdapter } from './adapters/UnityCatalogAdapter';
 
+export const SENSITIVE_KEYS = [
+  'password', 'token', 'secret', 'key', 'credential', 'access_key'
+];
+
+export const sanitizeConfig = (config: any) => {
+  if (!config) return {};
+  const sanitized = { ...config };
+  Object.keys(sanitized).forEach(key => {
+    const lowerKey = key.toLowerCase();
+    if (SENSITIVE_KEYS.some(sk => lowerKey.includes(sk)) && !lowerKey.includes('path') && !lowerKey.includes('source') && !lowerKey.includes('v1')) {
+      if (sanitized[key] && typeof sanitized[key] === 'string' && sanitized[key].length > 0) {
+        sanitized[key] = '********';
+      }
+    }
+  });
+  return sanitized;
+};
+
 export const getAdapter = (config: any) => {
   // Determine storage type and return appropriate adapter
+  if (config.type === 'LOCAL') {
+    console.warn('[Security] Using LOCAL storage for sensitive data. Consider UNITY_CATALOG or GIT for production.');
+  }
+
   switch (config.type) {
     case 'LOCAL':
       return LocalStorageAdapter;
@@ -67,7 +89,7 @@ export const createRequest = (request) => {
       approvals: [],
       comments: []
     };
-    
+
     const updatedRequests = [...requests, newRequest];
     return saveRequests(updatedRequests);
   } catch (e) {
@@ -80,11 +102,11 @@ export const updateRequest = (id, updates) => {
   try {
     const requests = loadRequests();
     const requestIndex = requests.findIndex(r => r.id === id);
-    
+
     if (requestIndex === -1) {
       throw new Error(`Request with ID ${id} not found`);
     }
-    
+
     requests[requestIndex] = { ...requests[requestIndex], ...updates };
     return saveRequests(requests);
   } catch (e) {
@@ -112,9 +134,16 @@ export const StorageService = {
   saveConfig: (key: string, value: string) => {
     localStorage.setItem(key, value);
   },
+  updateConfig: (config: any) => {
+    localStorage.setItem('uc_config', JSON.stringify(config));
+  },
   getConfig: () => {
     const config = localStorage.getItem('uc_config');
-    return config ? JSON.parse(config) : {};
+    const parsed = config ? JSON.parse(config) : {};
+    return parsed; // Return raw config for internal use?
+  },
+  getSanitizedConfig: () => {
+    return sanitizeConfig(StorageService.getConfig());
   },
   getResolvedConfig: async () => {
     const config = StorageService.getConfig();

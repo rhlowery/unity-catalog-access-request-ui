@@ -12,7 +12,12 @@ export class AuditIntegrityManager implements AuditIntegrityService {
   private config: AuditIntegrityConfig;
 
   constructor(config: Partial<AuditIntegrityConfig> = {}) {
-    this.config = { ...DEFAULT_CONFIG, ...config };
+    const envKey = (import.meta as any).env?.VITE_AUDIT_INTEGRITY_KEY;
+    this.config = {
+      ...DEFAULT_CONFIG,
+      integrityKey: envKey || DEFAULT_CONFIG.integrityKey,
+      ...config
+    };
   }
 
   signEntry(entry: AuditEntry): string {
@@ -39,7 +44,7 @@ export class AuditIntegrityManager implements AuditIntegrityService {
     try {
       const signatureData = this.getSignatureData(entry);
       const expectedSignature = btoa(signatureData + '|' + this.config.integrityKey);
-      
+
       return entry.signature === expectedSignature;
     } catch (error) {
       console.error('[AuditIntegrity] Failed to verify entry:', error);
@@ -115,7 +120,7 @@ export class AuditIntegrityManager implements AuditIntegrityService {
 
   getSignedEntry(entry: AuditEntry): AuditEntry {
     const signedEntry = { ...entry };
-    
+
     // Add hash chaining if enabled
     if (this.config.enableHashChaining) {
       signedEntry.hash = this.calculateHash(signedEntry);
@@ -154,7 +159,7 @@ export class AuditIntegrityManager implements AuditIntegrityService {
       JSON.stringify(entry.details || {}),
       entry.previousHash || ''
     ].join('|');
-    
+
     return data;
   }
 }

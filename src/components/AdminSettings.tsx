@@ -17,7 +17,7 @@ const AdminSettings = () => {
     });
 
     const handleSave = () => {
-        StorageService.saveConfig(config);
+        StorageService.updateConfig(config);
         clearTokenCache();
         setSaved(true);
         EventBus.dispatch('SETTINGS_UPDATED', { config });
@@ -59,7 +59,7 @@ const AdminSettings = () => {
                         onClick={() => setActiveTab('DEBUG')}
                     >
                         <Bug size={16} style={{ marginRight: '4px' }} />
-                        Debug
+                        Debug & Governance
                     </button>
                 )}
             </div>
@@ -584,17 +584,34 @@ const AdminSettings = () => {
                     <div className="animate-fade-in">
                         <h4><Bug size={18} style={{ display: 'inline', marginRight: 8 }} /> Debug Tools</h4>
                         <p className="text-secondary text-sm mb-4">Development tools for testing and debugging.</p>
-                        
+
                         <ErrorTestPanel />
-                        
+
                         <div className="glass-panel" style={{ padding: '1.5rem', margin: '1rem 0' }}>
                             <h5>Error Log Viewer</h5>
                             <p className="text-secondary text-sm mb-3">
                                 Recent errors caught by ErrorBoundaries (stored in localStorage)
                             </p>
-                            
+
                             <div style={{ marginBottom: '1rem' }}>
-                                <button 
+                                <h5>Governance Settings</h5>
+                                <div className="form-group mb-4">
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <label className="mb-0">Enable Persona Simulation</label>
+                                            <p className="text-secondary text-xs">Allow users to switch personas in the Approver Dashboard for testing/demos.</p>
+                                        </div>
+                                        <button
+                                            className={`btn ${config.enableSimulationMode ? 'btn-primary' : 'btn-secondary'}`}
+                                            onClick={() => setConfig({ ...config, enableSimulationMode: !config.enableSimulationMode })}
+                                            style={{ padding: '4px 12px', fontSize: '12px' }}
+                                        >
+                                            {config.enableSimulationMode ? 'Enabled' : 'Disabled'}
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <button
                                     className="btn btn-secondary"
                                     onClick={() => {
                                         const errors = ObservabilityService.getRecentErrors();
@@ -603,8 +620,8 @@ const AdminSettings = () => {
                                 >
                                     Log Errors to Console
                                 </button>
-                                
-                                <button 
+
+                                <button
                                     className="btn btn-secondary"
                                     style={{ marginLeft: '0.5rem' }}
                                     onClick={() => {
@@ -615,7 +632,7 @@ const AdminSettings = () => {
                                     Clear Error Log
                                 </button>
                             </div>
-                            
+
                             <div style={{
                                 background: 'rgba(0,0,0,0.3)',
                                 padding: '1rem',
@@ -759,7 +776,7 @@ const AdminSettings = () => {
                     </div>
                 )}
 
-                 <div className="form-actions mt-6">
+                <div className="form-actions mt-6">
                     <button className="btn btn-primary btn-large" onClick={handleSave}>
                         {saved ? <><CheckCircle size={20} /> Configuration Saved</> : <><Save size={20} /> Save Configuration</>}
                     </button>

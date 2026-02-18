@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Check, AlertCircle, X } from 'lucide-react';
 import { useAuth } from '../context/AuthProvider';
 import { getRequests, approveRequest, MOCK_IDENTITIES } from '../services/mockData';
+import { StorageService } from '../services/storage/StorageService';
+import { ObservabilityService } from '../services/ObservabilityService';
 import ErrorTestPanel from './ErrorTestPanel';
 
 import './ApproverDashboard.css';
@@ -28,13 +30,13 @@ const ApproverDashboard = () => {
     }, [refreshTrigger]);
 
     const handleApprove = async (reqId) => {
-        await approveRequest(reqId, activePersona, 'Approved via Dashboard', 'APPROVE');
+        await approveRequest(reqId, activePersona, 'Approved via Dashboard', 'APPROVE', isSimulationMode);
         setRefreshTrigger(prev => prev + 1);
     };
 
     const confirmDenial = async () => {
         if (!denialState.reason.trim()) return;
-        await approveRequest(denialState.reqId, activePersona, denialState.reason, 'DENY');
+        await approveRequest(denialState.reqId, activePersona, denialState.reason, 'DENY', isSimulationMode);
         setDenialState({ reqId: null, reason: '' });
         setRefreshTrigger(prev => prev + 1);
     };
@@ -62,28 +64,54 @@ const ApproverDashboard = () => {
 
 
 
+    const config = StorageService.getConfig();
+    const isProduction = import.meta.env.PROD;
+    const isSimulationMode = (!isProduction || (window as any).ACS_DEMO_MODE) && config.enableSimulationMode;
+
+    const handlePersonaChange = (newPersona: string) => {
+        const from = activePersona;
+        setActivePersona(newPersona);
+        ObservabilityService.logPersonaSwitch('current_user', from, newPersona);
+    };
+
     return (
         <div className="approver-dashboard animate-fade-in">
 
-            {/* Persona Switcher Header */}
-            <div className="persona-header glass-panel">
-                <div className="persona-label">
-                    <span>👥</span>
-                    <span>Viewing Dashboard as:</span>
+            {/* Persona Switcher Header - Only in Non-Prod or Demo Mode */}
+            {isSimulationMode && (
+                <div className="persona-header glass-panel" style={{ border: '1px solid var(--warning)', position: 'relative' }}>
+                    <div className="persona-simulation-badge" style={{
+                        position: 'absolute',
+                        top: '-10px',
+                        left: '20px',
+                        background: 'var(--warning)',
+                        color: '#000',
+                        fontSize: '10px',
+                        fontWeight: 'bold',
+                        padding: '2px 8px',
+                        borderRadius: '10px',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                    }}>
+                        SIMULATION MODE
+                    </div>
+                    <div className="persona-label">
+                        <span>👥</span>
+                        <span>Viewing Dashboard as:</span>
+                    </div>
+                    <select
+                        className="persona-select"
+                        value={activePersona}
+                        onChange={(e) => handlePersonaChange(e.target.value)}
+                    >
+                        {personas.map(p => (
+                            <option key={p.id} value={p.id}>{p.name}</option>
+                        ))}
+                    </select>
+                    <div className="persona-info text-xs text-secondary">
+                        (Simulates this user's view for development/demo)
+                    </div>
                 </div>
-                <select
-                    className="persona-select"
-                    value={activePersona}
-                    onChange={(e) => setActivePersona(e.target.value)}
-                >
-                    {personas.map(p => (
-                        <option key={p.id} value={p.id}>{p.name}</option>
-                    ))}
-                </select>
-                <div className="persona-info text-xs text-secondary">
-                    (Simulates this user's view)
-                </div>
-            </div>
+            )}
 
             <h2>Action Required ({pendingForMe.length})</h2>
 
@@ -146,7 +174,7 @@ const RequestCard = ({ req, isActionable, onApprove, onDeny, denialState, setDen
     const progressPercent = (approved / total) * 100;
 
     return (
-            <div className={`request-card glass-panel ${isHistory ? 'history-card' : ''}`}>
+        <div className={`request-card glass-panel ${isHistory ? 'history-card' : ''}`}>
             <div className="req-header">
                 <span className="req-time">{new Date(req.timestamp).toLocaleString()}</span>
                 {isHistory ? (
@@ -169,14 +197,14 @@ const RequestCard = ({ req, isActionable, onApprove, onDeny, denialState, setDen
                             <span key={obj.id} className="tag">{obj.name}</span>
                         ))}
                     </div>
-            </div>
+                </div>
 
-            <div className="req-section">
-                <label>Resources:</label>
-                <div className="req-tags">
-                    {req.requestedObjects?.map((obj: any) => (
-                        <span key={obj.id} className="tag">{obj.name}</span>
-                    ))}
+                <div className="req-section">
+                    <label>Resources:</label>
+                    <div className="req-tags">
+                        {req.requestedObjects?.map((obj: any) => (
+                            <span key={obj.id} className="tag">{obj.name}</span>
+                        ))}
                     </div>
                 </div>
 

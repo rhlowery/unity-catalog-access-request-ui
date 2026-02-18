@@ -54,7 +54,7 @@ export const MOCK_CATALOGS = [
                 parentId: 'cat_dev',
                 children: [
                     { id: 'tbl_test_data', name: 'test_data', type: 'TABLE', parentId: 'sch_sandbox', owners: ['user_dev'] },
-                    ]
+                ]
             }
         ]
     },
@@ -489,7 +489,7 @@ const getInitialApprovalState = (approvers) => {
     return state;
 };
 
- // Helper to find object path
+// Helper to find object path
 const findObjectPath = (id: string, catalogs: any = MOCK_CATALOGS, currentPath: string[] = []): string | null => {
     for (const node of catalogs) {
         const newPath = [...currentPath, node.name];
@@ -577,8 +577,8 @@ export const getRequests = async () => {
     return requests.sort((a: any, b: any) => Number(new Date(b.timestamp || 0)) - Number(new Date(a.timestamp || 0)));
 };
 
-export const approveRequest = async (requestId, approverId, message, decision) => {
-    const requests = await StorageService.loadRequests();
+export const approveRequest = async (requestId, approverId, message, decision, isSimulation = false) => {
+    const requests = await _loadRequests();
     const req = requests.find((r) => r.id === requestId);
 
     if (req) {
@@ -587,7 +587,8 @@ export const approveRequest = async (requestId, approverId, message, decision) =
             approverId,
             message,
             decision,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            isSimulation // Track if this was a simulated approval
         });
 
         // 2. Update specific approver state

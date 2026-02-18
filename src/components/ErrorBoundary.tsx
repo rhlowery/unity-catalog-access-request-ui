@@ -106,7 +106,15 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
                 <div className="error-boundary__detail-section">
                   <h4>Error:</h4>
                   <pre className="error-boundary__stack">
-                    {this.state.error?.toString()}
+                    {(() => {
+                      let msg = this.state.error?.toString() || '';
+                      const sensitiveKeys = ['password', 'token', 'secret', 'key', 'credential'];
+                      sensitiveKeys.forEach(k => {
+                        const reg = new RegExp(`${k}[:=]\\s*[^\\s&,|]+`, 'gi');
+                        msg = msg.replace(reg, `${k}=\"********\"`);
+                      });
+                      return msg;
+                    })()}
                   </pre>
                 </div>
 
