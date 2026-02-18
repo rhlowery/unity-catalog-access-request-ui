@@ -20,6 +20,7 @@
     "test:coverage": "vitest --coverage",
     "typecheck": "tsc --noEmit",
     "prestart": "npm install",
+    "predev": "npm install",
     "postinstall": "echo '✓ Dependencies installed successfully!' && echo '' && echo 'Next steps:' && echo '  npm run dev     - Start development server'"
   },
   "dependencies": {
