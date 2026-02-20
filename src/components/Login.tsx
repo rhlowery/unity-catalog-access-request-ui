@@ -42,11 +42,11 @@ const Login = () => {
     const handleLogin = async (provider: string) => {
         console.log(`[Login] Attempting login with provider: ${provider}`);
         setActiveProvider(provider);
-        
+
         try {
             const loggedUser = await login(provider);
             console.log(`[Login] Login response:`, loggedUser);
-            
+
             // Check if this is mock provider with user selection
             if (loggedUser?.requiresUserSelection) {
                 console.log(`[Login] Mock provider requires user selection - setting showUserSelection to true`);
@@ -83,7 +83,7 @@ const Login = () => {
         const config = StorageService.getConfig();
         const updatedConfig = { ...config, identityType: providerType };
         console.log(`[Login] Saving config:`, updatedConfig);
-        StorageService.saveConfig(updatedConfig);
+        StorageService.updateConfig(updatedConfig);
         setConfigMode(providerType);
         console.log(`[Login] Provider change complete`);
     };
@@ -117,7 +117,7 @@ const Login = () => {
         <div className="provider-selector">
             <h3>Select Identity Provider</h3>
             <div className="provider-grid">
-                <div 
+                <div
                     className={`provider-card ${configMode === 'MOCK' ? 'active' : ''}`}
                     onClick={() => changeProvider('MOCK')}
                 >
@@ -125,8 +125,8 @@ const Login = () => {
                     <h4>Mock Identity</h4>
                     <p>Role-based user simulation for testing and demos</p>
                 </div>
-                
-                <div 
+
+                <div
                     className={`provider-card ${configMode === 'OAUTH' ? 'active' : ''}`}
                     onClick={() => changeProvider('OAUTH')}
                 >
@@ -134,8 +134,8 @@ const Login = () => {
                     <h4>OAuth 2.0</h4>
                     <p>Google Workspace, Microsoft Entra ID, SSO providers</p>
                 </div>
-                
-                <div 
+
+                <div
                     className={`provider-card ${configMode === 'SAML' ? 'active' : ''}`}
                     onClick={() => changeProvider('SAML')}
                 >
@@ -143,8 +143,8 @@ const Login = () => {
                     <h4>SAML SSO</h4>
                     <p>Enterprise SSO via Okta, Ping, ADFS</p>
                 </div>
-                
-                <div 
+
+                <div
                     className={`provider-card ${configMode === 'DATABRICKS' ? 'active' : ''}`}
                     onClick={() => changeProvider('DATABRICKS')}
                 >
@@ -178,7 +178,7 @@ const Login = () => {
                                     Choose a role to simulate different access levels and permissions
                                 </p>
                             </div>
-                            
+
                             <div className="mock-user-grid">
                                 {(user?.availableUsers || [
                                     { id: 'user_standard', name: 'Alex Analyst', role: 'STANDARD_USER', email: 'alex@company.com', groups: ['group_all_users', 'group_finance_analysts'], description: 'Standard user with basic access to finance data' },
@@ -186,7 +186,7 @@ const Login = () => {
                                     { id: 'user_marketing_approver', name: 'Mike Marketing', role: 'MARKETING_APPROVER', email: 'mike.m@company.com', groups: ['group_all_users', 'group_marketing_admins', 'group_marketing_analysts'], description: 'Marketing approver with permissions for marketing data and campaigns' },
                                     { id: 'user_security_admin', name: 'Jane Security', role: 'SECURITY_ADMIN', email: 'jane.s@company.com', groups: ['group_all_users', 'group_security', 'group_platform_admins', 'group_audit_admins'], description: 'Security admin with full system access and audit capabilities' }
                                 ]).map((mockUser) => (
-                                    <div 
+                                    <div
                                         key={mockUser.id}
                                         className={`mock-user-tab ${showUserSelection ? '' : 'active'}`}
                                         onClick={() => handleUserSelect(mockUser.id)}
@@ -205,7 +205,7 @@ const Login = () => {
                                     </div>
                                 ))}
                             </div>
-                            
+
                             <div className="mock-details-panel">
                                 {showUserSelection && user?.availableUsers && (
                                     <div className="mock-details-content">
@@ -225,7 +225,7 @@ const Login = () => {
                             </div>
                         </div>
                     </div>
-                    
+
                     {!showUserSelection && (
                         <div className="mock-back-panel">
                             <button className="btn btn-ghost" onClick={() => setShowUserSelection(true)} style={{ width: '100%', marginTop: '12px' }}>
@@ -377,13 +377,13 @@ const Login = () => {
     // Show mock login directly if mock is default/selected, otherwise show provider selection
     if (!activeProvider) {
         console.log('[Login] No active provider, showing appropriate screen');
-        
+
         // If mock is default/selected, show mock login directly
         if (configMode === 'MOCK' || !configMode) {
             console.log('[Login] Showing mock login screen directly');
             return <MockLoginScreen />;
         }
-        
+
         // Otherwise show provider selection
         console.log('[Login] Showing provider selection screen');
         return (
@@ -400,7 +400,7 @@ const Login = () => {
                     <div className="login-body">
                         <h3>Select Identity Provider</h3>
                         <div className="provider-grid">
-                            <div 
+                            <div
                                 className={`provider-card ${configMode === 'MOCK' ? 'active' : ''}`}
                                 onClick={() => changeProvider('MOCK')}
                             >
@@ -408,8 +408,8 @@ const Login = () => {
                                 <h4>Mock Identity</h4>
                                 <p>Role-based user simulation for testing and demos</p>
                             </div>
-                            
-                            <div 
+
+                            <div
                                 className={`provider-card ${configMode === 'OAUTH' ? 'active' : ''}`}
                                 onClick={() => changeProvider('OAUTH')}
                             >
@@ -417,8 +417,8 @@ const Login = () => {
                                 <h4>OAuth 2.0</h4>
                                 <p>Google Workspace, Microsoft Entra ID, SSO providers</p>
                             </div>
-                            
-                            <div 
+
+                            <div
                                 className={`provider-card ${configMode === 'SAML' ? 'active' : ''}`}
                                 onClick={() => changeProvider('SAML')}
                             >
@@ -426,8 +426,8 @@ const Login = () => {
                                 <h4>SAML SSO</h4>
                                 <p>Enterprise SSO via Okta, Ping, ADFS</p>
                             </div>
-                            
-                            <div 
+
+                            <div
                                 className={`provider-card ${configMode === 'DATABRICKS' ? 'active' : ''}`}
                                 onClick={() => changeProvider('DATABRICKS')}
                             >
