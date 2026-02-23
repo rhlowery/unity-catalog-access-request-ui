@@ -2,34 +2,19 @@ import { LocalStorageAdapter } from './adapters/LocalStorageAdapter';
 import { RDBMSAdapter } from './adapters/RDBMSAdapter';
 import { GitAdapter } from './adapters/GitAdapter';
 import { VolatileAdapter } from './adapters/VolatileAdapter';
-import { SecretsService as GlobalSecretsService } from '../secrets/SecretsService';
 import { UnityCatalogAdapter } from './adapters/UnityCatalogAdapter';
+import { ConfigService } from '../config/ConfigService';
+import { IStorageAdapter, AccessRequest, Grant } from './IStorageAdapter';
 
-export const SENSITIVE_KEYS = [
-  'password', 'token', 'secret', 'key', 'credential', 'access_key'
-];
-
-export const sanitizeConfig = (config: any) => {
-  if (!config) return {};
-  const sanitized = { ...config };
-  Object.keys(sanitized).forEach(key => {
-    const lowerKey = key.toLowerCase();
-    if (SENSITIVE_KEYS.some(sk => lowerKey.includes(sk)) && !lowerKey.includes('path') && !lowerKey.includes('source') && !lowerKey.includes('v1')) {
-      if (sanitized[key] && typeof sanitized[key] === 'string' && sanitized[key].length > 0) {
-        sanitized[key] = '********';
-      }
-    }
-  });
-  return sanitized;
-};
-
-export const getAdapter = (config: any) => {
+export const getAdapter = (config: any): IStorageAdapter => {
   // Determine storage type and return appropriate adapter
-  if (config.type === 'LOCAL') {
-    console.warn('[Security] Using LOCAL storage for sensitive data. Consider UNITY_CATALOG or GIT for production.');
+  if (config?.storageType === 'LOCAL' || (!config?.storageType && config?.type === 'LOCAL')) {
+    console.warn('[Security] Using LOCAL storage bounds. Consider UNITY_CATALOG or GIT for production.');
   }
 
-  switch (config.type) {
+  const type = config?.storageType || config?.type || 'LOCAL';
+
+  switch (type) {
     case 'LOCAL':
       return LocalStorageAdapter;
     case 'RDBMS':
@@ -45,42 +30,26 @@ export const getAdapter = (config: any) => {
   }
 };
 
-export const loadRequests = () => {
-  const requests = [];
-  const result = localStorage.getItem('acs_requests_v1');
-  if (result) {
-    try {
-      const data = typeof result === 'string' ? JSON.parse(result) : result;
-      // Only return valid requests
-      return Array.isArray(data) ? data : [];
-    } catch (e) {
-      console.error('[StorageService] Failed to load requests:', e);
-      return [];
-    }
-  }
-  return requests;
-};
+/**
+ * StorageService Facade
+ * Resolves the configuration and delegates calls dynamically to the appropriate storage adapter.
+ */
+export const StorageService = {
+  async loadRequests(): Promise<AccessRequest[]> {
+    const config = await ConfigService.getResolvedConfig();
+    const adapter = getAdapter(config);
+    return await adapter.load(config);
+  },
 
-export const saveRequests = (requests) => {
-  try {
-    const data = JSON.stringify(requests);
-    localStorage.setItem('acs_requests_v1', data);
-    return true;
-  } catch (e) {
-    console.error('[StorageService] Failed to save requests:', e);
-    return false;
-  }
-};
+  async saveRequests(requests: AccessRequest[]): Promise<boolean> {
+    const config = await ConfigService.getResolvedConfig();
+    const adapter = getAdapter(config);
+    return await adapter.save(requests, config);
+  },
 
-export const getRequest = (id) => {
-  const requests = loadRequests();
-  const request = requests.find(r => r.id === id);
-  return request;
-};
-
-export const createRequest = (request) => {
-  try {
-    const requests = loadRequests();
+  async createRequest(request: Partial<AccessRequest>): Promise<boolean> {
+    const config = await ConfigService.getResolvedConfig();
+    const adapter = getAdapter(config);
     const newRequest = {
       id: Date.now().toString(),
       ...request,
@@ -89,85 +58,46 @@ export const createRequest = (request) => {
       approvals: [],
       comments: []
     };
+    return await adapter.upsertRequest(newRequest as AccessRequest, config);
+  },
 
-    const updatedRequests = [...requests, newRequest];
-    return saveRequests(updatedRequests);
-  } catch (e) {
-    console.error('[StorageService] Failed to create request:', e);
-    return null;
-  }
-};
+  async getRequest(id: string): Promise<AccessRequest | undefined> {
+    const requests = await this.loadRequests();
+    return requests.find((r: AccessRequest) => r.id === id);
+  },
 
-export const updateRequest = (id, updates) => {
-  try {
-    const requests = loadRequests();
-    const requestIndex = requests.findIndex(r => r.id === id);
+  async updateRequest(id: string, updates: Partial<AccessRequest>): Promise<boolean> {
+    const config = await ConfigService.getResolvedConfig();
+    const adapter = getAdapter(config);
+    const requests = await adapter.load(config);
+    const requestIndex = requests.findIndex((r: AccessRequest) => r.id === id);
 
     if (requestIndex === -1) {
-      throw new Error(`Request with ID ${id} not found`);
+      console.error(`[StorageService] Request with ID ${id} not found`);
+      return false;
     }
 
-    requests[requestIndex] = { ...requests[requestIndex], ...updates };
-    return saveRequests(requests);
-  } catch (e) {
-    console.error('[StorageService] Failed to update request:', e);
-    return false;
-  }
-};
+    const updatedRequest = { ...requests[requestIndex], ...updates };
+    return await adapter.upsertRequest(updatedRequest as AccessRequest, config);
+  },
 
-export const deleteRequest = (id) => {
-  try {
-    const requests = loadRequests();
-    const updatedRequests = requests.filter(r => r.id !== id);
-    return saveRequests(updatedRequests);
-  } catch (e) {
-    console.error('[StorageService] Failed to delete request:', e);
-    return false;
-  }
-};
+  async deleteRequest(id: string): Promise<boolean> {
+    const config = await ConfigService.getResolvedConfig();
+    const adapter = getAdapter(config);
+    const requests = await adapter.load(config);
+    const updatedRequests = requests.filter((r: AccessRequest) => r.id !== id);
+    return await adapter.save(updatedRequests, config);
+  },
 
-// Legacy StorageService export for backward compatibility
-export const StorageService = {
-  loadConfig: (key: string) => {
-    return localStorage.getItem(key);
+  async upsertRequest(request: AccessRequest): Promise<boolean> {
+    const config = await ConfigService.getResolvedConfig();
+    const adapter = getAdapter(config);
+    return await adapter.upsertRequest(request, config);
   },
-  saveConfig: (key: string, value: string) => {
-    localStorage.setItem(key, value);
-  },
-  updateConfig: (config: any) => {
-    localStorage.setItem('uc_config', JSON.stringify(config));
-  },
-  getConfig: () => {
-    const config = localStorage.getItem('uc_config');
-    const parsed = config ? JSON.parse(config) : {};
-    return parsed; // Return raw config for internal use?
-  },
-  getSanitizedConfig: () => {
-    return sanitizeConfig(StorageService.getConfig());
-  },
-  getResolvedConfig: async () => {
-    const config = StorageService.getConfig();
-    return await GlobalSecretsService.resolveConfig(config);
-  },
-  loadRequests,
-  saveRequests,
-  createRequest,
-  updateRequest,
-  deleteRequest,
-  getRequest,
-  async upsertRequest(request: any) {
-    const requests = loadRequests();
-    const index = requests.findIndex(r => r.id === request.id);
-    if (index !== -1) {
-      requests[index] = request;
-    } else {
-      requests.push(request);
-    }
-    return saveRequests(requests);
-  },
-  async getGrants(object: any) {
-    const grantsKey = `uc_grants_${object.id}`;
-    const grants = localStorage.getItem(grantsKey);
-    return grants ? JSON.parse(grants) : [];
+
+  async getGrants(object: any): Promise<Grant[]> {
+    const config = await ConfigService.getResolvedConfig();
+    const adapter = getAdapter(config);
+    return await adapter.getGrants(object, config);
   }
 };

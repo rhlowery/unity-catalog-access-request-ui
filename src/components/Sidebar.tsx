@@ -1,4 +1,5 @@
 import { StorageService } from '../services/storage/StorageService';
+import { ConfigService } from '../services/config/ConfigService';
 import CatalogTree from './CatalogTree';
 
 const Sidebar = ({
@@ -22,7 +23,7 @@ const Sidebar = ({
             overflow: 'hidden'
         }}>
             {(() => {
-                const config = StorageService.getConfig();
+                const config = ConfigService.getConfig();
                 // Show only if in ACCOUNT mode
                 if (config.ucAuthType === 'ACCOUNT') {
                     return (

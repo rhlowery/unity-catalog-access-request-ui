@@ -2,6 +2,7 @@ import { EnvAdapter } from './adapters/EnvAdapter';
 import { VaultAdapter } from './adapters/VaultAdapter';
 import { MockVaultAdapter } from './adapters/MockVaultAdapter';
 import { StorageService } from '../storage/StorageService';
+import { ConfigService } from '../config/ConfigService';
 
 const ADAPTERS = {
     'PLAIN': EnvAdapter,
@@ -11,7 +12,7 @@ const ADAPTERS = {
 
 export const SecretsService = {
     getAdapter() {
-        const config = StorageService.getConfig();
+        const config = ConfigService.getConfig();
         const type = config.globalSecretProvider || 'PLAIN';
         return ADAPTERS[type] || EnvAdapter;
     },
@@ -20,7 +21,7 @@ export const SecretsService = {
      * Resolves a secret. 
      */
     async resolveSecret(path, key, fallbackValue) {
-        const config = StorageService.getConfig();
+        const config = ConfigService.getConfig();
         const source = config.globalSecretProvider || 'PLAIN';
 
         if (source === 'PLAIN' || !key) {

@@ -380,6 +380,7 @@ export const PERMISSIONS = [
 ];
 
 import { StorageService } from './storage/StorageService';
+import { ConfigService } from './config/ConfigService';
 
 // Storage Helper
 const _loadRequests = async () => {
@@ -416,7 +417,7 @@ const MOCK_WORKSPACE_CATALOGS = [
 ];
 
 export const getCatalogs = async () => {
-    const config = StorageService.getConfig();
+    const config = ConfigService.getConfig();
 
     // Simulate Network Delay
     await new Promise(resolve => setTimeout(resolve, 600));
@@ -434,7 +435,7 @@ export const getCatalogs = async () => {
 import { fetchUCIdentities } from './UCIdentityService';
 
 export const getIdentities = async () => {
-    const config = StorageService.getConfig();
+    const config = ConfigService.getConfig();
     let shouldUseUC = false;
 
     // Only try to fetch Real UC data if Identity Type is NOT MOCK

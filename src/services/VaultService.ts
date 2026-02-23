@@ -6,6 +6,7 @@
  */
 
 import { StorageService } from './storage/StorageService';
+import { ConfigService } from './config/ConfigService';
 
 export const VaultService = {
     /**
@@ -14,7 +15,7 @@ export const VaultService = {
      * @param {string} key - The JSON key representing the value to retrieve.
      */
     async fetchSecret(fullPath: string, key: string): Promise<string | null> {
-        const config = StorageService.getConfig();
+        const config = ConfigService.getConfig();
         const { vaultUrl, vaultToken, vaultNamespace } = config;
 
         if (!vaultUrl || !vaultToken) {

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthProvider';
 import { StorageService } from '../services/storage/StorageService';
+import { ConfigService } from '../services/config/ConfigService';
 import { Shield, Globe, Key, Lock, Loader2, Users, UserCheck, Crown, ShieldCheck, Settings, Database } from 'lucide-react';
 import { selectMockUser, getCurrentMockUser } from '../services/identity/adapters/MockIdentityAdapter';
 import './Login.css';
@@ -25,7 +26,7 @@ const Login = () => {
 
     useEffect(() => {
         // Load current config to show correct provider interface
-        const config = StorageService.getConfig();
+        const config = ConfigService.getConfig();
         const mode = config.identityType || 'MOCK';
         setConfigMode(mode);
         console.log(`[Login] Current identity mode: ${mode}`);
@@ -80,10 +81,10 @@ const Login = () => {
 
     const changeProvider = (providerType: string) => {
         console.log(`[Login] Changing provider to: ${providerType}`);
-        const config = StorageService.getConfig();
+        const config = ConfigService.getConfig();
         const updatedConfig = { ...config, identityType: providerType };
         console.log(`[Login] Saving config:`, updatedConfig);
-        StorageService.updateConfig(updatedConfig);
+        ConfigService.updateConfig(updatedConfig);
         setConfigMode(providerType);
         console.log(`[Login] Provider change complete`);
     };
@@ -109,7 +110,7 @@ const Login = () => {
     };
 
     const getProviderConfig = (type: string) => {
-        const config = StorageService.getConfig();
+        const config = ConfigService.getConfig();
         return config.identityType === type;
     };
 

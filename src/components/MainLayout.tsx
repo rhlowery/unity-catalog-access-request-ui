@@ -5,6 +5,7 @@ import ErrorBoundary from './ErrorBoundary';
 import Sidebar from './Sidebar';
 import { CatalogService } from '../services/catalog/CatalogService';
 import { StorageService } from '../services/storage/StorageService';
+import { ConfigService } from '../services/config/ConfigService';
 import { ViewModeTabs, UserControls, ContentView, ComponentLoader } from './OptimizedComponents';
 import { lazy } from 'react';
 const AdminSettings = lazy(() => import('./AdminSettings'));
@@ -31,7 +32,7 @@ const MainLayout = () => {
   useEffect(() => {
     const savedWidth = localStorage.getItem('acs_sidebar_width');
     const savedCollapsed = localStorage.getItem('acs_sidebar_collapsed');
-    
+
     if (savedWidth) {
       setSidebarWidth(parseInt(savedWidth, 10));
     }
@@ -70,13 +71,13 @@ const MainLayout = () => {
   useEffect(() => {
     const loadWorkspaces = async () => {
       try {
-        const config = StorageService.getConfig();
+        const config = ConfigService.getConfig();
         if (config.ucAuthType === 'ACCOUNT') {
           setLoadingWorkspaces(true);
           setWorkspaceError(null);
           const workspaceData = await CatalogService.fetchWorkspaces();
           setWorkspaces(workspaceData || []);
-          
+
           if (!selectedWorkspaceId && workspaceData?.length > 0) {
             setSelectedWorkspaceId(workspaceData[0].id);
           }
@@ -107,10 +108,10 @@ const MainLayout = () => {
   useEffect(() => {
     const loadCatalogs = async () => {
       if (!user) return;
-      
+
       try {
-        const config = StorageService.getConfig();
-        
+        const config = ConfigService.getConfig();
+
         if (config.ucAuthType === 'WORKSPACE' || selectedWorkspaceId) {
           const catalogData = await CatalogService.fetchCatalogs(selectedWorkspaceId || 'workspace');
           setCatalogs(catalogData || []);
@@ -153,23 +154,23 @@ const MainLayout = () => {
   const handleResizeStart = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     setIsResizing(true);
-    
+
     const startX = e.clientX;
     const startWidth = sidebarWidth;
-    
+
     const handleMouseMove = (moveEvent: MouseEvent) => {
       const deltaX = moveEvent.clientX - startX;
       const newWidth = Math.max(150, Math.min(600, startWidth + deltaX));
       setSidebarWidth(newWidth);
     };
-    
+
     const handleMouseUp = () => {
       setIsResizing(false);
       localStorage.setItem('acs_sidebar_width', sidebarWidth.toString());
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-    
+
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
   }, [sidebarWidth]);
@@ -311,7 +312,7 @@ const MainLayout = () => {
             </div>
           </div>
 
-          <div style={{ 
+          <div style={{
             width: '5px',
             flexShrink: 0,
             background: 'transparent'

@@ -3,6 +3,7 @@ import { Check, AlertCircle, X } from 'lucide-react';
 import { useAuth } from '../context/AuthProvider';
 import { getRequests, approveRequest, MOCK_IDENTITIES } from '../services/mockData';
 import { StorageService } from '../services/storage/StorageService';
+import { ConfigService } from '../services/config/ConfigService';
 import { ObservabilityService } from '../services/ObservabilityService';
 import ErrorTestPanel from './ErrorTestPanel';
 
@@ -64,7 +65,7 @@ const ApproverDashboard = () => {
 
 
 
-    const config = StorageService.getConfig();
+    const config = ConfigService.getConfig();
     const isProduction = import.meta.env.PROD;
     const isSimulationMode = (!isProduction || (window as any).ACS_DEMO_MODE) && config.enableSimulationMode;
 

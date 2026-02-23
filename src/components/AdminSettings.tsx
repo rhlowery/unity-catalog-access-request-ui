@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Bug, Save, Lock, CheckCircle } from 'lucide-react';
 import { StorageService } from '../services/storage/StorageService';
+import { ConfigService } from '../services/config/ConfigService';
 import { EventBus } from '../services/EventBus';
 import { clearTokenCache } from '../services/UCIdentityService';
 
@@ -13,7 +14,7 @@ import DebugSettingsTab from './settings/DebugSettingsTab';
 import './AdminSettings.css';
 
 const AdminSettings = () => {
-    const [config, setConfig] = useState(StorageService.getConfig());
+    const [config, setConfig] = useState(ConfigService.getConfig());
     const [saved, setSaved] = useState(false);
     const [activeTab, setActiveTab] = useState('STORAGE'); // STORAGE, IDENTITY, UNITY_CATALOG, SECRETS
     const [isMockVaultModalOpen, setIsMockVaultModalOpen] = useState(false);
@@ -22,7 +23,7 @@ const AdminSettings = () => {
     });
 
     const handleSave = () => {
-        StorageService.updateConfig(config);
+        ConfigService.updateConfig(config);
         clearTokenCache();
         setSaved(true);
         EventBus.dispatch('SETTINGS_UPDATED', { config });

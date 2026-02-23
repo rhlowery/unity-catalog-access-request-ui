@@ -6,6 +6,7 @@
  */
 
 import { StorageService } from './storage/StorageService';
+import { ConfigService } from './config/ConfigService';
 import { SecretsService } from './secrets/SecretsService';
 
 const API_BASE = '/api/2.0/preview/scim/v2';
@@ -85,7 +86,7 @@ export const getM2MToken = async (config) => {
 
 export const fetchUCIdentities = async () => {
     try {
-        const config = await StorageService.getResolvedConfig();
+        const config = await ConfigService.getResolvedConfig();
         const _hostInfo = config.ucHost ? `Configured Host (${config.ucHost})` : 'Env/Proxy Host';
 
         // 1. Get Token via M2M
@@ -156,7 +157,7 @@ export const fetchUCIdentities = async () => {
 
 export const fetchWorkspaces = async () => {
     try {
-        const config = await StorageService.getResolvedConfig();
+        const config = await ConfigService.getResolvedConfig();
         if (config.ucAuthType !== 'ACCOUNT') return [];
         if (!config.ucAccountId) {
             console.warn("[UCIdentityService] ucAccountId is missing in ACCOUNT mode.");
@@ -223,7 +224,7 @@ const getValidToken = async (host, config) => {
 
 export const fetchCatalogs = async (workspaceUrl) => {
     try {
-        const config = await StorageService.getResolvedConfig();
+        const config = await ConfigService.getResolvedConfig();
         const token = await getValidToken(workspaceUrl, config);
 
         if (!token) throw new Error("No valid token available");

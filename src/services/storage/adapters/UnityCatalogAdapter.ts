@@ -28,6 +28,11 @@ export const UnityCatalogAdapter = {
         return true;
     },
 
+    async upsertRequest(request, config) {
+        console.log(`[UC Adapter] Upserting request ${request.id} into Delta Schema`);
+        return true;
+    },
+
     async getGrants(object, config) {
         // For UC-backed storage of requests
         // Since load() returns empty array in this mock, we just return empty
