@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Check, AlertCircle, X } from 'lucide-react';
 import { useAuth } from '../context/AuthProvider';
 import { getRequests, approveRequest, MOCK_IDENTITIES } from '../services/mockData';
@@ -10,9 +11,8 @@ import ErrorTestPanel from './ErrorTestPanel';
 import './ApproverDashboard.css';
 
 const ApproverDashboard = () => {
-    useAuth(); // Real logged in user (usually acting as Requester)
-    const [requests, setRequests] = useState([]);
-    const [refreshTrigger, setRefreshTrigger] = useState(0);
+    const queryClient = useQueryClient();
+    const { user } = useAuth();
     const [denialState, setDenialState] = useState({ reqId: null, reason: '' });
 
     // Persona Switching State
@@ -26,20 +26,28 @@ const ApproverDashboard = () => {
         { id: 'group_legal_compliance', name: 'Legal Compliance' },
     ];
 
-    useEffect(() => {
-        getRequests().then(setRequests);
-    }, [refreshTrigger]);
+    const { data: requests = [], isLoading } = useQuery({
+        queryKey: ['requests'],
+        queryFn: getRequests
+    });
 
-    const handleApprove = async (reqId) => {
-        await approveRequest(reqId, activePersona, 'Approved via Dashboard', 'APPROVE', isSimulationMode);
-        setRefreshTrigger(prev => prev + 1);
+    const approveMutation = useMutation({
+        mutationFn: async ({ reqId, action, reason }: any) => {
+            return await approveRequest(reqId, activePersona, reason, action, isSimulationMode);
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['requests'] });
+        }
+    });
+
+    const handleApprove = (reqId) => {
+        approveMutation.mutate({ reqId, action: 'APPROVE', reason: 'Approved via Dashboard' });
     };
 
     const confirmDenial = async () => {
         if (!denialState.reason.trim()) return;
-        await approveRequest(denialState.reqId, activePersona, denialState.reason, 'DENY', isSimulationMode);
+        approveMutation.mutate({ reqId: denialState.reqId, action: 'DENY', reason: denialState.reason });
         setDenialState({ reqId: null, reason: '' });
-        setRefreshTrigger(prev => prev + 1);
     };
 
     // 1. Action Required: I need to approve, and global status is PENDING
@@ -116,7 +124,9 @@ const ApproverDashboard = () => {
 
             <h2>Action Required ({pendingForMe.length})</h2>
 
-            {pendingForMe.length === 0 && (
+            {isLoading && <div className="p-4">Loading requests...</div>}
+
+            {!isLoading && pendingForMe.length === 0 && (
                 <div className="empty-dashboard glass-panel">
                     <Check size={32} className="text-success" style={{ opacity: 0.5 }} />
                     <p>You're all caught up!</p>

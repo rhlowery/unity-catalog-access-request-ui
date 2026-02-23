@@ -6,17 +6,34 @@ import Sidebar from './Sidebar';
 import { CatalogService } from '../services/catalog/CatalogService';
 import { StorageService } from '../services/storage/StorageService';
 import { ConfigService } from '../services/config/ConfigService';
+import { useQuery } from '@tanstack/react-query';
 import { ViewModeTabs, UserControls, ContentView, ComponentLoader } from './OptimizedComponents';
 import { lazy } from 'react';
 const AdminSettings = lazy(() => import('./AdminSettings'));
 
 const MainLayout = () => {
   const { user, logout } = useAuth();
-  const [catalogs, setCatalogs] = useState([]);
-  const [workspaces, setWorkspaces] = useState([]);
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState('');
-  const [loadingWorkspaces, setLoadingWorkspaces] = useState(false);
-  const [workspaceError, setWorkspaceError] = useState<string | null>(null);
+  const {
+    data: workspaces = [],
+    isLoading: loadingWorkspaces,
+    error: workspaceErrorData
+  } = useQuery({
+    queryKey: ['workspaces'],
+    queryFn: () => CatalogService.fetchWorkspaces(),
+    enabled: !!user
+  });
+
+  const workspaceError = workspaceErrorData ? (workspaceErrorData as Error).message : null;
+
+  const {
+    data: catalogs = [],
+    isLoading: _loadingCatalogs
+  } = useQuery({
+    queryKey: ['catalogs', selectedWorkspaceId],
+    queryFn: () => CatalogService.fetchCatalogs(selectedWorkspaceId),
+    enabled: !!user && !!selectedWorkspaceId
+  });
 
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [selectedObjects, setSelectedObjects] = useState<any[]>([]);
@@ -69,60 +86,15 @@ const MainLayout = () => {
   }, [isResizing, sidebarWidth]);
 
   useEffect(() => {
-    const loadWorkspaces = async () => {
-      try {
-        const config = ConfigService.getConfig();
-        if (config.ucAuthType === 'ACCOUNT') {
-          setLoadingWorkspaces(true);
-          setWorkspaceError(null);
-          const workspaceData = await CatalogService.fetchWorkspaces();
-          setWorkspaces(workspaceData || []);
-
-          if (!selectedWorkspaceId && workspaceData?.length > 0) {
-            setSelectedWorkspaceId(workspaceData[0].id);
-          }
-        } else if (config.ucAuthType === 'WORKSPACE') {
-          if (!selectedWorkspaceId) {
-            setSelectedWorkspaceId('default_workspace');
-          }
-        } else {
-          if (!selectedWorkspaceId) {
-            setSelectedWorkspaceId('default_workspace');
-          }
-        }
-      } catch (error) {
-        setWorkspaceError((error as Error).message || 'Failed to load workspaces');
-        if (!selectedWorkspaceId) {
-          setSelectedWorkspaceId('default_workspace');
-        }
-      } finally {
-        setLoadingWorkspaces(false);
+    if (workspaces.length > 0 && !selectedWorkspaceId) {
+      setSelectedWorkspaceId(workspaces[0].id);
+    } else if (workspaces.length === 0 && !selectedWorkspaceId) {
+      const config = ConfigService.getConfig();
+      if (config.ucAuthType === 'WORKSPACE' || config.ucAuthType === 'LOCAL' || !config.ucAuthType) {
+        setSelectedWorkspaceId('default_workspace');
       }
-    };
-
-    if (user) {
-      loadWorkspaces();
     }
-  }, [user, selectedWorkspaceId]);
-
-  useEffect(() => {
-    const loadCatalogs = async () => {
-      if (!user) return;
-
-      try {
-        const config = ConfigService.getConfig();
-
-        if (config.ucAuthType === 'WORKSPACE' || selectedWorkspaceId) {
-          const catalogData = await CatalogService.fetchCatalogs(selectedWorkspaceId || 'workspace');
-          setCatalogs(catalogData || []);
-        }
-      } catch (error) {
-        setCatalogs([]);
-      }
-    };
-
-    loadCatalogs();
-  }, [user, selectedWorkspaceId]);
+  }, [workspaces, selectedWorkspaceId]);
 
   const clearSelection = useCallback(() => {
     setSelectedIds(new Set());

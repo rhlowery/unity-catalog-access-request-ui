@@ -85,6 +85,8 @@ const CatalogTree = ({ nodes = [], selectedIds, onToggleSelection }: any) => {
         const handleRowClick = (e: React.MouseEvent) => {
             if (hasChildren) {
                 toggleExpand(node.id, e);
+            } else {
+                onToggleSelection(node.id, node);
             }
         };
 

@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { CheckCircle, XCircle, Info, Shield, AlertTriangle } from 'lucide-react';
 import { StorageService } from '../services/storage/StorageService';
 import { CatalogService } from '../services/catalog/CatalogService';
@@ -8,60 +9,42 @@ interface ReviewerTabProps {
 }
 
 const ReviewerTab = ({ selectedObject }: ReviewerTabProps) => {
-    const [_configuredGrants, setConfiguredGrants] = useState<any[]>([]);
-    const [_liveGrants, setLiveGrants] = useState<any[]>([]);
-    const [comparison, setComparison] = useState<any[]>([]);
-    const [loading, setLoading] = useState(false);
+    const { data: configured = [], isLoading: loadingConfigured } = useQuery({
+        queryKey: ['configuredGrants', typeof selectedObject === 'object' ? selectedObject?.id : selectedObject],
+        queryFn: () => StorageService.getGrants(selectedObject),
+        enabled: !!selectedObject
+    });
 
-    const fetchData = useCallback(async () => {
-        setLoading(true);
-        try {
-            const configured = await StorageService.getGrants(selectedObject);
-            const live = await CatalogService.getLiveGrants(selectedObject);
-            setConfiguredGrants(_configuredGrants);
-            setLiveGrants(_liveGrants);
-            compareGrants(configured, live);
-        } catch (error) {
-            console.error("Failed to fetch grants", error);
-        } finally {
-            setLoading(false);
-        }
-    }, [selectedObject]);
+    const { data: live = [], isLoading: loadingLive } = useQuery({
+        queryKey: ['liveGrants', typeof selectedObject === 'object' ? selectedObject?.id : selectedObject],
+        queryFn: () => CatalogService.getLiveGrants(selectedObject),
+        enabled: !!selectedObject
+    });
 
-    useEffect(() => {
-        if (selectedObject) {
-            fetchData();
-        }
-    }, [selectedObject, fetchData]);
+    const loading = loadingConfigured || loadingLive;
 
-    const compareGrants = (configured, live) => {
-        // We need to match grants. 
-        // A grant is defined by Principal (User/Group) + Permission.
+    const comparison = useMemo(() => {
+        if (!selectedObject || loading) return [];
 
+        // Match grants logic
         const allItems = [];
 
         // 1. Process Configured Grants
         configured.forEach(cg => {
             cg.permissions.forEach(perm => {
-                const matchIndex = live.findIndex(lg =>
-                    lg.principal.id === cg.principal.id &&
+                const matchIndex = live.findIndex((lg: any) =>
+                    ((lg.principal as any)?.id || lg.principal) === ((cg.principal as any)?.id || cg.principal) &&
                     lg.permissions.includes(perm)
                 );
 
                 if (matchIndex !== -1) {
-                    // It exists in both -> SYNCED
                     allItems.push({
                         principal: cg.principal,
                         permission: perm,
                         status: 'SYNCED',
                         source: 'BOTH'
                     });
-                    // Mark this live permission as "seen" roughly (careful with multiple matches)
-                    // For simplicity, we just won't add it again in the next loop if we can help it.
-                    // Actually, simpler logic:
-                    // Create a Set of "Live" signature: `${p.id}:${perm}`
                 } else {
-                    // In Configured but not Live -> NOT APPLIED
                     allItems.push({
                         principal: cg.principal,
                         permission: perm,
@@ -75,11 +58,8 @@ const ReviewerTab = ({ selectedObject }: ReviewerTabProps) => {
         // 2. Process Live Grants (Find "Not Recorded")
         live.forEach(lg => {
             lg.permissions.forEach(perm => {
-                const _signature = `${lg.principal.id}:${perm}`;
-
-                // Check if this exists in configured
-                const existsInConfigured = configured.some(cg =>
-                    cg.principal.id === lg.principal.id &&
+                const existsInConfigured = configured.some((cg: any) =>
+                    ((cg.principal as any)?.id || cg.principal) === ((lg.principal as any)?.id || lg.principal) &&
                     cg.permissions.includes(perm)
                 );
 
@@ -100,8 +80,10 @@ const ReviewerTab = ({ selectedObject }: ReviewerTabProps) => {
             return priority[a.status] - priority[b.status];
         });
 
-        setComparison(allItems);
-    };
+        return allItems;
+    }, [selectedObject, configured, live, loading]);
+
+
 
     if (!selectedObject) {
         return (
@@ -143,8 +125,8 @@ const ReviewerTab = ({ selectedObject }: ReviewerTabProps) => {
                         {comparison.map((item, idx) => (
                             <tr key={idx} style={{ borderBottom: '1px solid var(--glass-border)' }}>
                                 <td style={{ padding: '10px' }}>
-                                    <div style={{ fontWeight: 500 }}>{item.principal.name}</div>
-                                    <div style={{ fontSize: '0.75rem', opacity: 0.7 }}>{item.principal.type}</div>
+                                    <div style={{ fontWeight: 500 }}>{(item.principal as any).name || item.principal}</div>
+                                    <div style={{ fontSize: '0.75rem', opacity: 0.7 }}>{(item.principal as any).type || ''}</div>
                                 </td>
                                 <td style={{ padding: '10px' }}>
                                     <code>{item.permission}</code>
