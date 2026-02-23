@@ -49,14 +49,14 @@ const Sidebar = ({
                     );
                 }
                 return null;
-             })()}
+            })()}
 
             <div style={{ padding: '1rem', borderBottom: '1px solid var(--glass-border)', flexShrink: 0 }}>
                 <h3 style={{ fontSize: '0.9rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>
                     Data Catalog
                 </h3>
             </div>
-            <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
                 <CatalogTree
                     nodes={catalogs}
                     selectedIds={selectedIds}

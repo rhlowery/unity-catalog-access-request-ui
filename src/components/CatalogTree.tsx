@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { Database, Folder, Table, Eye, Brain, Box, Server, ScrollText, HardDrive, Globe, Key, ChevronDown, ChevronRight } from 'lucide-react';
+import { VirtualList } from './VirtualList';
 import './CatalogTree.css';
 
-export const NodeIcon = ({ type }) => {
+export const NodeIcon = ({ type }: { type?: string }) => {
     const iconType = type || 'TABLE';
     switch (iconType) {
         case 'CATALOG': return <Folder size={16} className="node-icon icon-catalog" />;
@@ -19,71 +20,112 @@ export const NodeIcon = ({ type }) => {
     }
 };
 
-const TreeNode = ({ node, selectedIds, toggleSelection }) => {
-    const [expanded, setExpanded] = useState(false);
-    const hasChildren = node.children && node.children.length > 0;
-    const isSelected = selectedIds.has(node.id);
-    const nodeType = node.type || 'TABLE';
+interface FlatNode {
+    node: any;
+    depth: number;
+}
 
-    const handleToggle = (e) => {
+const CatalogTree = ({ nodes = [], selectedIds, onToggleSelection }: any) => {
+    const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+    const [containerHeight, setContainerHeight] = useState(0);
+    const containerRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (!containerRef.current) return;
+        const observer = new ResizeObserver(entries => {
+            if (entries[0]) {
+                setContainerHeight(entries[0].contentRect.height);
+            }
+        });
+        observer.observe(containerRef.current);
+        return () => observer.disconnect();
+    }, []);
+
+    const flatNodes = useMemo(() => {
+        const result: FlatNode[] = [];
+        const traverse = (nodeList: any[], depth: number) => {
+            for (const node of nodeList) {
+                result.push({ node, depth });
+                if (expandedIds.has(node.id) && node.children && node.children.length > 0) {
+                    traverse(node.children, depth + 1);
+                }
+            }
+        };
+        if (nodes && nodes.length > 0) {
+            traverse(nodes, 0);
+        }
+        return result;
+    }, [nodes, expandedIds]);
+
+    const toggleExpand = useCallback((id: string, e: React.MouseEvent) => {
         e.stopPropagation();
-        setExpanded(!expanded);
-    };
+        setExpandedIds(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) {
+                next.delete(id);
+            } else {
+                next.add(id);
+            }
+            return next;
+        });
+    }, []);
 
-    const handleCheckboxChange = (e) => {
-        e.stopPropagation();
-        toggleSelection(node.id, node);
-    };
+    const renderItem = useCallback((flatNode: FlatNode, index: number) => {
+        const { node, depth } = flatNode;
+        const hasChildren = node.children && node.children.length > 0;
+        const isSelected = selectedIds.has(node.id);
+        const nodeType = node.type || 'TABLE';
+        const isExpanded = expandedIds.has(node.id);
 
-    return (
-        <div className="tree-node">
-            <div className={`node-content ${isSelected ? 'selected' : ''}`} onClick={() => hasChildren && setExpanded(!expanded)}>
-                <button className="node-toggle" onClick={handleToggle} style={{ visibility: hasChildren ? 'visible' : 'hidden' }}>
-                    {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                </button>
+        const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+            e.stopPropagation();
+            onToggleSelection(node.id, node);
+        };
 
-                <input
-                    type="checkbox"
-                    checked={isSelected}
-                    onChange={handleCheckboxChange}
-                    className="node-checkbox"
-                    onClick={(e) => e.stopPropagation()}
-                />
+        const handleRowClick = (e: React.MouseEvent) => {
+            if (hasChildren) {
+                toggleExpand(node.id, e);
+            }
+        };
 
-                <NodeIcon type={nodeType} />
-                <span className="node-label">{node.name}</span>
-            </div>
+        return (
+            <div className="tree-node" style={{ paddingLeft: `${depth * 24}px` }} onClick={handleRowClick}>
+                <div className={`node-content ${isSelected ? 'selected' : ''}`}>
+                    <button
+                        className="node-toggle"
+                        onClick={(e) => toggleExpand(node.id, e)}
+                        style={{ visibility: hasChildren ? 'visible' : 'hidden' }}
+                    >
+                        {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                    </button>
 
-            {hasChildren && expanded && (
-                <div className="node-children animate-fade-in">
-                    {node.children.map(child => (
-                        <TreeNode
-                            key={child.id}
-                            node={child}
-                            selectedIds={selectedIds}
-                            toggleSelection={toggleSelection}
-                        />
-                    ))}
+                    <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={handleCheckboxChange}
+                        className="node-checkbox"
+                        onClick={(e) => e.stopPropagation()}
+                    />
+
+                    <NodeIcon type={nodeType} />
+                    <span className="node-label">{node.name}</span>
                 </div>
-            )}
-        </div>
-    );
-};
+            </div>
+        );
+    }, [expandedIds, selectedIds, onToggleSelection, toggleExpand]);
 
+    if (!nodes || nodes.length === 0) return null;
 
+    const renderHeight = Math.max(containerHeight, 400);
 
-const CatalogTree = ({ nodes = [], selectedIds, onToggleSelection }) => {
-    if (!nodes) return null;
     return (
-        <div className="tree-container">
-            {nodes.map(node => (
-                <TreeNode
-                    key={node.id}
-                    node={node}
-                    selectedIds={selectedIds}
-                    toggleSelection={onToggleSelection}
-                />
-            ))}
+        <div className="tree-container" ref={containerRef} style={{ height: '100%', overflow: 'hidden' }}>
+            <VirtualList
+                items={flatNodes}
+                itemHeight={28}
+                containerHeight={renderHeight}
+                renderItem={renderItem}
+            />
         </div>
     );
 };
