@@ -14,15 +14,17 @@ interface VirtualListProps<T> {
   renderItem: (item: T, index: number) => React.ReactNode;
   overscan?: number;
   className?: string;
+  style?: React.CSSProperties;
 }
 
-export function VirtualList<T>({ 
-  items, 
-  itemHeight, 
-  containerHeight, 
-  renderItem, 
+export function VirtualList<T>({
+  items,
+  itemHeight,
+  containerHeight,
+  renderItem,
   overscan = 5,
-  className = ''
+  className = '',
+  style = {}
 }: VirtualListProps<T>) {
   const [scrollTop, setScrollTop] = useState(0);
   const scrollElementRef = useRef<HTMLDivElement>(null);
@@ -59,7 +61,8 @@ export function VirtualList<T>({
       style={{
         height: containerHeight,
         overflow: 'auto',
-        position: 'relative'
+        position: 'relative',
+        ...style
       }}
       onScroll={handleScroll}
     >

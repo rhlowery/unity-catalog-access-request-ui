@@ -151,6 +151,7 @@ const MainLayout = () => {
     width: isSidebarCollapsed ? 0 : sidebarWidth,
     minWidth: isSidebarCollapsed ? 0 : 150,
     maxWidth: isSidebarCollapsed ? 0 : 600,
+    height: '100%',
     transition: isResizing ? 'none' : 'width 0.2s ease',
     flexShrink: 0,
     position: (isSidebarCollapsed ? 'absolute' : 'relative') as 'absolute' | 'relative',

@@ -46,37 +46,31 @@ export const getM2MToken = async (config) => {
     }
 
     try {
-        console.log("Exchanging M2M credentials for token...");
-        // Note: usage of URLSearchParams for x-www-form-urlencoded
-        const body = new URLSearchParams();
-        body.append('grant_type', 'client_credentials');
-        body.append('client_id', config.ucClientId);
-        body.append('client_secret', clientSecret);
-        body.append('scope', 'all-apis');
-
+        console.log("Exchanging M2M credentials via BFF...");
         const baseUrl = getAccountBaseUrl(config);
-        const tokenUrl = `${baseUrl}/oidc/v1/token`;
+        const host = new URL(baseUrl).hostname;
 
-        console.log(`[UCIdentityService] Token Exchange URL: ${tokenUrl}`);
-
-        // The token endpoint is usually /oidc/v1/token on the workspace URL or account URL
-        const tokenRes = await fetch(tokenUrl, {
+        // Route through BFF to keep client_secret off the browser
+        const BFF_URL = import.meta.env.VITE_BFF_URL || 'http://localhost:3001';
+        const tokenRes = await fetch(`${BFF_URL}/api/token`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded'
-            },
-            body: body
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                clientId: config.ucClientId,
+                clientSecret: clientSecret,
+                host: host
+            })
         });
 
         if (!tokenRes.ok) {
             const errorBody = await tokenRes.text().catch(() => 'No body');
-            console.error(`[UCIdentityService] Token exchange failed. Status: ${tokenRes.status} ${tokenRes.statusText}, Body: ${errorBody}`);
+            console.error(`[UCIdentityService] BFF Token exchange failed. Status: ${tokenRes.status}, Body: ${errorBody}`);
             throw new Error(`Token exchange failed with status ${tokenRes.status}`);
         }
 
         const data = await tokenRes.json();
         cachedToken = data.access_token;
-        console.log("[UCIdentityService] Token successfully retrieved.");
+        console.log("[UCIdentityService] Token successfully retrieved via BFF.");
         return data.access_token;
     } catch (e) {
         console.error("[UCIdentityService] M2M Token Exchange Error:", e);
@@ -109,12 +103,15 @@ export const fetchUCIdentities = async () => {
             scimPath = `/api/2.0/accounts/${config.ucAccountId}/scim/v2`;
         }
 
-        console.log(`Fetching identities from Unity Catalog via ${baseUrl}${scimPath}...`);
+        console.log(`Fetching identities from Unity Catalog via BFF...`);
+
+        const BFF_URL = import.meta.env.VITE_BFF_URL || 'http://localhost:3001';
+        const scimBase = `${BFF_URL}/api/scim`;
 
         const [usersRes, groupsRes, spRes] = await Promise.allSettled([
-            fetch(`${baseUrl}${scimPath}/Users`, { headers }),
-            fetch(`${baseUrl}${scimPath}/Groups`, { headers }),
-            fetch(`${baseUrl}${scimPath}/ServicePrincipals`, { headers })
+            fetch(`${scimBase}${scimPath}/Users`, { headers: { ...headers, 'x-scim-host': new URL(baseUrl).hostname } }),
+            fetch(`${scimBase}${scimPath}/Groups`, { headers: { ...headers, 'x-scim-host': new URL(baseUrl).hostname } }),
+            fetch(`${scimBase}${scimPath}/ServicePrincipals`, { headers: { ...headers, 'x-scim-host': new URL(baseUrl).hostname } })
         ]);
 
         const users = usersRes.status === 'fulfilled' ? await usersRes.value.json() : { Resources: [] };
@@ -164,48 +161,45 @@ export const fetchWorkspaces = async () => {
             return [];
         }
 
-        // Mock implementation for demo if no real credentials
-        // In real impl, this would hit /api/2.0/accounts/{id}/workspaces
-        console.log(`Fetching workspaces for Account ${config.ucAccountId}...`);
-
-        // Return mock workspaces for now to demonstrate UI if no real fetch implemented yet?
-        // NO, we want to try real fetch first as per plan.
         const token = await getM2MToken(config);
         if (!token) throw new Error("No M2M Token");
 
-        const headers = { 'Authorization': `Bearer ${token}` };
-        // Valid Endpoint: GET https://<host>/api/2.0/accounts/{account_id}/workspaces
-        // User requested to use the "host_url" (interpreted as the configured host) instead of hardcoded hostname
-
         const baseUrl = getAccountBaseUrl(config);
-        const workspacesUrl = `${baseUrl}/api/2.0/accounts/${config.ucAccountId}/workspaces`;
+        const workspaceHost = new URL(baseUrl).hostname;
 
-        console.log(`[UCIdentityService] Fetching Workspaces URL: ${workspacesUrl}`);
+        const BFF_URL = import.meta.env.VITE_BFF_URL || 'http://localhost:3001';
+        // Route through BFF /api/uc proxy
+        const workspacesUrl = `${BFF_URL}/api/uc/api/2.0/accounts/${config.ucAccountId}/workspaces`;
 
-        const res = await fetch(workspacesUrl, { headers });
+        console.log(`[UCIdentityService] Fetching Workspaces via BFF: ${workspacesUrl}`);
+
+        const res = await fetch(workspacesUrl, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'x-workspace-host': workspaceHost
+            }
+        });
         if (!res.ok) {
             const errorBody = await res.text().catch(() => 'No body');
-            console.error(`[UCIdentityService] Workspaces Fetch Failed. Status: ${res.status} ${res.statusText}, Body: ${errorBody}`);
+            console.error(`[UCIdentityService] Workspaces Fetch Failed. Status: ${res.status}, Body: ${errorBody}`);
             throw new Error(`Workspaces Fetch Failed: ${res.statusText}`);
         }
 
         const data = await res.json();
         console.log(`[UCIdentityService] Successfully fetched ${data.length || 0} workspaces.`);
 
-        // Map to our format
-        // Derive the domain from the baseUrl (e.g. cloud.databricks.com or azuredatabricks.net)
         const hostUrl = new URL(baseUrl);
-        const domain = hostUrl.hostname.split('.').slice(1).join('.'); // takes "cloud.databricks.com" from "accounts.cloud.databricks.com"
+        const domain = hostUrl.hostname.split('.').slice(1).join('.');
 
         return (data.map(ws => ({
             id: ws.workspace_id,
             name: ws.workspace_name,
-            url: `https://${ws.deployment_name}.${domain}` // Use derived domain
+            url: `https://${ws.deployment_name}.${domain}`
         })));
 
     } catch (error) {
         console.error("[UCIdentityService] Failed to fetch workspaces:", error);
-        throw error; // Rethrow so the UI can catch it
+        throw error;
     }
 };
 
@@ -229,51 +223,31 @@ export const fetchCatalogs = async (workspaceUrl) => {
 
         if (!token) throw new Error("No valid token available");
 
-        console.log(`Fetching catalogs from ${workspaceUrl}...`);
+        const workspaceHost = new URL(workspaceUrl).hostname;
+        const BFF_URL = import.meta.env.VITE_BFF_URL || 'http://localhost:3001';
+        const bffBase = `${BFF_URL}/api/uc`;
+        const bffHeaders = {
+            'Authorization': `Bearer ${token}`,
+            'x-workspace-host': workspaceHost
+        };
 
-        // Proxy path construction:
-        // Client -> Vite Proxy (/api/...) -> Target (workspaceUrl/api/...)
-        // We need to route this request through our proxy if we are in dev mode.
-        // Assuming the proxy setup handles the rewrites or we use the absolute URL if CORS allows (unlikely).
-        // For the demo, we'll try to use the proxy path convention: /api/workspace-id/...
-        // But since we don't have a dynamic proxy rewriter for arbitrary workspaces easily without backend,
-        // we might have to rely on a fixed proxy or the 'host' being our proxy target.
+        console.log(`[UCIdentityService] Fetching catalogs via BFF for ${workspaceHost}...`);
 
-        // LIMITATION: Vite proxy is static. We can't proxy to arbitrary dynamic workspace URLs easily.
-        // WORKAROUND: We will assume the User has configured the proxy to point to the specific workspace 
-        // OR we are running in an environment where we can hit it directly (e.g. Electron/Backend).
-        //
-        // FOR THIS DEMO: We will assume the `workspaceUrl` is actually just used for logging/context
-        // and we will use the configured proxy target if it matches, or fail if we can't route.
-        //
-        // ACTUALLY: Let's assume we can use the /api/2.1/unity-catalog... directly if we are using the Account Console proxy?
-        // No, workspace data is on the workspace.
-        //
-        // REVISED APPROACH FOR DEMO:
-        // We will mock the deep fetch if we can't hit the real API, BUT we will implement the logic as if likely to work.
-        // We will try to fetch from `${workspaceUrl}/api/2.1/unity-catalog/catalogs`.
-
-        const headers = { 'Authorization': `Bearer ${token}` };
-        const catalogsUrl = `${workspaceUrl}/api/2.1/unity-catalog/catalogs`;
-
-        console.log(`[UCIdentityService] Fetching Catalogs URL: ${catalogsUrl}`);
-
-        // 1. Fetch Catalogs
-        // We use a helper to robustly fetch or return mock if actual network fails (CORS).
-        const catalogsRes = await fetch(catalogsUrl, { headers }).catch(e => {
-            console.error(`[UCIdentityService] Network error fetching catalogs from ${workspaceUrl}:`, e);
+        // 1. Fetch Catalogs via BFF
+        const catalogsRes = await fetch(`${bffBase}/catalogs`, { headers: bffHeaders }).catch(e => {
+            console.error(`[UCIdentityService] Network error fetching catalogs:`, e);
             return null;
         });
 
         if (!catalogsRes || !catalogsRes.ok) {
             const status = catalogsRes ? `${catalogsRes.status} ${catalogsRes.statusText}` : 'Network Error';
-            console.warn(`[UCIdentityService] Failed to fetch catalogs from ${workspaceUrl} (${status}). Using Mock data for demo.`);
+            console.warn(`[UCIdentityService] Failed to fetch catalogs (${status}). Using Mock data for demo.`);
             return null;
         }
 
         const catalogsData = await catalogsRes.json();
         const catalogs = catalogsData.catalogs || [];
-        console.log(`[UCIdentityService] Found ${catalogs.length} catalogs in ${workspaceUrl}.`);
+        console.log(`[UCIdentityService] Found ${catalogs.length} catalogs.`);
 
         // 2. Build Tree (Parallel fetch for Schemas)
         const tree = await Promise.all(catalogs.map(async (cat) => {
@@ -284,8 +258,8 @@ export const fetchCatalogs = async (workspaceUrl) => {
                 children: []
             };
 
-            // Fetch Schemas for this Catalog
-            const schemasRes = await fetch(`${workspaceUrl}/api/2.1/unity-catalog/schemas?catalog_name=${cat.name}`, { headers }).catch(() => null);
+            // Fetch Schemas via BFF
+            const schemasRes = await fetch(`${bffBase}/schemas?catalog_name=${cat.name}`, { headers: bffHeaders }).catch(() => null);
             if (schemasRes && schemasRes.ok) {
                 const schemasData = await schemasRes.json();
                 const schemas = schemasData.schemas || [];
@@ -299,8 +273,8 @@ export const fetchCatalogs = async (workspaceUrl) => {
                         children: []
                     };
 
-                    // Fetch Tables for this Schema
-                    const tablesRes = await fetch(`${workspaceUrl}/api/2.1/unity-catalog/tables?catalog_name=${cat.name}&schema_name=${sch.name}`, { headers }).catch(() => null);
+                    // Fetch Tables via BFF
+                    const tablesRes = await fetch(`${bffBase}/tables?catalog_name=${cat.name}&schema_name=${sch.name}`, { headers: bffHeaders }).catch(() => null);
                     if (tablesRes && tablesRes.ok) {
                         const tablesData = await tablesRes.json();
                         const tables = tablesData.tables || [];
@@ -309,7 +283,7 @@ export const fetchCatalogs = async (workspaceUrl) => {
                             name: tbl.name,
                             type: tbl.table_type === 'VIEW' ? 'VIEW' : 'TABLE',
                             parentId: schNode.id,
-                            owners: [tbl.owner] // Simple owner mapping
+                            owners: [tbl.owner]
                         }));
                     }
                     return schNode;

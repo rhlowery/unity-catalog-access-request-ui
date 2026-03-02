@@ -32,13 +32,27 @@ const CatalogTree = ({ nodes = [], selectedIds, onToggleSelection }: any) => {
 
     useEffect(() => {
         if (!containerRef.current) return;
+
+        const updateHeight = () => {
+            if (containerRef.current) {
+                setContainerHeight(containerRef.current.getBoundingClientRect().height);
+            }
+        };
+
         const observer = new ResizeObserver(entries => {
             if (entries[0]) {
                 setContainerHeight(entries[0].contentRect.height);
             }
         });
+
         observer.observe(containerRef.current);
-        return () => observer.disconnect();
+        updateHeight(); // Initial measurement
+
+        window.addEventListener('resize', updateHeight);
+        return () => {
+            observer.disconnect();
+            window.removeEventListener('resize', updateHeight);
+        };
     }, []);
 
     const flatNodes = useMemo(() => {
@@ -118,15 +132,16 @@ const CatalogTree = ({ nodes = [], selectedIds, onToggleSelection }: any) => {
 
     if (!nodes || nodes.length === 0) return null;
 
-    const renderHeight = Math.max(containerHeight, 400);
+    const renderHeight = containerHeight || 800; // Better fallback for initial render
 
     return (
-        <div className="tree-container" ref={containerRef} style={{ height: '100%', overflow: 'hidden' }}>
+        <div className="tree-container" ref={containerRef} style={{ height: '100%', minHeight: '100%', overflow: 'hidden' }}>
             <VirtualList
                 items={flatNodes}
                 itemHeight={28}
                 containerHeight={renderHeight}
                 renderItem={renderItem}
+                style={{ height: '100%' }}
             />
         </div>
     );

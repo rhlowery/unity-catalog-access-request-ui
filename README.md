@@ -37,13 +37,25 @@ A premium, standalone React application for managing Unity Catalog access reques
 
 ## Running Locally (Development)
 
-To start the development server:
+The application has two components: the React frontend (Vite) and the Backend-For-Frontend (BFF) Express server.
 
+### 1. Start the BFF Server
+```bash
+cd server
+npm install
+npm run dev
+```
+The BFF server runs on `http://localhost:3001` by default.
+
+### 2. Start the Frontend
+Back in the project root:
 ```bash
 npm run dev
 ```
 
 Open your browser to `http://localhost:5173`.
+
+> If you need to customize the BFF URL (e.g., for deployment), copy `.env.example` to `.env` and set `VITE_BFF_URL`.
 
 ## Building for Production
 
@@ -75,4 +87,4 @@ npm run preview
 - **Framework**: React + Vite
 - **Styling**: Vanilla CSS (CSS Variables, Glassmor
 - **Icons**: Lucide React
-- **Persistence**: LocalStorage
+- **Persistence**: [Localized & Pluggable Backend](BACKEND.md) (LocalStorage, RDBMS, Unity Catalog, GitOps)

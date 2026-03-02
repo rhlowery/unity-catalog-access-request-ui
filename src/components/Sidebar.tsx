@@ -57,7 +57,7 @@ const Sidebar = ({
                     Data Catalog
                 </h3>
             </div>
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden', height: '100%' }}>
                 <CatalogTree
                     nodes={catalogs}
                     selectedIds={selectedIds}

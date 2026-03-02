@@ -1,22 +1,33 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Check, AlertCircle, X } from 'lucide-react';
+import { Check, AlertCircle, X, Clock, Users } from 'lucide-react';
 import { useAuth } from '../context/AuthProvider';
 import { getRequests, approveRequest, MOCK_IDENTITIES } from '../services/mockData';
-import { StorageService } from '../services/storage/StorageService';
 import { ConfigService } from '../services/config/ConfigService';
 import { ObservabilityService } from '../services/ObservabilityService';
 import ErrorTestPanel from './ErrorTestPanel';
 
-import './ApproverDashboard.css';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { Separator } from '@/components/ui/separator';
+import { cn } from '@/lib/utils';
+
+const statusColors: Record<string, string> = {
+    PENDING: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/40',
+    APPROVED: 'bg-green-500/20 text-green-400 border-green-500/40',
+    DENIED: 'bg-red-500/20 text-red-400 border-red-500/40',
+    EXPIRED: 'bg-gray-500/20 text-gray-400 border-gray-500/40',
+};
 
 const ApproverDashboard = () => {
     const queryClient = useQueryClient();
     const { user } = useAuth();
-    const [denialState, setDenialState] = useState({ reqId: null, reason: '' });
-
-    // Persona Switching State
-    const [activePersona, setActivePersona] = useState('group_governance'); // Default to Governance
+    const [denialState, setDenialState] = useState<{ reqId: string | null; reason: string }>({ reqId: null, reason: '' });
+    const [activePersona, setActivePersona] = useState('group_governance');
 
     const personas = [
         { id: 'group_governance', name: 'Governance Team' },
@@ -31,239 +42,236 @@ const ApproverDashboard = () => {
         queryFn: getRequests
     });
 
+    const config = ConfigService.getConfig();
+    const isProduction = import.meta.env.PROD;
+    const isSimulationMode = (!isProduction || (window as any).ACS_DEMO_MODE) && config.enableSimulationMode;
+
     const approveMutation = useMutation({
-        mutationFn: async ({ reqId, action, reason }: any) => {
-            return await approveRequest(reqId, activePersona, reason, action, isSimulationMode);
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['requests'] });
-        }
+        mutationFn: async ({ reqId, action, reason }: any) =>
+            await approveRequest(reqId, activePersona, reason, action, isSimulationMode),
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['requests'] })
     });
 
-    const handleApprove = (reqId) => {
+    const handleApprove = (reqId: string) =>
         approveMutation.mutate({ reqId, action: 'APPROVE', reason: 'Approved via Dashboard' });
-    };
 
-    const confirmDenial = async () => {
+    const confirmDenial = () => {
         if (!denialState.reason.trim()) return;
         approveMutation.mutate({ reqId: denialState.reqId, action: 'DENY', reason: denialState.reason });
         setDenialState({ reqId: null, reason: '' });
     };
 
-    // 1. Action Required: I need to approve, and global status is PENDING
-    const pendingForMe = requests.filter(r =>
-        r.status === 'PENDING' &&
-        r.approvalState &&
-        r.approvalState[activePersona] === 'PENDING'
-    );
-
-    // 2. Pending Others: I have approved, but global status is still PENDING (waiting on others)
-    const otherPending = requests.filter(r =>
-        r.status === 'PENDING' &&
-        r.approvalState &&
-        r.approvalState[activePersona] === 'APPROVED'
-    );
-
-    // 3. History: Global status is DONE (Approved/Denied), AND I was an approver
-    const completedRequests = requests.filter(r =>
-        r.status !== 'PENDING' &&
-        r.approvalState &&
-        Object.keys(r.approvalState).includes(activePersona)
-    );
-
-
-
-    const config = ConfigService.getConfig();
-    const isProduction = import.meta.env.PROD;
-    const isSimulationMode = (!isProduction || (window as any).ACS_DEMO_MODE) && config.enableSimulationMode;
-
     const handlePersonaChange = (newPersona: string) => {
-        const from = activePersona;
+        ObservabilityService.logPersonaSwitch('current_user', activePersona, newPersona);
         setActivePersona(newPersona);
-        ObservabilityService.logPersonaSwitch('current_user', from, newPersona);
     };
 
+    const pendingForMe = requests.filter(r =>
+        r.status === 'PENDING' && r.approvalState?.[activePersona] === 'PENDING'
+    );
+    const otherPending = requests.filter(r =>
+        r.status === 'PENDING' && r.approvalState?.[activePersona] === 'APPROVED'
+    );
+    const completedRequests = requests.filter(r =>
+        r.status !== 'PENDING' && Object.keys(r.approvalState || {}).includes(activePersona)
+    );
+
     return (
-        <div className="approver-dashboard animate-fade-in">
-
-            {/* Persona Switcher Header - Only in Non-Prod or Demo Mode */}
+        <div className="approver-dashboard animate-fade-in space-y-6 p-4">
+            {/* Simulation Mode Banner */}
             {isSimulationMode && (
-                <div className="persona-header glass-panel" style={{ border: '1px solid var(--warning)', position: 'relative' }}>
-                    <div className="persona-simulation-badge" style={{
-                        position: 'absolute',
-                        top: '-10px',
-                        left: '20px',
-                        background: 'var(--warning)',
-                        color: '#000',
-                        fontSize: '10px',
-                        fontWeight: 'bold',
-                        padding: '2px 8px',
-                        borderRadius: '10px',
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
-                    }}>
-                        SIMULATION MODE
-                    </div>
-                    <div className="persona-label">
-                        <span>👥</span>
-                        <span>Viewing Dashboard as:</span>
-                    </div>
-                    <select
-                        className="persona-select"
-                        value={activePersona}
-                        onChange={(e) => handlePersonaChange(e.target.value)}
-                    >
-                        {personas.map(p => (
-                            <option key={p.id} value={p.id}>{p.name}</option>
-                        ))}
-                    </select>
-                    <div className="persona-info text-xs text-secondary">
-                        (Simulates this user's view for development/demo)
-                    </div>
-                </div>
+                <Card className="border border-yellow-500/50 bg-yellow-500/5">
+                    <CardContent className="py-3 flex items-center gap-4">
+                        <Badge className="bg-yellow-500 text-black text-xs font-bold">SIMULATION</Badge>
+                        <div className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
+                            <Users size={14} />
+                            <span>Viewing as:</span>
+                        </div>
+                        <Select value={activePersona} onValueChange={handlePersonaChange}>
+                            <SelectTrigger className="w-[200px] h-8 text-sm bg-[var(--bg-tertiary)] border-[var(--glass-border)]">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent className="bg-[var(--bg-secondary)] border-[var(--glass-border)]">
+                                {personas.map(p => (
+                                    <SelectItem key={p.id} value={p.id} className="text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]">
+                                        {p.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </CardContent>
+                </Card>
             )}
 
-            <h2>Action Required ({pendingForMe.length})</h2>
-
-            {isLoading && <div className="p-4">Loading requests...</div>}
-
-            {!isLoading && pendingForMe.length === 0 && (
-                <div className="empty-dashboard glass-panel">
-                    <Check size={32} className="text-success" style={{ opacity: 0.5 }} />
-                    <p>You're all caught up!</p>
+            {/* Action Required */}
+            <section>
+                <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-3 flex items-center gap-2">
+                    <AlertCircle size={18} className="text-[var(--accent-color)]" />
+                    Action Required
+                    <Badge className={statusColors.PENDING}>{pendingForMe.length}</Badge>
+                </h2>
+                {isLoading && <div className="text-sm text-[var(--text-secondary)] p-4">Loading requests...</div>}
+                {!isLoading && pendingForMe.length === 0 && (
+                    <Card className="bg-[var(--bg-secondary)] border-[var(--glass-border)]">
+                        <CardContent className="py-8 flex flex-col items-center gap-2 text-[var(--text-secondary)]">
+                            <Check size={32} className="text-green-500 opacity-50" />
+                            <p className="text-sm">You're all caught up!</p>
+                        </CardContent>
+                    </Card>
+                )}
+                <div className="space-y-3">
+                    {pendingForMe.map(req => (
+                        <RequestCard
+                            key={req.id}
+                            req={req}
+                            isActionable={true}
+                            onApprove={() => handleApprove(req.id)}
+                            onDeny={() => setDenialState({ reqId: req.id, reason: '' })}
+                        />
+                    ))}
                 </div>
-            )}
+            </section>
 
-            <div className="requests-list">
-                {pendingForMe.map(req => (
-                    <RequestCard
-                        key={req.id}
-                        req={req}
-                        isActionable={true}
-                        onApprove={() => handleApprove(req.id)}
-                        onDeny={() => setDenialState({ reqId: req.id, reason: '' })}
-                        denialState={denialState}
-                        setDenialState={setDenialState}
-                        confirmDenial={confirmDenial}
-                    />
-                ))}
-            </div>
-
+            {/* Pending Others */}
             {otherPending.length > 0 && (
-                <>
-                    <h2 style={{ marginTop: '2rem' }}>Pending Others ({otherPending.length})</h2>
-                    <div className="requests-list opacity-75">
-                        {otherPending.map(req => (
-                            <RequestCard key={req.id} req={req} isActionable={false} />
-                        ))}
+                <section>
+                    <h2 className="text-lg font-semibold text-[var(--text-secondary)] mb-3 flex items-center gap-2">
+                        <Clock size={18} />
+                        Pending Others
+                        <Badge variant="secondary">{otherPending.length}</Badge>
+                    </h2>
+                    <div className="space-y-3 opacity-70">
+                        {otherPending.map(req => <RequestCard key={req.id} req={req} isActionable={false} />)}
                     </div>
-                </>
+                </section>
             )}
 
+            {/* History */}
             {completedRequests.length > 0 && (
-                <>
-                    <h2 style={{ marginTop: '2rem' }}>History</h2>
-                    <div className="requests-list history-list">
-                        {completedRequests.map(req => (
-                            <RequestCard key={req.id} req={req} isActionable={false} isHistory={true} />
-                        ))}
+                <section>
+                    <h2 className="text-lg font-semibold text-[var(--text-secondary)] mb-3">History</h2>
+                    <div className="space-y-3">
+                        {completedRequests.map(req => <RequestCard key={req.id} req={req} isActionable={false} isHistory />)}
                     </div>
-                </>
+                </section>
             )}
+
+            {/* Denial Dialog */}
+            <Dialog open={!!denialState.reqId} onOpenChange={(open) => !open && setDenialState({ reqId: null, reason: '' })}>
+                <DialogContent className="bg-[var(--bg-secondary)] border-[var(--glass-border)] text-[var(--text-primary)]">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2 text-red-400">
+                            <AlertCircle size={18} /> Deny Request
+                        </DialogTitle>
+                    </DialogHeader>
+                    <p className="text-sm text-[var(--text-secondary)]">Please provide a reason for denying this request.</p>
+                    <Textarea
+                        placeholder="Reason for denial..."
+                        value={denialState.reason}
+                        onChange={(e) => setDenialState(s => ({ ...s, reason: e.target.value }))}
+                        className="bg-[var(--bg-tertiary)] border-[var(--glass-border)] text-[var(--text-primary)]"
+                        autoFocus
+                    />
+                    <DialogFooter>
+                        <Button variant="ghost" onClick={() => setDenialState({ reqId: null, reason: '' })}>
+                            Cancel
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            onClick={confirmDenial}
+                            disabled={!denialState.reason.trim()}
+                        >
+                            Confirm Denial
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 };
 
-const RequestCard = ({ req, isActionable, onApprove, onDeny, denialState, setDenialState, confirmDenial, isHistory }: any) => {
-    const getProgress = (req: any) => {
-        const states = Object.values(req.approvalState || {});
-        const approved = states.filter((s: any) => s === 'APPROVED').length;
-        const total = states.length;
-        return { approved, total };
-    };
-
-    const { approved, total } = getProgress(req);
-    const progressPercent = (approved / total) * 100;
+const RequestCard = ({ req, isActionable, onApprove, onDeny, isHistory }: any) => {
+    const states = Object.values(req.approvalState || {});
+    const approved = states.filter((s: any) => s === 'APPROVED').length;
+    const total = states.length;
+    const progressPercent = total > 0 ? (approved / total) * 100 : 0;
 
     return (
-        <div className={`request-card glass-panel ${isHistory ? 'history-card' : ''}`}>
-            <div className="req-header">
-                <span className="req-time">{new Date(req.timestamp).toLocaleString()}</span>
+        <Card className={cn(
+            "bg-[var(--bg-secondary)] border-[var(--glass-border)] transition-all",
+            isHistory && "opacity-80"
+        )}>
+            <CardHeader className="py-3 px-4 flex flex-row items-center justify-between space-y-0">
+                <span className="text-xs text-[var(--text-secondary)]">
+                    {new Date(req.timestamp).toLocaleString()}
+                </span>
                 {isHistory ? (
-                    <span className={`req-status status-${String(req.status).toLowerCase()}`}>{String(req.status)}</span>
+                    <Badge className={cn("text-xs", statusColors[req.status] || statusColors.PENDING)}>
+                        {req.status}
+                    </Badge>
                 ) : (
-                    <div className="progress-container">
-                        <div className="progress-text">{approved}/{total} Approvals</div>
-                        <div className="progress-bar-bg">
-                            <div className="progress-bar-fill" style={{ width: `${progressPercent}%` }}></div>
-                        </div>
-                    </div>
+                    <span className="text-xs text-[var(--text-secondary)]">{approved}/{total} Approvals</span>
                 )}
-            </div>
+            </CardHeader>
 
-            <div className="req-body">
-                <div className="req-section">
-                    <label>Resources:</label>
-                    <div className="req-tags">
-                        {req.requestedObjects.map(obj => (
-                            <span key={obj.id} className="tag">{obj.name}</span>
-                        ))}
+            {!isHistory && (
+                <div className="px-4 pb-2">
+                    <div className="h-1 rounded-full bg-[var(--bg-tertiary)] overflow-hidden">
+                        <div
+                            className="h-full rounded-full bg-[var(--accent-color)] transition-all"
+                            style={{ width: `${progressPercent}%` }}
+                        />
                     </div>
                 </div>
+            )}
 
-                <div className="req-section">
-                    <label>Resources:</label>
-                    <div className="req-tags">
+            <CardContent className="px-4 pb-3 space-y-2">
+                <div>
+                    <p className="text-xs text-[var(--text-secondary)] uppercase tracking-wider mb-1">Resources</p>
+                    <div className="flex flex-wrap gap-1">
                         {req.requestedObjects?.map((obj: any) => (
-                            <span key={obj.id} className="tag">{obj.name}</span>
+                            <Badge key={obj.id} variant="secondary" className="text-xs bg-[var(--bg-tertiary)] text-[var(--text-primary)]">
+                                {obj.name}
+                            </Badge>
                         ))}
                     </div>
                 </div>
-
-                {/* Detailed Approval Status List */}
+                {req.justification && (
+                    <p className="text-xs text-[var(--text-secondary)] italic">"{req.justification}"</p>
+                )}
                 {!isHistory && (
-                    <div className="approval-status-list">
+                    <div className="space-y-1">
                         {Object.entries(req.approvalState || {}).map(([approver, status]: [string, any]) => (
-                            <div key={approver} className="approval-item">
-                                <div className={`status-dot dot-${String(status).toLowerCase()}`}></div>
-                                <span className="approver-name">{String(approver)}</span>
-                                <span className="approver-status">{String(status)}</span>
+                            <div key={approver} className="flex items-center gap-2 text-xs">
+                                <div className={cn("w-2 h-2 rounded-full", {
+                                    'bg-green-500': status === 'APPROVED',
+                                    'bg-yellow-500': status === 'PENDING',
+                                    'bg-red-500': status === 'DENIED',
+                                })} />
+                                <span className="text-[var(--text-secondary)]">{approver}</span>
+                                <span className={cn("ml-auto", {
+                                    'text-green-400': status === 'APPROVED',
+                                    'text-yellow-400': status === 'PENDING',
+                                    'text-red-400': status === 'DENIED',
+                                })}>{status}</span>
                             </div>
                         ))}
                     </div>
                 )}
-            </div>
+            </CardContent>
 
             {isActionable && (
-                denialState && denialState.reqId === req.id ? (
-                    <div className="denial-form animate-fade-in">
-                        <div className="denial-input-wrapper">
-                            <AlertCircle size={16} className="text-danger" />
-                            <span className="text-danger" style={{ fontSize: '0.9rem', fontWeight: 500 }}>Reason required:</span>
-                        </div>
-                        <input
-                            type="text"
-                            className="input-reason"
-                            placeholder="Reason for denial..."
-                            value={denialState.reason}
-                            onChange={(e) => setDenialState({ ...denialState, reason: e.target.value })}
-                            autoFocus
-                        />
-                        <div className="denial-actions">
-                            <button className="btn btn-secondary" onClick={onDeny}>Cancel</button>
-                            <button className="btn btn-danger" onClick={confirmDenial} disabled={!denialState.reason.trim()}>Confirm</button>
-                        </div>
-                    </div>
-                ) : (
-                    <div className="req-actions">
-                        <button className="btn btn-secondary" onClick={onDeny}><X size={16} /> Deny</button>
-                        <button className="btn btn-primary" onClick={onApprove}><Check size={16} /> Approve</button>
-                    </div>
-                )
+                <CardFooter className="px-4 pb-3 pt-0 flex justify-end gap-2">
+                    <Button size="sm" variant="outline" onClick={onDeny} className="border-red-500/50 text-red-400 hover:bg-red-500/10">
+                        <X size={14} className="mr-1" /> Deny
+                    </Button>
+                    <Button size="sm" onClick={onApprove} className="bg-[var(--accent-color)] text-[var(--bg-primary)] hover:bg-[var(--accent-hover)]">
+                        <Check size={14} className="mr-1" /> Approve
+                    </Button>
+                </CardFooter>
             )}
-        </div>
+        </Card>
     );
 };
-
-
 
 export default ApproverDashboard;

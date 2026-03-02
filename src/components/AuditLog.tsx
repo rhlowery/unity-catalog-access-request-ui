@@ -1,20 +1,32 @@
 import React, { useState, useEffect } from 'react';
-import { Clock, CheckCircle, XCircle, FileText } from 'lucide-react';
+import { Clock, CheckCircle, XCircle, FileText, Search } from 'lucide-react';
 import { getRequests } from '../services/mockData';
-import './AuditLog.css';
 
-import { createPortal } from 'react-dom';
+import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Separator } from '@/components/ui/separator';
+import { Input } from '@/components/ui/input';
+import {
+    Table, TableBody, TableCell, TableHead, TableHeader, TableRow
+} from '@/components/ui/table';
+import { cn } from '@/lib/utils';
+
+const statusColors: Record<string, string> = {
+    PENDING: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/40',
+    APPROVED: 'bg-green-500/20 text-green-400 border-green-500/40',
+    DENIED: 'bg-red-500/20 text-red-400 border-red-500/40',
+    EXPIRED: 'bg-gray-500/20 text-gray-400 border-gray-500/40',
+};
 
 const AuditLog = () => {
-    // ... (rest of state/effect logic remains identical, preserving line 6-72)
-    const [events, setEvents] = useState([]);
-    const [selectedEvent, setSelectedEvent] = useState(null);
+    const [events, setEvents] = useState<any[]>([]);
+    const [selectedEvent, setSelectedEvent] = useState<any>(null);
+    const [search, setSearch] = useState('');
 
     useEffect(() => {
         getRequests().then(requests => {
-            const allEvents = [];
+            const allEvents: any[] = [];
             requests.forEach(req => {
-                // 1. Creation Event
                 const objectDetails = req.requestedObjects.map(obj =>
                     `${obj.fullPath || obj.name} (${req.permissions.join(', ')})`
                 ).join('; ');
@@ -25,170 +37,184 @@ const AuditLog = () => {
                     if (req.timeConstraint.type === 'RANGE') timeInfo = `${req.timeConstraint.start} to ${req.timeConstraint.end}`;
                 }
 
-                const justificationInfo = req.justification ? ` Justification: "${req.justification}"` : "";
-
                 allEvents.push({
                     id: `${req.id}_created`,
                     timestamp: req.timestamp,
                     type: 'REQUEST_CREATED',
                     actor: req.requesterId,
-                    details: `Requested access for ${req.principals.map(p => p.name).join(', ')}. Target: ${objectDetails}. Time: ${timeInfo}.${justificationInfo}`,
+                    details: `Requested access for ${req.principals.map(p => p.name).join(', ')}. Target: ${objectDetails}. Time: ${timeInfo}.${req.justification ? ` "${req.justification}"` : ''}`,
                     status: 'PENDING',
-                    originalRequest: req // Store full request for modal
+                    originalRequest: req
                 });
 
-                // 2. Approval/Denial Events
                 req.approvalData.forEach((approval, idx) => {
                     allEvents.push({
                         id: `${req.id}_decision_${idx}`,
                         timestamp: approval.timestamp,
-                        type: `REQUEST_${approval.decision}`, // APPROVED or DENIED or REVOKE
+                        type: `REQUEST_${approval.decision}`,
                         actor: approval.approverId,
-                        details: `Decision made. Note: "${approval.message}"`,
+                        details: `Decision: "${approval.message}"`,
                         status: approval.decision === 'APPROVE' ? 'APPROVED' : (approval.decision === 'REVOKE' ? 'EXPIRED' : 'DENIED'),
                         originalRequest: req
                     });
                 });
             });
 
-            // Sort by newest first
-            allEvents.sort((a: any, b: any) => new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime());
+            allEvents.sort((a, b) => new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime());
             setEvents(allEvents);
         });
     }, []);
 
-    const getEventIcon = (type) => {
-        if (type === 'REQUEST_CREATED') return <Clock size={16} className="text-warning" />;
-        if (type === 'REQUEST_APPROVED') return <CheckCircle size={16} className="text-success" />;
-        if (type === 'REQUEST_DENIED') return <XCircle size={16} className="text-danger" />;
-        if (type === 'REQUEST_REVOKE') return <XCircle size={16} className="text-muted" />;
-        return <FileText size={16} />;
+    const getEventIcon = (type: string) => {
+        if (type === 'REQUEST_CREATED') return <Clock size={14} className="text-yellow-400" />;
+        if (type === 'REQUEST_APPROVED') return <CheckCircle size={14} className="text-green-400" />;
+        if (type.includes('DENIED') || type.includes('REVOKE')) return <XCircle size={14} className="text-red-400" />;
+        return <FileText size={14} className="text-[var(--text-secondary)]" />;
     };
 
-    const handleRowClick = (event) => {
-        setSelectedEvent(event);
-    };
-
-    const closeModal = () => {
-        setSelectedEvent(null);
-    };
+    const filtered = events.filter(e =>
+        !search || e.actor?.toLowerCase().includes(search.toLowerCase()) ||
+        e.type?.toLowerCase().includes(search.toLowerCase()) ||
+        e.details?.toLowerCase().includes(search.toLowerCase())
+    );
 
     return (
-        <div className="audit-log animate-fade-in">
-            <h2>System Audit Log</h2>
-            <div className="audit-table-container glass-panel">
-                <table className="audit-table">
-                    <thead>
-                        <tr>
-                            <th>Timestamp</th>
-                            <th>Event Type</th>
-                            <th>Actor</th>
-                            <th>Details</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {events.length === 0 ? (
-                            <tr>
-                                <td colSpan={4} className="text-center">No audit events found.</td>
-                            </tr>
-                        ) : (
-                            events.map(event => (
-                                <tr key={event.id} onClick={() => handleRowClick(event)} className="interactive-row">
-                                    <td className="text-secondary">{new Date(event.timestamp).toLocaleString()}</td>
-                                    <td>
-                                        <div className="event-type">
-                                            {getEventIcon(event.type)}
-                                            <span>{event.type}</span>
-                                        </div>
-                                    </td>
-                                    <td>{event.actor}</td>
-                                    <td className="text-secondary">{event.details}</td>
-                                </tr>
-                            ))
-                        )}
-                    </tbody>
-                </table>
+        <div className="audit-log animate-fade-in space-y-4 p-4">
+            <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold text-[var(--text-primary)]">System Audit Log</h2>
+                <div className="relative w-64">
+                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)]" />
+                    <Input
+                        placeholder="Filter events..."
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        className="pl-8 h-8 text-sm bg-[var(--bg-tertiary)] border-[var(--glass-border)] text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]"
+                    />
+                </div>
             </div>
 
-            {selectedEvent && createPortal(
-                <div className="modal-overlay" onClick={closeModal}>
-                    <div className="modal-content glass-panel" onClick={e => e.stopPropagation()}>
-                        <div className="modal-header">
-                            <h3>Request Details: {selectedEvent.originalRequest.id}</h3>
-                            <button className="btn-close" onClick={closeModal}><XCircle size={24} /></button>
-                        </div>
-                        <div className="modal-body">
-                            <div className="detail-section">
-                                <h4>Status</h4>
-                                <span className={`status-badge status-${selectedEvent.originalRequest.status.toLowerCase()}`}>
+            <div className="rounded-lg border border-[var(--glass-border)] bg-[var(--bg-secondary)] overflow-hidden">
+                <Table>
+                    <TableHeader>
+                        <TableRow className="border-[var(--glass-border)] hover:bg-transparent">
+                            <TableHead className="text-[var(--text-secondary)] text-xs w-40">Timestamp</TableHead>
+                            <TableHead className="text-[var(--text-secondary)] text-xs w-48">Event</TableHead>
+                            <TableHead className="text-[var(--text-secondary)] text-xs w-36">Actor</TableHead>
+                            <TableHead className="text-[var(--text-secondary)] text-xs">Details</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {filtered.length === 0 ? (
+                            <TableRow>
+                                <TableCell colSpan={4} className="text-center text-[var(--text-secondary)] py-8 text-sm">
+                                    No audit events found.
+                                </TableCell>
+                            </TableRow>
+                        ) : (
+                            filtered.map(event => (
+                                <TableRow
+                                    key={event.id}
+                                    onClick={() => setSelectedEvent(event)}
+                                    className="cursor-pointer border-[var(--glass-border)] hover:bg-[var(--bg-tertiary)] transition-colors"
+                                >
+                                    <TableCell className="text-xs text-[var(--text-secondary)] py-2.5">
+                                        {new Date(event.timestamp).toLocaleString()}
+                                    </TableCell>
+                                    <TableCell className="py-2.5">
+                                        <div className="flex items-center gap-1.5">
+                                            {getEventIcon(event.type)}
+                                            <span className="text-xs text-[var(--text-primary)]">{event.type}</span>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell className="text-xs text-[var(--text-primary)] py-2.5">{event.actor}</TableCell>
+                                    <TableCell className="text-xs text-[var(--text-secondary)] py-2.5 max-w-xs truncate">
+                                        {event.details}
+                                    </TableCell>
+                                </TableRow>
+                            ))
+                        )}
+                    </TableBody>
+                </Table>
+            </div>
+
+            {/* Event Detail Dialog */}
+            <Dialog open={!!selectedEvent} onOpenChange={(open) => !open && setSelectedEvent(null)}>
+                <DialogContent className="bg-[var(--bg-secondary)] border-[var(--glass-border)] text-[var(--text-primary)] max-w-lg">
+                    <DialogHeader>
+                        <DialogTitle className="text-sm font-semibold">
+                            Request #{selectedEvent?.originalRequest?.id}
+                        </DialogTitle>
+                    </DialogHeader>
+                    {selectedEvent && (
+                        <div className="space-y-4 text-sm">
+                            <div className="flex items-center justify-between">
+                                <span className="text-[var(--text-secondary)]">Status</span>
+                                <Badge className={cn("text-xs", statusColors[selectedEvent.originalRequest.status])}>
                                     {selectedEvent.originalRequest.status}
-                                </span>
+                                </Badge>
                             </div>
-
-                            <div className="detail-section">
-                                <h4>Requester</h4>
-                                <p>{selectedEvent.originalRequest.requesterId}</p>
+                            <Separator className="bg-[var(--glass-border)]" />
+                            <div className="grid grid-cols-2 gap-3 text-xs">
+                                <div>
+                                    <p className="text-[var(--text-secondary)] mb-0.5">Requester</p>
+                                    <p>{selectedEvent.originalRequest.requesterId}</p>
+                                </div>
+                                <div>
+                                    <p className="text-[var(--text-secondary)] mb-0.5">Principals</p>
+                                    <p>{selectedEvent.originalRequest.principals?.map((p: any) => p.name).join(', ')}</p>
+                                </div>
                             </div>
-
-                            <div className="detail-section">
-                                <h4>Principals</h4>
-                                <p>{selectedEvent.originalRequest.principals.map(p => p.name).join(', ')}</p>
-                            </div>
-
-                            <div className="detail-section">
-                                <h4>Access Target</h4>
-                                <ul>
-                                    {selectedEvent.originalRequest.requestedObjects.map((obj, i) => (
-                                        <li key={i}>
-                                            {obj.fullPath || obj.name} <br />
-                                            <span className="text-secondary text-sm">Permissions: {selectedEvent.originalRequest.permissions.join(', ')}</span>
+                            <Separator className="bg-[var(--glass-border)]" />
+                            <div>
+                                <p className="text-[var(--text-secondary)] mb-1 text-xs">Access Target</p>
+                                <ul className="space-y-1">
+                                    {selectedEvent.originalRequest.requestedObjects?.map((obj: any, i: number) => (
+                                        <li key={i} className="text-xs">
+                                            <span className="text-[var(--text-primary)]">{obj.fullPath || obj.name}</span>
+                                            <span className="text-[var(--text-secondary)] ml-2">
+                                                ({selectedEvent.originalRequest.permissions?.join(', ')})
+                                            </span>
                                         </li>
                                     ))}
                                 </ul>
                             </div>
-
-                            <div className="detail-section">
-                                <h4>Justification</h4>
-                                <p className="text-italic">"{selectedEvent.originalRequest.justification || 'No justification provided'}"</p>
-                            </div>
-
-                            <div className="detail-section">
-                                <h4>Time Constraints</h4>
-                                <p>
-                                    {selectedEvent.originalRequest.timeConstraint ? (
-                                        selectedEvent.originalRequest.timeConstraint.type === 'DURATION' ? `${selectedEvent.originalRequest.timeConstraint.value} Hours` :
-                                            selectedEvent.originalRequest.timeConstraint.type === 'RANGE' ? `${selectedEvent.originalRequest.timeConstraint.start} to ${selectedEvent.originalRequest.timeConstraint.end}` : 'Permanent'
-                                    ) : 'Permanent'}
-                                </p>
-                            </div>
-
-                            <div className="detail-section">
-                                <h4>Approval Timeline</h4>
-                                <div className="timeline">
-                                    <div className="timeline-item">
-                                        <div className="timeline-dot dot-created"></div>
-                                        <div className="timeline-content">
+                            {selectedEvent.originalRequest.justification && (
+                                <div>
+                                    <p className="text-[var(--text-secondary)] mb-0.5 text-xs">Justification</p>
+                                    <p className="text-xs italic">"{selectedEvent.originalRequest.justification}"</p>
+                                </div>
+                            )}
+                            <Separator className="bg-[var(--glass-border)]" />
+                            <div>
+                                <p className="text-[var(--text-secondary)] mb-2 text-xs">Approval Timeline</p>
+                                <div className="space-y-2">
+                                    <div className="flex items-start gap-2 text-xs">
+                                        <div className="w-2 h-2 mt-1 rounded-full bg-[var(--accent-color)] shrink-0" />
+                                        <div>
                                             <strong>Request Created</strong>
-                                            <span className="text-xs text-secondary">{new Date(selectedEvent.originalRequest.timestamp).toLocaleString()}</span>
+                                            <p className="text-[var(--text-secondary)]">{new Date(selectedEvent.originalRequest.timestamp).toLocaleString()}</p>
                                         </div>
                                     </div>
-                                    {selectedEvent.originalRequest.approvalData.map((ad, i) => (
-                                        <div key={i} className="timeline-item">
-                                            <div className={`timeline-dot dot-${ad.decision.toLowerCase()}`}></div>
-                                            <div className="timeline-content">
+                                    {selectedEvent.originalRequest.approvalData?.map((ad: any, i: number) => (
+                                        <div key={i} className="flex items-start gap-2 text-xs">
+                                            <div className={cn("w-2 h-2 mt-1 rounded-full shrink-0", {
+                                                'bg-green-500': ad.decision === 'APPROVE',
+                                                'bg-red-500': ad.decision === 'DENY',
+                                                'bg-gray-500': ad.decision === 'REVOKE',
+                                            })} />
+                                            <div>
                                                 <strong>{ad.decision} by {ad.approverId}</strong>
-                                                <p className="text-sm">"{ad.message}"</p>
-                                                <span className="text-xs text-secondary">{new Date(ad.timestamp).toLocaleString()}</span>
+                                                <p className="text-[var(--text-secondary)]">"{ad.message}"</p>
+                                                <p className="text-[var(--text-secondary)]">{new Date(ad.timestamp).toLocaleString()}</p>
                                             </div>
                                         </div>
                                     ))}
                                 </div>
                             </div>
                         </div>
-                    </div>
-                </div>,
-                document.body
-            )}
+                    )}
+                </DialogContent>
+            </Dialog>
         </div>
     );
 };
