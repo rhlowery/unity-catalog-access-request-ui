@@ -23,30 +23,30 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">84.61% </span>
+                <span class="strong">89.47% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>11/13</span>
+                <span class='fraction'>17/19</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">87.5% </span>
+                <span class="strong">90% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>7/8</span>
+                <span class='fraction'>9/10</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">66.66% </span>
+                <span class="strong">75% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>4/6</span>
+                <span class='fraction'>6/8</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">84.61% </span>
+                <span class="strong">89.47% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>11/13</span>
+                <span class='fraction'>17/19</span>
             </div>
         
             
@@ -193,8 +193,19 @@
 <a name='L128'></a><a href='#L128'>128</a>
 <a name='L129'></a><a href='#L129'>129</a>
 <a name='L130'></a><a href='#L130'>130</a>
-<a name='L131'></a><a href='#L131'>131</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L131'></a><a href='#L131'>131</a>
+<a name='L132'></a><a href='#L132'>132</a>
+<a name='L133'></a><a href='#L133'>133</a>
+<a name='L134'></a><a href='#L134'>134</a>
+<a name='L135'></a><a href='#L135'>135</a>
+<a name='L136'></a><a href='#L136'>136</a>
+<a name='L137'></a><a href='#L137'>137</a>
+<a name='L138'></a><a href='#L138'>138</a>
+<a name='L139'></a><a href='#L139'>139</a>
+<a name='L140'></a><a href='#L140'>140</a>
+<a name='L141'></a><a href='#L141'>141</a>
+<a name='L142'></a><a href='#L142'>142</a>
+<a name='L143'></a><a href='#L143'>143</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -306,6 +317,19 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-yes">30x</span>
+<span class="cline-any cline-yes">30x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -326,7 +350,6 @@
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import React, { Component, ReactNode } from 'react';
 import { ObservabilityService } from '../services/ObservabilityService';
 import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
-import './ErrorBoundary.css';
 &nbsp;
 interface ErrorBoundaryState {
   hasError: boolean;
@@ -387,59 +410,72 @@ class ErrorBoundary extends Component&lt;ErrorBoundaryProps, ErrorBoundaryState&
       const isDevelopment = import.meta.env.DEV;
 &nbsp;
       return (
-        &lt;div className="error-boundary"&gt;
-          &lt;div className="error-boundary__container glass-panel"&gt;
-            &lt;div className="error-boundary__icon"&gt;
-              &lt;AlertTriangle size={48} color="var(--danger)" /&gt;
+        &lt;div className="fixed inset-0 z-[9999] flex items-center justify-center p-6 bg-slate-950/80 backdrop-blur-xl animate-in fade-in duration-500"&gt;
+          &lt;div className="w-full max-w-2xl bg-white/[0.03] border border-white/10 rounded-[2.5rem] shadow-2xl p-10 flex flex-col items-center text-center"&gt;
+            &lt;div className="w-20 h-20 rounded-3xl bg-destructive/10 flex items-center justify-center mb-8 border border-destructive/20 shadow-2xl shadow-destructive/10"&gt;
+              &lt;AlertTriangle size={42} className="text-destructive" /&gt;
             &lt;/div&gt;
 &nbsp;
-            &lt;h1 className="error-boundary__title"&gt;
-              Something went wrong
+            &lt;h1 className="text-3xl font-black tracking-tighter text-foreground mb-4"&gt;
+              System Interrupted
             &lt;/h1&gt;
 &nbsp;
-            &lt;p className="error-boundary__message"&gt;
-              We're sorry, but something unexpected happened.
+            &lt;p className="text-muted-foreground text-sm leading-relaxed mb-8 max-w-md"&gt;
+              We've encountered an unexpected runtime exception. Our observability systems have been notified.
               {this.state.errorId &amp;&amp; (
-                &lt;span className="error-boundary__error-id"&gt;
-                  {' '}Error ID: &lt;code&gt;{this.state.errorId}&lt;/code&gt;
-                &lt;/span&gt;
+                &lt;div className="mt-4 px-3 py-1 bg-white/5 rounded-full border border-white/5 text-[10px] font-mono tracking-widest uppercase opacity-70"&gt;
+                  Ref ID: {this.state.errorId}
+                &lt;/div&gt;
               )}
             &lt;/p&gt;
 &nbsp;
-            &lt;div className="error-boundary__actions"&gt;
+            &lt;div className="flex flex-col sm:flex-row gap-4 w-full justify-center"&gt;
               &lt;button
-                className="btn btn-primary"
+                className="h-12 px-8 bg-primary hover:bg-primary-hover text-primary-foreground font-bold rounded-xl transition-all shadow-lg shadow-primary/20 flex items-center justify-center gap-2 active:scale-[0.98]"
                 onClick={this.handleReset}
               &gt;
-                &lt;RefreshCw size={16} /&gt;
-                Try Again
+                &lt;RefreshCw size={18} /&gt;
+                Refresh State
               &lt;/button&gt;
 &nbsp;
               &lt;button
-                className="btn btn-secondary"
+                className="h-12 px-8 bg-white/5 hover:bg-white/10 text-foreground font-bold rounded-xl transition-all border border-white/5 flex items-center justify-center gap-2"
                 onClick={this.handleGoHome}
               &gt;
-                &lt;Home size={16} /&gt;
-                Go to Home
+                &lt;Home size={18} /&gt;
+                Return Home
               &lt;/button&gt;
             &lt;/div&gt;
 &nbsp;
             {isDevelopment &amp;&amp; (
-              &lt;details className="error-boundary__details"&gt;
-                &lt;summary&gt;Error Details (Development Only)&lt;/summary&gt;
+              &lt;details className="mt-12 w-full text-left bg-black/40 rounded-2xl border border-white/5 overflow-hidden group"&gt;
+                &lt;summary className="px-6 py-4 cursor-pointer text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground hover:bg-white/5 transition-colors list-none flex items-center justify-between"&gt;
+                  &lt;span&gt;Trace details (Dev Only)&lt;/span&gt;
+                  &lt;span className="text-[10px] opacity-40 group-open:rotate-180 transition-transform"&gt;▼&lt;/span&gt;
+                &lt;/summary&gt;
 &nbsp;
-                &lt;div className="error-boundary__detail-section"&gt;
-                  &lt;h4&gt;Error:&lt;/h4&gt;
-                  &lt;pre className="error-boundary__stack"&gt;
-                    {this.state.error?.toString()}
-                  &lt;/pre&gt;
-                &lt;/div&gt;
+                &lt;div className="p-6 border-t border-white/5 space-y-6 max-h-[400px] overflow-auto custom-scrollbar"&gt;
+                  &lt;div className="space-y-2"&gt;
+                    &lt;h4 className="text-[10px] font-black uppercase tracking-widest text-destructive/80"&gt;Message&lt;/h4&gt;
+                    &lt;pre className="text-xs font-mono p-4 bg-white/5 rounded-xl border border-white/5 text-foreground/80 whitespace-pre-wrap break-all leading-relaxed"&gt;
+                      {(() =&gt; {
+                        let msg = this.state.error?.toString() || '';
+                        const sensitiveKeys = ['password', 'token', 'secret', 'key', 'credential'];
+                        sensitiveKeys.forEach(k =&gt; {
+                          const reg = new RegExp(`${k}[:=]\\s*[^\\s&amp;,|]+`, 'gi');
+                          msg = msg.replace(reg, `${k}=\"********\"`);
+                        });
+                        return msg;
+                      })()}
+                    &lt;/pre&gt;
+                  &lt;/div&gt;
 &nbsp;
-                &lt;div className="error-boundary__detail-section"&gt;
-                  &lt;h4&gt;Component Stack:&lt;/h4&gt;
-                  &lt;pre className="error-boundary__stack"&gt;
-                    {this.state.errorInfo?.componentStack}
-                  &lt;/pre&gt;
+                  &lt;div className="space-y-2"&gt;
+                    &lt;h4 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60"&gt;Component Stack&lt;/h4&gt;
+                    &lt;pre className="text-[10px] font-mono p-4 bg-white/5 rounded-xl border border-white/5 text-muted-foreground/80 whitespace-pre-wrap leading-relaxed"&gt;
+                      {this.state.errorInfo?.componentStack}
+                    &lt;/pre&gt;
+                  &lt;/div&gt;
                 &lt;/div&gt;
               &lt;/details&gt;
             )}
@@ -460,7 +496,7 @@ export default ErrorBoundary;
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-02-03T14:50:49.554Z
+                at 2026-03-03T22:47:29.686Z
             </div>
         <script src="../prettify.js"></script>
         <script>

@@ -96,13 +96,17 @@ const UserControls = React.memo(({ user, logout }: { user?: any; logout?: () => 
   </div>
 ));
 
-const ContentView = React.memo(({ viewMode, selectedObjects, onClearSelection }: any) => {
+const ContentView = React.memo(({ viewMode, selectedObjects, onClearSelection, onSubmit }: any) => {
   const content = React.useMemo(() => {
     switch (viewMode) {
       case 'CHANGE_REQUEST':
         return (
           <Suspense fallback={<ComponentLoader />}>
-            <AccessForm selectedObjects={selectedObjects} onClearSelection={onClearSelection} />
+            <AccessForm
+              selectedObjects={selectedObjects}
+              onClearSelection={onClearSelection}
+              onSubmit={onSubmit}
+            />
           </Suspense>
         );
       case 'REVIEWER':

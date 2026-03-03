@@ -21,7 +21,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
                 console.log('[AuthProvider] Initializing auth with session management...');
 
                 // Check for existing valid session
-                const activeSession = SessionManager.getActiveSession();
+                const activeSession = await SessionManager.getActiveSession();
                 if (activeSession) {
                     console.log('[AuthProvider] Found active session:', activeSession);
                     const userFromSession = {
@@ -38,7 +38,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
                     setLoading(false);
 
                     // Start session monitoring
-                    SessionManager.checkSessionExpiration(activeSession.id);
+                    await SessionManager.checkSessionExpiration(activeSession.id);
                     return;
                 }
 
@@ -119,7 +119,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             setUser(currentUser);
 
             // Track activity for new session
-            SessionManager.trackActivity(session.id);
+            await SessionManager.trackActivity(session.id);
 
             return currentUser;
         } catch (error) {
@@ -132,13 +132,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         try {
             console.log('[AuthProvider] Logging out...');
 
-            const activeSession = SessionManager.getActiveSession();
+            const activeSession = await SessionManager.getActiveSession();
             if (activeSession) {
                 await SessionManager.destroySession(activeSession.id);
             }
 
             // Also call identity service logout
-            IdentityService.logout();
+            await IdentityService.logout();
 
             setUser(null);
             setSessionWarning(null);

@@ -21,15 +21,23 @@ export class SessionManagerService implements ISessionManager {
       enableAuditLogging: true,
       ...config
     };
-    
+
     this.storage = new SecureSessionStorage(this.config);
     this.startPeriodicCleanup();
   }
 
+  /**
+   * Creates a new session for an authenticated user.
+   *
+   * @param {any} user - User metadata from the identity provider.
+   * @param {string} provider - The ID of the identity provider used.
+   * @param {any} tokens - Authentication tokens containing access and optional refresh tokens.
+   * @returns {Promise<SessionInfo>} Information about the newly created session.
+   */
   async createSession(user: any, provider: string, tokens: any): Promise<SessionInfo> {
     const now = Date.now();
     const sessionId = generateId();
-    
+
     const session: SessionInfo = {
       id: sessionId,
       userId: user.id,
@@ -46,9 +54,9 @@ export class SessionManagerService implements ISessionManager {
       isActive: true
     };
 
-    this.storage.createSession(session);
+    await this.storage.createSession(session);
     this.setupActivityTracking(sessionId);
-    this.setupRenewalTracking(sessionId);
+    await this.setupRenewalTracking(sessionId);
 
     if (this.config.enableAuditLogging) {
       console.log(`[SessionManager] Session created for user ${user.id} (${user.name})`);
@@ -57,25 +65,47 @@ export class SessionManagerService implements ISessionManager {
     return session;
   }
 
+  /**
+   * Validates a session by checking both local storage boundaries and the BFF backend validation endpoint.
+   * If local or BFF validation fails, the local session is destroyed.
+   *
+   * @param {string} sessionId - The session ID to validate.
+   * @returns {Promise<SessionInfo | null>} The active session if valid, otherwise null.
+   */
   async validateSession(sessionId: string): Promise<SessionInfo | null> {
-    const session = this.getSession(sessionId);
-    
+    const session = await this.getSession(sessionId);
+
     if (!session) {
       return null;
     }
 
-    if (!this.storage.validateSession(sessionId)) {
+    if (!(await this.storage.validateSession(sessionId))) {
       await this.destroySession(sessionId);
       return null;
     }
 
-    this.trackActivity(sessionId);
+    // Bridge with BFF to ensure server-side token is still valid
+    try {
+      const BFF_URL = import.meta.env.VITE_BFF_URL || 'http://localhost:3001';
+      const response = await fetch(`${BFF_URL}/api/session/validate`, {
+        credentials: 'include'
+      });
+      if (response.status === 401 || response.status === 403) {
+        console.warn('[SessionManager] BFF session validation failed. Destroying local session.');
+        await this.destroySession(sessionId);
+        return null;
+      }
+    } catch (e) {
+      console.warn('[SessionManager] Could not reach BFF for session validation:', e);
+    }
+
+    await this.trackActivity(sessionId);
     return session;
   }
 
   async renewSession(sessionId: string): Promise<SessionInfo | null> {
-    const session = this.getSession(sessionId);
-    
+    const session = await this.getSession(sessionId);
+
     if (!session || !session.refreshToken) {
       return null;
     }
@@ -89,8 +119,8 @@ export class SessionManagerService implements ISessionManager {
         accessToken: `renewed_${Date.now()}` // Mock renewal
       };
 
-      this.storage.updateSession(sessionId, renewedSession);
-      this.setupRenewalTracking(sessionId);
+      await this.storage.updateSession(sessionId, renewedSession);
+      await this.setupRenewalTracking(sessionId);
 
       if (this.config.enableAuditLogging) {
         console.log(`[SessionManager] Session renewed for ${session.userName}`);
@@ -107,18 +137,18 @@ export class SessionManagerService implements ISessionManager {
   async destroySession(sessionId: string): Promise<void> {
     this.clearActivityTracking(sessionId);
     this.clearRenewalTracking(sessionId);
-    
-    const session = this.getSession(sessionId);
-    this.storage.deleteSession(sessionId);
+
+    const session = await this.getSession(sessionId);
+    await this.storage.deleteSession(sessionId);
 
     if (this.config.enableAuditLogging && session) {
       console.log(`[SessionManager] Session destroyed for ${session.userName}`);
     }
   }
 
-  checkSessionExpiration(sessionId: string): void {
-    const session = this.getSession(sessionId);
-    
+  async checkSessionExpiration(sessionId: string): Promise<void> {
+    const session = await this.getSession(sessionId);
+
     if (!session) {
       return;
     }
@@ -132,24 +162,24 @@ export class SessionManagerService implements ISessionManager {
     } else if (timeUntilExpiry <= 0) {
       // Session expired
       this.notifySessionExpired(session);
-      this.destroySession(sessionId);
+      await this.destroySession(sessionId);
     }
   }
 
-  trackActivity(sessionId: string): void {
-    const session = this.getSession(sessionId);
+  async trackActivity(sessionId: string): Promise<void> {
+    const session = await this.getSession(sessionId);
     if (session) {
-      this.storage.updateSession(sessionId, { lastActivity: Date.now() });
+      await this.storage.updateSession(sessionId, { lastActivity: Date.now() });
     }
   }
 
-  getActiveSession(): SessionInfo | null {
-    return this.storage.getCurrentSession();
+  async getActiveSession(): Promise<SessionInfo | null> {
+    return await this.storage.getCurrentSession();
   }
 
   async logoutAllSessionsForUser(userId: string): Promise<void> {
-    const sessions = this.storage.getActiveSessionsForUser(userId);
-    
+    const sessions = await this.storage.getActiveSessionsForUser(userId);
+
     for (const session of sessions) {
       await this.destroySession(session.id);
     }
@@ -159,15 +189,15 @@ export class SessionManagerService implements ISessionManager {
     }
   }
 
-  private getSession(sessionId: string): SessionInfo | null {
-    const sessions = this.storage.getActiveSessionsForUser('');
+  private async getSession(sessionId: string): Promise<SessionInfo | null> {
+    const sessions = await this.storage.getActiveSessionsForUser('');
     return sessions.find(s => s.id === sessionId) || null;
   }
 
   private setupActivityTracking(sessionId: string): void {
     // Track user activity to prevent session timeout
-    const activityHandler = () => {
-      this.trackActivity(sessionId);
+    const activityHandler = async () => {
+      await this.trackActivity(sessionId);
     };
 
     // Listen for various user activities
@@ -193,8 +223,8 @@ export class SessionManagerService implements ISessionManager {
     }
   }
 
-  private setupRenewalTracking(sessionId: string): void {
-    const session = this.getSession(sessionId);
+  private async setupRenewalTracking(sessionId: string): Promise<void> {
+    const session = await this.getSession(sessionId);
     if (!session) return;
 
     const timeUntilExpiry = session.expiresAt - Date.now();
@@ -219,8 +249,8 @@ export class SessionManagerService implements ISessionManager {
 
   private startPeriodicCleanup(): void {
     // Clean up expired sessions every 5 minutes
-    setInterval(() => {
-      this.storage.cleanupExpiredSessions();
+    setInterval(async () => {
+      await this.storage.cleanupExpiredSessions();
     }, 5 * 60 * 1000);
   }
 
@@ -237,7 +267,7 @@ export class SessionManagerService implements ISessionManager {
 
   private notifySessionExpiring(session: SessionInfo, timeUntilExpiry: number): void {
     const minutesUntilExpiry = Math.floor(timeUntilExpiry / (60 * 1000));
-    
+
     // Dispatch custom event for UI components to listen to
     const event = new CustomEvent('sessionExpiring', {
       detail: {

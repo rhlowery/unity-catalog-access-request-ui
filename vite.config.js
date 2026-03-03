@@ -3,7 +3,9 @@ import react from '@vitejs/plugin-react-swc'
 import { visualizer } from 'rollup-plugin-visualizer'
 import tailwindcss from '@tailwindcss/vite'
 import path from 'path'
+import { fileURLToPath } from 'url'
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 // https://vite.dev/config/
 /// <reference types="vitest" />
 export default defineConfig(({ mode }) => {

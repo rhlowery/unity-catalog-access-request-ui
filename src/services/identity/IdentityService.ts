@@ -15,6 +15,10 @@ const ADAPTERS: Record<string, IIdentityAdapter> = {
 };
 
 export const IdentityService = {
+    /**
+     * Resolves the active Identity Provider Adapter based on configuration.
+     * @returns {IIdentityAdapter} The configured identity adapter.
+     */
     getAdapter(): IIdentityAdapter {
         const config = ConfigService.getConfig();
         const type = config.identityType || 'MOCK';
@@ -25,6 +29,10 @@ export const IdentityService = {
         return selectedAdapter;
     },
 
+    /**
+     * Fetches all available identities from the configured provider.
+     * @returns {Promise<{ users: IdentityUser[]; groups: IdentityUser[]; servicePrincipals: IdentityUser[] }>}
+     */
     async fetchIdentities(): Promise<{ users: IdentityUser[]; groups: IdentityUser[]; servicePrincipals: IdentityUser[] }> {
         const adapter = this.getAdapter();
         const config = await ConfigService.getResolvedConfig();
@@ -32,12 +40,21 @@ export const IdentityService = {
         return await adapter.fetchIdentities(config);
     },
 
+    /**
+     * Fetches the currently authenticated user's profile.
+     * @returns {Promise<IdentityUser | null>} The active user profile.
+     */
     async getCurrentUser(): Promise<IdentityUser | null> {
         const adapter = this.getAdapter();
         const config = await ConfigService.getResolvedConfig();
         return await adapter.getCurrentUser(config);
     },
 
+    /**
+     * Authenticates a user against a specific provider.
+     * @param {string} provider - The string ID of the authentication provider.
+     * @returns {Promise<IdentityUser>} The authenticated user profile.
+     */
     async login(provider: string): Promise<IdentityUser> {
         const adapter = this.getAdapter();
         const config = await ConfigService.getResolvedConfig();
@@ -47,6 +64,10 @@ export const IdentityService = {
         return await adapter.login(provider, config);
     },
 
+    /**
+     * Ends the current user's active session across the idp.
+     * @returns {Promise<void>}
+     */
     async logout(): Promise<void> {
         const adapter = this.getAdapter();
         if (adapter.logout) {

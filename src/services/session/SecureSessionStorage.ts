@@ -1,4 +1,5 @@
 import { SessionInfo, SessionConfig, SessionStorage } from './SessionTypes';
+import { WebCrypto } from '../crypto/WebCryptoService';
 
 const SESSION_STORAGE_KEY = 'acs_sessions';
 const CURRENT_SESSION_KEY = 'acs_current_session';
@@ -18,50 +19,29 @@ export class SecureSessionStorage implements SessionStorage {
     this.config = { ...DEFAULT_CONFIG, ...config };
   }
 
-  private hashData(data: string): string {
-    // Simple hash implementation - in production, use crypto.subtle
-    let hash = 0;
-    for (let i = 0; i < data.length; i++) {
-      const char = data.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash;
-    }
-    return hash.toString(36);
-  }
-
-  private encryptSession(session: SessionInfo): string {
-    // In production, use proper encryption
+  private async encryptSession(session: SessionInfo): Promise<string> {
     const sessionData = JSON.stringify(session);
-    const hashed = this.hashData(sessionData + 'ACS_SESSION_SALT');
-    return btoa(sessionData + ':' + hashed);
+    return await WebCrypto.encrypt(sessionData);
   }
 
-  private decryptSession(encryptedSession: string): SessionInfo | null {
+  private async decryptSession(encryptedSession: string): Promise<SessionInfo | null> {
     try {
-      const decoded = atob(encryptedSession);
-      const [sessionData, hash] = decoded.split(':');
-      
-      const expectedHash = this.hashData(sessionData + 'ACS_SESSION_SALT');
-      if (hash !== expectedHash) {
-        console.warn('[SecureSessionStorage] Session integrity check failed');
-        return null;
-      }
-
-      return JSON.parse(sessionData) as SessionInfo;
+      const decrypted = await WebCrypto.decrypt(encryptedSession);
+      return JSON.parse(decrypted) as SessionInfo;
     } catch (error) {
       console.error('[SecureSessionStorage] Failed to decrypt session:', error);
       return null;
     }
   }
 
-  getCurrentSession(): SessionInfo | null {
+  async getCurrentSession(): Promise<SessionInfo | null> {
     try {
       const encrypted = localStorage.getItem(CURRENT_SESSION_KEY);
       if (!encrypted) return null;
 
-      const session = this.decryptSession(encrypted);
+      const session = await this.decryptSession(encrypted);
       if (!session || !this.validateSessionData(session)) {
-        this.deleteSession(session ? session.id : '');
+        await this.deleteSession(session ? session.id : '');
         return null;
       }
 
@@ -72,20 +52,20 @@ export class SecureSessionStorage implements SessionStorage {
     }
   }
 
-  createSession(session: SessionInfo): void {
+  async createSession(session: SessionInfo): Promise<void> {
     try {
       // Limit sessions per user
-      const existingSessions = this.getActiveSessionsForUser(session.userId);
+      const existingSessions = await this.getActiveSessionsForUser(session.userId);
       if (existingSessions.length >= this.config.maxSessionsPerUser) {
         const oldestSession = existingSessions[0];
-        this.deleteSession(oldestSession.id);
+        await this.deleteSession(oldestSession.id);
       }
 
-      const encrypted = this.encryptSession(session);
+      const encrypted = await this.encryptSession(session);
       localStorage.setItem(CURRENT_SESSION_KEY, encrypted);
 
-      // Update sessions list
-      const sessions = this.getAllSessions();
+      // Update sessions list (we still use JSON.stringify for the list as it's not the primary sensitive store, but we could encrypt each)
+      const sessions = await this.getAllSessions();
       sessions.push(session);
       localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(sessions));
 
@@ -95,21 +75,24 @@ export class SecureSessionStorage implements SessionStorage {
     }
   }
 
-  updateSession(sessionId: string, updates: Partial<SessionInfo>): void {
+  async updateSession(sessionId: string, updates: Partial<SessionInfo>): Promise<void> {
     try {
-      const sessions = this.getAllSessions();
+      const sessions = await this.getAllSessions();
       const sessionIndex = sessions.findIndex(s => s.id === sessionId);
-      
+
       if (sessionIndex >= 0) {
         sessions[sessionIndex] = { ...sessions[sessionIndex], ...updates };
         localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(sessions));
 
         // Update current session if it's the one being modified
-        const currentSession = this.getCurrentSession();
-        if (currentSession?.id === sessionId) {
-          const updatedSession = sessions[sessionIndex];
-          const encrypted = this.encryptSession(updatedSession);
-          localStorage.setItem(CURRENT_SESSION_KEY, encrypted);
+        const encrypted = localStorage.getItem(CURRENT_SESSION_KEY);
+        if (encrypted) {
+          const currentSession = await this.decryptSession(encrypted);
+          if (currentSession?.id === sessionId) {
+            const updatedSession = sessions[sessionIndex];
+            const newEncrypted = await this.encryptSession(updatedSession);
+            localStorage.setItem(CURRENT_SESSION_KEY, newEncrypted);
+          }
         }
       }
     } catch (error) {
@@ -117,16 +100,19 @@ export class SecureSessionStorage implements SessionStorage {
     }
   }
 
-  deleteSession(sessionId: string): void {
+  async deleteSession(sessionId: string): Promise<void> {
     try {
       // Remove from sessions list
-      const sessions = this.getAllSessions().filter(s => s.id !== sessionId);
+      const sessions = (await this.getAllSessions()).filter(s => s.id !== sessionId);
       localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(sessions));
 
-      // Remove current session if it matches
-      const currentSession = this.getCurrentSession();
-      if (currentSession?.id === sessionId) {
-        localStorage.removeItem(CURRENT_SESSION_KEY);
+      // Remove current session if it matches (check directly to prevent infinite recursion loop)
+      const encrypted = localStorage.getItem(CURRENT_SESSION_KEY);
+      if (encrypted) {
+        const currentSession = await this.decryptSession(encrypted);
+        if (currentSession?.id === sessionId) {
+          localStorage.removeItem(CURRENT_SESSION_KEY);
+        }
       }
 
       console.log(`[SecureSessionStorage] Deleted session ${sessionId}`);
@@ -135,9 +121,9 @@ export class SecureSessionStorage implements SessionStorage {
     }
   }
 
-  getActiveSessionsForUser(userId: string): SessionInfo[] {
+  async getActiveSessionsForUser(userId: string): Promise<SessionInfo[]> {
     try {
-      const sessions = this.getAllSessions();
+      const sessions = await this.getAllSessions();
       return sessions
         .filter(s => s.userId === userId && s.isActive && this.validateSessionData(s))
         .sort((a, b) => a.lastActivity - b.lastActivity);
@@ -147,29 +133,32 @@ export class SecureSessionStorage implements SessionStorage {
     }
   }
 
-  cleanupExpiredSessions(): void {
+  async cleanupExpiredSessions(): Promise<void> {
     try {
-      const sessions = this.getAllSessions();
+      const sessions = await this.getAllSessions();
       const activeSessions = sessions.filter(s => this.validateSessionData(s));
       localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(activeSessions));
 
       // Clean up current session if expired
-      const currentSession = this.getCurrentSession();
-      if (currentSession && !this.validateSessionData(currentSession)) {
-        this.deleteSession(currentSession.id);
+      const encrypted = localStorage.getItem(CURRENT_SESSION_KEY);
+      if (encrypted) {
+        const currentSession = await this.decryptSession(encrypted);
+        if (currentSession && !this.validateSessionData(currentSession)) {
+          localStorage.removeItem(CURRENT_SESSION_KEY);
+        }
       }
     } catch (error) {
       console.error('[SecureSessionStorage] Failed to cleanup sessions:', error);
     }
   }
 
-  private getSessionById(sessionId: string): SessionInfo | null {
-    const sessions = this.getAllSessions();
+  private async getSessionById(sessionId: string): Promise<SessionInfo | null> {
+    const sessions = await this.getAllSessions();
     return sessions.find(s => s.id === sessionId) || null;
   }
 
-  validateSession(sessionId: string): boolean {
-    const session = this.getSessionById(sessionId);
+  async validateSession(sessionId: string): Promise<boolean> {
+    const session = await this.getSessionById(sessionId);
     return this.validateSessionData(session);
   }
 
@@ -185,7 +174,7 @@ export class SecureSessionStorage implements SessionStorage {
     return !isExpired && !isOldActivity;
   }
 
-  private getAllSessions(): SessionInfo[] {
+  private async getAllSessions(): Promise<SessionInfo[]> {
     try {
       const stored = localStorage.getItem(SESSION_STORAGE_KEY);
       return stored ? JSON.parse(stored) : [];

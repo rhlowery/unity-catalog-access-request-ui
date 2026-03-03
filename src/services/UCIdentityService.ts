@@ -28,6 +28,9 @@ const getAccountBaseUrl = (config) => {
 };
 
 export const getM2MToken = async (config) => {
+    // If we've already initialized, we don't necessarily need to return a token here
+    // since the BFF holds it in a cookie. But for legacy compatibility, we'll return a placeholder
+    // or check if the session is active.
     if (cachedToken) return cachedToken;
 
     // Resolve Secret if from Vault
@@ -57,10 +60,9 @@ export const getM2MToken = async (config) => {
         const tokenRes = await fetch(`${BFF_URL}/api/token`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
+            credentials: 'include', // Important for cookies
             body: JSON.stringify({
                 host: host
-                // clientId and clientSecret are intentionally omitted here; 
-                // the BFF will use its own secure environment variables.
             })
         });
 
@@ -71,9 +73,10 @@ export const getM2MToken = async (config) => {
         }
 
         const data = await tokenRes.json();
-        cachedToken = data.access_token;
-        console.log("[UCIdentityService] Token successfully retrieved via BFF.");
-        return data.access_token;
+        // Since the token is in the cookie, we can return a placeholder or something to signal success
+        cachedToken = 'COOKIE_BASED_TOKEN';
+        console.log("[UCIdentityService] Token exchange successful; stored in cookie.");
+        return cachedToken;
     } catch (e) {
         console.error("[UCIdentityService] M2M Token Exchange Error:", e);
         return null;
@@ -83,20 +86,13 @@ export const getM2MToken = async (config) => {
 export const fetchUCIdentities = async () => {
     try {
         const config = await ConfigService.getResolvedConfig();
-        const _hostInfo = config.ucHost ? `Configured Host (${config.ucHost})` : 'Env/Proxy Host';
 
-        // 1. Get Token via M2M
-        const accessToken = await getM2MToken(config);
-        const headers = {};
-        if (accessToken) {
-            headers['Authorization'] = `Bearer ${accessToken}`;
-        }
+        // 1. Ensure we have a valid session/cookie
+        await getM2MToken(config);
 
         const baseUrl = getAccountBaseUrl(config);
 
         // Determine SCIM API Path
-        // Account level: /api/2.0/accounts/{account_id}/scim/v2
-        // Workspace level: /api/2.0/preview/scim/v2
         let scimPath = '/api/2.0/preview/scim/v2';
         if (config.ucAuthType === 'ACCOUNT') {
             if (!config.ucAccountId) {
@@ -105,16 +101,19 @@ export const fetchUCIdentities = async () => {
             scimPath = `/api/2.0/accounts/${config.ucAccountId}/scim/v2`;
         }
 
-        console.log(`Fetching identities from Unity Catalog via BFF...`);
+        console.log(`Fetching identities from Unity Catalog via BFF (Cookie-based)...`);
 
         const BFF_URL = import.meta.env.VITE_BFF_URL || 'http://localhost:3001';
         const scimBase = `${BFF_URL}/api/scim`;
 
+        const bffHeaders = { 'x-scim-host': new URL(baseUrl).hostname };
+
         const [usersRes, groupsRes, spRes] = await Promise.allSettled([
-            fetch(`${scimBase}${scimPath}/Users`, { headers: { ...headers, 'x-scim-host': new URL(baseUrl).hostname } }),
-            fetch(`${scimBase}${scimPath}/Groups`, { headers: { ...headers, 'x-scim-host': new URL(baseUrl).hostname } }),
-            fetch(`${scimBase}${scimPath}/ServicePrincipals`, { headers: { ...headers, 'x-scim-host': new URL(baseUrl).hostname } })
+            fetch(`${scimBase}${scimPath}/Users`, { headers: bffHeaders, credentials: 'include' }),
+            fetch(`${scimBase}${scimPath}/Groups`, { headers: bffHeaders, credentials: 'include' }),
+            fetch(`${scimBase}${scimPath}/ServicePrincipals`, { headers: bffHeaders, credentials: 'include' })
         ]);
+        // ... (rest of the normalization logic)
 
         const users = usersRes.status === 'fulfilled' ? await usersRes.value.json() : { Resources: [] };
         const groups = groupsRes.status === 'fulfilled' ? await groupsRes.value.json() : { Resources: [] };
@@ -163,8 +162,8 @@ export const fetchWorkspaces = async () => {
             return [];
         }
 
-        const token = await getM2MToken(config);
-        if (!token) throw new Error("No M2M Token");
+        // 1. Ensure cookie is set
+        await getM2MToken(config);
 
         const baseUrl = getAccountBaseUrl(config);
         const workspaceHost = new URL(baseUrl).hostname;
@@ -173,13 +172,13 @@ export const fetchWorkspaces = async () => {
         // Route through BFF /api/uc proxy
         const workspacesUrl = `${BFF_URL}/api/uc/api/2.0/accounts/${config.ucAccountId}/workspaces`;
 
-        console.log(`[UCIdentityService] Fetching Workspaces via BFF: ${workspacesUrl}`);
+        console.log(`[UCIdentityService] Fetching Workspaces via BFF (Cookie-based): ${workspacesUrl}`);
 
         const res = await fetch(workspacesUrl, {
             headers: {
-                'Authorization': `Bearer ${token}`,
                 'x-workspace-host': workspaceHost
-            }
+            },
+            credentials: 'include'
         });
         if (!res.ok) {
             const errorBody = await res.text().catch(() => 'No body');
@@ -205,38 +204,27 @@ export const fetchWorkspaces = async () => {
     }
 };
 
-/**
- * Validates the current auth token for a host.
- * If invalid or simple reuse, fetches a new one via M2M.
- */
-const getValidToken = async (host, config) => {
-    // For now, we just use the global M2M token which is not host-specific in the current simple impl
-    // but implies we are using the Account M2M creds for everything.
-    // In a real scenario, we might need workspace-specific tokens or U2M tokens.
-    // We will reuse the getM2MToken for simplicity as it uses the configured Client ID/Secret.
-    // WARNING: This assumes the Service Principal has access to the target workspace.
-    return await getM2MToken(config);
-};
-
 export const fetchCatalogs = async (workspaceUrl) => {
     try {
         const config = await ConfigService.getResolvedConfig();
-        const token = await getValidToken(workspaceUrl, config);
 
-        if (!token) throw new Error("No valid token available");
+        // 1. Ensure cookie is set
+        await getM2MToken(config);
 
         const workspaceHost = new URL(workspaceUrl).hostname;
         const BFF_URL = import.meta.env.VITE_BFF_URL || 'http://localhost:3001';
         const bffBase = `${BFF_URL}/api/uc`;
         const bffHeaders = {
-            'Authorization': `Bearer ${token}`,
             'x-workspace-host': workspaceHost
         };
 
-        console.log(`[UCIdentityService] Fetching catalogs via BFF for ${workspaceHost}...`);
+        console.log(`[UCIdentityService] Fetching catalogs via BFF (Cookie-based) for ${workspaceHost}...`);
 
         // 1. Fetch Catalogs via BFF
-        const catalogsRes = await fetch(`${bffBase}/catalogs`, { headers: bffHeaders }).catch(e => {
+        const catalogsRes = await fetch(`${bffBase}/catalogs`, {
+            headers: bffHeaders,
+            credentials: 'include'
+        }).catch(e => {
             console.error(`[UCIdentityService] Network error fetching catalogs:`, e);
             return null;
         });
@@ -261,7 +249,10 @@ export const fetchCatalogs = async (workspaceUrl) => {
             };
 
             // Fetch Schemas via BFF
-            const schemasRes = await fetch(`${bffBase}/schemas?catalog_name=${cat.name}`, { headers: bffHeaders }).catch(() => null);
+            const schemasRes = await fetch(`${bffBase}/schemas?catalog_name=${cat.name}`, {
+                headers: bffHeaders,
+                credentials: 'include'
+            }).catch(() => null);
             if (schemasRes && schemasRes.ok) {
                 const schemasData = await schemasRes.json();
                 const schemas = schemasData.schemas || [];
@@ -276,7 +267,10 @@ export const fetchCatalogs = async (workspaceUrl) => {
                     };
 
                     // Fetch Tables via BFF
-                    const tablesRes = await fetch(`${bffBase}/tables?catalog_name=${cat.name}&schema_name=${sch.name}`, { headers: bffHeaders }).catch(() => null);
+                    const tablesRes = await fetch(`${bffBase}/tables?catalog_name=${cat.name}&schema_name=${sch.name}`, {
+                        headers: bffHeaders,
+                        credentials: 'include'
+                    }).catch(() => null);
                     if (tablesRes && tablesRes.ok) {
                         const tablesData = await tablesRes.json();
                         const tables = tablesData.tables || [];
@@ -295,7 +289,6 @@ export const fetchCatalogs = async (workspaceUrl) => {
         }));
 
         return tree;
-
     } catch (e) {
         console.error("Error in fetchCatalogs:", e);
         return null;

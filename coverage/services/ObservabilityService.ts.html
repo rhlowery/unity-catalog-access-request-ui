@@ -23,9 +23,9 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">41.02% </span>
+                <span class="strong">40.67% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>48/117</span>
+                <span class='fraction'>48/118</span>
             </div>
         
             
@@ -37,16 +37,16 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">15.62% </span>
+                <span class="strong">15.15% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>5/32</span>
+                <span class='fraction'>5/33</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">43.63% </span>
+                <span class="strong">43.24% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>48/110</span>
+                <span class='fraction'>48/111</span>
             </div>
         
             
@@ -432,7 +432,15 @@
 <a name='L367'></a><a href='#L367'>367</a>
 <a name='L368'></a><a href='#L368'>368</a>
 <a name='L369'></a><a href='#L369'>369</a>
-<a name='L370'></a><a href='#L370'>370</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L370'></a><a href='#L370'>370</a>
+<a name='L371'></a><a href='#L371'>371</a>
+<a name='L372'></a><a href='#L372'>372</a>
+<a name='L373'></a><a href='#L373'>373</a>
+<a name='L374'></a><a href='#L374'>374</a>
+<a name='L375'></a><a href='#L375'>375</a>
+<a name='L376'></a><a href='#L376'>376</a>
+<a name='L377'></a><a href='#L377'>377</a>
+<a name='L378'></a><a href='#L378'>378</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -718,6 +726,14 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -846,25 +862,25 @@ const initializeAuditIntegrity = () =&gt; {
             enableHashChaining: true,
             integrityKey: 'ACS_AUDIT_INTEGRITY_2024'
         });
-        
+&nbsp;
         auditStorage = new SecureAuditStorage();
-        
+&nbsp;
         // Verify existing audit integrity on startup
         verifyAuditIntegrity();
-        
+&nbsp;
         console.log('[Observability] Audit integrity initialized');
     }
 };
 &nbsp;
 const verifyAuditIntegrity = async () =&gt; {
     <span class="missing-if-branch" title="if path not taken" >I</span>if (!auditStorage) <span class="cstat-no" title="statement not covered" >return;</span>
-    
+&nbsp;
     try {
         const integrity = await auditStorage.verifyIntegrity();
-        
+&nbsp;
         <span class="missing-if-branch" title="if path not taken" >I</span>if (!integrity.valid) {
 <span class="cstat-no" title="statement not covered" >            console.error('[Observability] Audit integrity issues detected:', integrity.issues);</span>
-            
+&nbsp;
             // Log integrity violations
 <span class="cstat-no" title="statement not covered" >            integrity.issues.forEach(<span class="fstat-no" title="function not covered" >issue =&gt; {</span></span>
 <span class="cstat-no" title="statement not covered" >                logIntegrityEvent('AUDIT_INTEGRITY_VIOLATION', {</span>
@@ -873,7 +889,7 @@ const verifyAuditIntegrity = async () =&gt; {
                     severity: 'HIGH'
                 });
             });
-            
+&nbsp;
             // Dispatch event for UI notification
             const event = <span class="cstat-no" title="statement not covered" >new CustomEvent('auditIntegrityViolation', {</span>
                 detail: { issues: integrity.issues }
@@ -896,7 +912,7 @@ const LOG_LEVELS = { DEBUG: 0, INFO: 1, WARN: 2, ERROR: 3 };
 &nbsp;
 const log = (level, message, attributes = {}) =&gt; {
     <span class="missing-if-branch" title="if path not taken" >I</span>if (!config.enabled) <span class="cstat-no" title="statement not covered" >return;</span>
-    
+&nbsp;
     <span class="missing-if-branch" title="if path not taken" >I</span>if (LOG_LEVELS[level] &lt; LOG_LEVELS[config.logLevel]) <span class="cstat-no" title="statement not covered" >return;</span>
 &nbsp;
     // Simplified logging without OpenTelemetry
@@ -917,7 +933,7 @@ const log = (level, message, attributes = {}) =&gt; {
 &nbsp;
     // Console logging with proper formatting
     const formattedMessage = `[${logEntry.timestamp}] ${level}: ${message}`;
-    
+&nbsp;
     switch (level) {
 <span class="branch-0 cbranch-no" title="branch not covered" >        case 'DEBUG':</span>
 <span class="cstat-no" title="statement not covered" >            console.debug(formattedMessage, logEntry);</span>
@@ -943,7 +959,7 @@ const log = (level, message, attributes = {}) =&gt; {
         const stored = localStorage.getItem('acs_observability_logs');
         const logs = stored ? <span class="branch-0 cbranch-no" title="branch not covered" >JSON.parse(stored) : [</span>];
         logs.push(logEntry);
-        
+&nbsp;
         // Keep only last 500 logs
         const recentLogs = logs.slice(-500);
         localStorage.setItem('acs_observability_logs', JSON.stringify(recentLogs));
@@ -969,29 +985,29 @@ const logAuditEvent = <span class="fstat-no" title="function not covered" >async
 &nbsp;
         // Add integrity features
         const signedEntry = <span class="cstat-no" title="statement not covered" >auditIntegrityManager.getSignedEntry(auditEntry);</span>
-        
+&nbsp;
         // Chain with previous entry
         const previousEntries = <span class="cstat-no" title="statement not covered" >await auditStorage.getEntries(1);</span>
         const previousEntry = <span class="cstat-no" title="statement not covered" >previousEntries.length &gt; 0 ? previousEntries[0] : null;</span>
 <span class="cstat-no" title="statement not covered" >        auditIntegrityManager.chainEntries(previousEntry, signedEntry);</span>
-        
+&nbsp;
         // Store the signed entry
 <span class="cstat-no" title="statement not covered" >        await auditStorage.storeEntry(signedEntry);</span>
-        
+&nbsp;
         // Add to metrics
 <span class="cstat-no" title="statement not covered" >        metrics.auditEvents.push({</span>
             ...signedEntry,
             loggedAt: Date.now()
         });
-        
+&nbsp;
 <span class="cstat-no" title="statement not covered" >        console.log(`[Observability] Audit event logged: ${type} by ${actor}`);</span>
-        
+&nbsp;
         // Dispatch audit event for other components
         const event = <span class="cstat-no" title="statement not covered" >new CustomEvent('auditEvent', {</span>
             detail: signedEntry
         });
 <span class="cstat-no" title="statement not covered" >        window.dispatchEvent(event);</span>
-        
+&nbsp;
     } catch (error) {
 <span class="cstat-no" title="statement not covered" >        console.error('[Observability] Failed to log audit event:', error);</span>
 <span class="cstat-no" title="statement not covered" >        log('ERROR', 'Audit logging failed', { type, actor, action, error: error.message });</span>
@@ -1004,7 +1020,7 @@ const logIntegrityEvent = <span class="fstat-no" title="function not covered" >(
         timestamp: Date.now(),
         details
     });
-    
+&nbsp;
 <span class="cstat-no" title="statement not covered" >    log('WARN', `Integrity Event: ${type}`, details);</span>
 };
 &nbsp;
@@ -1041,15 +1057,15 @@ export const ObservabilityService = {
 <span class="fstat-no" title="function not covered" >    debug(m</span>essage, attributes) {
 <span class="cstat-no" title="statement not covered" >        log('DEBUG', message, attributes);</span>
     },
-    
+&nbsp;
 <span class="fstat-no" title="function not covered" >    info(m</span>essage, attributes) {
 <span class="cstat-no" title="statement not covered" >        log('INFO', message, attributes);</span>
     },
-    
+&nbsp;
 <span class="fstat-no" title="function not covered" >    warn(m</span>essage, attributes) {
 <span class="cstat-no" title="statement not covered" >        log('WARN', message, attributes);</span>
     },
-    
+&nbsp;
     error(message, errorInfo = {}) {
         log('ERROR', message, errorInfo);
     },
@@ -1087,6 +1103,14 @@ export const ObservabilityService = {
 &nbsp;
     async <span class="fstat-no" title="function not covered" >logSessionRenewed(s</span>essionId, userId) {
 <span class="cstat-no" title="statement not covered" >        await logSessionEvent('RENEWED', sessionId, userId);</span>
+    },
+&nbsp;
+    async <span class="fstat-no" title="function not covered" >logPersonaSwitch(a</span>ctor, fromPersona, toPersona) {
+<span class="cstat-no" title="statement not covered" >        await logAuditEvent('PERSONA_SWITCH', actor, 'SWITCH', toPersona, {</span>
+            from: fromPersona,
+            to: toPersona,
+            isSimulation: true
+        });
     },
 &nbsp;
     // Audit integrity methods
@@ -1127,7 +1151,7 @@ export const ObservabilityService = {
 <span class="cstat-no" title="statement not covered" >        try {</span>
             const integrity = <span class="cstat-no" title="statement not covered" >auditStorage ? await auditStorage.verifyIntegrity() : { valid: true, issues: [] };</span>
             const metricCount = <span class="cstat-no" title="statement not covered" >Object.values(metrics).reduce(<span class="fstat-no" title="function not covered" >(s</span>um, arr) =&gt; <span class="cstat-no" title="statement not covered" >sum + arr.length,</span> 0);</span>
-            
+&nbsp;
 <span class="cstat-no" title="statement not covered" >            return {</span>
                 status: 'healthy',
                 timestamp: new Date().toISOString(),
@@ -1177,7 +1201,7 @@ export const ObservabilityService = {
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-02-03T14:50:49.554Z
+                at 2026-03-03T22:47:29.686Z
             </div>
         <script src="../prettify.js"></script>
         <script>

@@ -14,6 +14,8 @@ const AppContent = () => {
   return isFullyAuthenticated ? <MainLayout /> : <Login />;
 };
 
+import { Toaster } from 'sonner';
+
 function App() {
   return (
     <ErrorBoundary>
@@ -22,6 +24,7 @@ function App() {
           <AppContent />
         </ErrorBoundary>
       </AuthProvider>
+      <Toaster richColors position="top-right" />
     </ErrorBoundary>
   );
 }

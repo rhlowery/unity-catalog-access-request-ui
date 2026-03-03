@@ -71,7 +71,18 @@ app.post('/api/token', async (req: Request, res: Response) => {
                 }
             }
         );
-        res.json({ access_token: response.data.access_token });
+
+        const token = response.data.access_token;
+
+        // Set HttpOnly cookie
+        res.cookie('access_token', token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: 3600000 // 1 hour
+        });
+
+        res.json({ status: 'success', message: 'Token exchanged and stored in cookie' });
     } catch (err) {
         const error = err as AxiosError;
         console.error('[BFF] Token Error:', error.response?.data || error.message);
@@ -86,10 +97,15 @@ app.post('/api/token', async (req: Request, res: Response) => {
 // =====================================================================
 app.all('/api/uc/*splat', async (req: Request, res: Response) => {
     const workspaceHost = req.headers['x-workspace-host'] as string;
-    const token = req.headers['authorization'];
+    let token = req.headers['authorization'];
+
+    // Fallback to cookie if Authorization header is missing
+    if (!token && req.cookies['access_token']) {
+        token = `Bearer ${req.cookies['access_token']}`;
+    }
 
     if (!workspaceHost || !token) {
-        return res.status(400).json({ error: 'Missing x-workspace-host or Authorization header' });
+        return res.status(400).json({ error: 'Missing x-workspace-host or session token' });
     }
 
     // Strip the /api/uc prefix and append to the UC REST path
@@ -118,10 +134,15 @@ app.all('/api/uc/*splat', async (req: Request, res: Response) => {
 // =====================================================================
 app.all('/api/scim/*splat', async (req: Request, res: Response) => {
     const scimHost = req.headers['x-scim-host'] as string;
-    const token = req.headers['authorization'];
+    let token = req.headers['authorization'];
+
+    // Fallback to cookie if Authorization header is missing
+    if (!token && req.cookies['access_token']) {
+        token = `Bearer ${req.cookies['access_token']}`;
+    }
 
     if (!scimHost || !token) {
-        return res.status(400).json({ error: 'Missing x-scim-host or Authorization header' });
+        return res.status(400).json({ error: 'Missing x-scim-host or session token' });
     }
 
     const scimPath = req.path.replace(/^\/api\/scim/, '');
@@ -144,9 +165,28 @@ app.all('/api/scim/*splat', async (req: Request, res: Response) => {
 });
 
 // =====================================================================
+// SECURITY: Session Validation Middleware
+// =====================================================================
+const requireAuth = (req: Request, res: Response, next: any) => {
+    let token = req.headers['authorization'];
+    if (!token && req.cookies['access_token']) {
+        token = `Bearer ${req.cookies['access_token']}`;
+    }
+    if (!token) {
+        return res.status(401).json({ error: 'Unauthorized: Missing session token' });
+    }
+    // In a complete implementation, the token would be fully verified here.
+    next();
+};
+
+app.get('/api/session/validate', requireAuth, (_req: Request, res: Response) => {
+    res.json({ valid: true });
+});
+
+// =====================================================================
 // STORAGE BROKER: Server-side persistence for Access Requests
 // =====================================================================
-app.get('/api/storage/requests', (_req: Request, res: Response) => {
+app.get('/api/storage/requests', requireAuth, (_req: Request, res: Response) => {
     try {
         const data = fs.readFileSync(REQUESTS_FILE, 'utf8');
         res.json(JSON.parse(data));
@@ -156,7 +196,7 @@ app.get('/api/storage/requests', (_req: Request, res: Response) => {
     }
 });
 
-app.post('/api/storage/requests', (req: Request, res: Response) => {
+app.post('/api/storage/requests', requireAuth, (req: Request, res: Response) => {
     try {
         const requests = req.body;
         if (!Array.isArray(requests)) {

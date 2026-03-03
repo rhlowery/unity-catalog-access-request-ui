@@ -25,7 +25,7 @@ import {
 const MainLayout = () => {
   const { user, logout } = useAuth();
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState('');
-  // ... rest of state
+
   const {
     data: workspaces = [],
     isLoading: loadingWorkspaces,
@@ -159,6 +159,22 @@ const MainLayout = () => {
     document.addEventListener('mouseup', handleMouseUp);
   }, [sidebarWidth]);
 
+  const handleSubmitRequest = useCallback(async (request: any) => {
+    try {
+      const success = await StorageService.createRequest(request);
+      if (success) {
+        window.alert("Access request submitted successfully!");
+        clearSelection();
+        setViewMode('REVIEWER');
+      } else {
+        window.alert("Failed to submit access request.");
+      }
+    } catch (error) {
+      console.error("Error submitting request:", error);
+      window.alert("An error occurred while submitting the request.");
+    }
+  }, [clearSelection]);
+
   const sidebarStyles = useMemo(() => ({
     width: isSidebarCollapsed ? 0 : sidebarWidth,
     minWidth: isSidebarCollapsed ? 0 : 150,
@@ -180,7 +196,6 @@ const MainLayout = () => {
   return (
     <div id="app-root" className="h-screen flex flex-col overflow-hidden bg-background text-foreground font-sans">
       <header className="flex items-center h-16 border-b border-white/5 bg-background/60 backdrop-blur-xl sticky top-0 z-50">
-        {/* Left Zone: Synchronized with Sidebar Width */}
         <div
           className="flex items-center px-8 shrink-0 transition-all duration-200 overflow-hidden"
           style={{ width: isSidebarCollapsed ? (isMobile ? 80 : 0) : sidebarWidth }}
@@ -202,16 +217,13 @@ const MainLayout = () => {
           </div>
         </div>
 
-        {/* Remaining Space: Contains Centered Tabs and Right-aligned Actions */}
         <div className="flex-1 flex relative items-center h-full px-8">
-          {/* Absolute Center: Ensuring tabs are at exactly (Width - Sidebar) / 2 */}
           <div className="absolute inset-0 flex justify-center items-center pointer-events-none">
             <div className="pointer-events-auto">
               <ViewModeTabs viewMode={viewMode} setViewMode={setViewMode} pendingCount={pendingCount} errorCount={errorCount} user={user} />
             </div>
           </div>
 
-          {/* Right Actions: Floating to the end without affecting centering */}
           <div className="ml-auto flex items-center gap-4 relative z-10">
             <ModeToggle />
             <UserControls user={user} logout={logout} />
@@ -282,6 +294,7 @@ const MainLayout = () => {
                       viewMode={viewMode}
                       selectedObjects={selectedObjects}
                       onClearSelection={clearSelection}
+                      onSubmit={handleSubmitRequest}
                     />
                   </ErrorBoundary>
                 </div>

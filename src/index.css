@@ -1,28 +1,53 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
     --color-primary: oklch(0.645 0.246 257.42);
     --color-primary-foreground: oklch(0.985 0 0);
     --color-primary-hover: oklch(0.55 0.2 257);
 
-    --color-background: oklch(0.129 0.042 264.695);
-    --color-foreground: oklch(0.985 0 0);
+    --color-background: var(--bg);
+    --color-foreground: var(--fg);
 
-    --color-muted: oklch(0.25 0.02 264);
-    --color-muted-foreground: oklch(0.7 0.02 264);
+    --color-muted: var(--muted);
+    --color-muted-foreground: var(--muted-fg);
 
-    --color-border: oklch(0.25 0.02 264);
-    --color-input: oklch(0.25 0.02 264);
+    --color-border: var(--border);
+    --color-input: var(--input);
 }
 
 @layer base {
     :root {
+        --bg: oklch(0.985 0 0);
+        --fg: oklch(0.129 0.042 264.695);
+
+        --muted: oklch(0.96 0.01 264);
+        --muted-fg: oklch(0.4 0.02 264);
+
+        --border: oklch(0.9 0.02 264);
+        --input: oklch(0.9 0.02 264);
+
+        --glass-bg: rgba(0, 0, 0, 0.03);
+        --glass-border: rgba(0, 0, 0, 0.08);
+    }
+
+    .dark {
+        --bg: oklch(0.129 0.042 264.695);
+        --fg: oklch(0.985 0 0);
+
+        --muted: oklch(0.25 0.02 264);
+        --muted-fg: oklch(0.7 0.02 264);
+
+        --border: oklch(0.25 0.02 264);
+        --input: oklch(0.25 0.02 264);
+
         --glass-bg: rgba(255, 255, 255, 0.02);
         --glass-border: rgba(255, 255, 255, 0.05);
     }
 
     body {
-        @apply bg-slate-950 text-foreground antialiased selection:bg-primary/30;
+        @apply bg-background text-foreground antialiased selection:bg-primary/30;
         font-feature-settings: "cv02", "cv05", "cv11";
     }
 
@@ -37,12 +62,12 @@
     }
 
     .custom-scrollbar::-webkit-scrollbar-thumb {
-        @apply bg-white/10 rounded-full hover:bg-white/20 transition-colors;
+        @apply bg-black/10 dark:bg-white/10 rounded-full hover:bg-black/20 dark:hover:bg-white/20 transition-colors;
     }
 }
 
 @layer utilities {
     .glass-panel {
-        @apply bg-white/[0.02] border border-white/5 backdrop-blur-xl;
+        @apply bg-[var(--glass-bg)] border border-[var(--glass-border)] backdrop-blur-xl;
     }
 }

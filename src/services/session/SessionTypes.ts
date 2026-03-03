@@ -23,13 +23,13 @@ export interface SessionConfig {
 }
 
 export interface SessionStorage {
-  getCurrentSession(): SessionInfo | null;
-  createSession(session: SessionInfo): void;
-  updateSession(sessionId: string, updates: Partial<SessionInfo>): void;
-  deleteSession(sessionId: string): void;
-  getActiveSessionsForUser(userId: string): SessionInfo[];
-  cleanupExpiredSessions(): void;
-  validateSession(sessionId: string): boolean;
+  getCurrentSession(): Promise<SessionInfo | null>;
+  createSession(session: SessionInfo): Promise<void>;
+  updateSession(sessionId: string, updates: Partial<SessionInfo>): Promise<void>;
+  deleteSession(sessionId: string): Promise<void>;
+  getActiveSessionsForUser(userId: string): Promise<SessionInfo[]>;
+  cleanupExpiredSessions(): Promise<void>;
+  validateSession(sessionId: string): Promise<boolean>;
 }
 
 export interface SessionManager {
@@ -37,8 +37,8 @@ export interface SessionManager {
   validateSession(sessionId: string): Promise<SessionInfo | null>;
   renewSession(sessionId: string): Promise<SessionInfo | null>;
   destroySession(sessionId: string): Promise<void>;
-  checkSessionExpiration(sessionId: string): void;
-  trackActivity(sessionId: string): void;
-  getActiveSession(): SessionInfo | null;
+  checkSessionExpiration(sessionId: string): Promise<void>;
+  trackActivity(sessionId: string): Promise<void>;
+  getActiveSession(): Promise<SessionInfo | null>;
   logoutAllSessionsForUser(userId: string): Promise<void>;
 }
