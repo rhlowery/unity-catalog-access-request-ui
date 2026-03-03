@@ -77,23 +77,23 @@ const ApproverDashboard = () => {
     );
 
     return (
-        <div className="approver-dashboard animate-fade-in space-y-6 p-4">
+        <div className="approver-dashboard animate-in fade-in slide-in-from-bottom-2 duration-700 space-y-10 p-2 max-w-5xl mx-auto">
             {/* Simulation Mode Banner */}
             {isSimulationMode && (
-                <Card className="border border-yellow-500/50 bg-yellow-500/5">
-                    <CardContent className="py-3 flex items-center gap-4">
-                        <Badge className="bg-yellow-500 text-black text-xs font-bold">SIMULATION</Badge>
-                        <div className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
+                <Card className="border-amber-500/20 bg-amber-500/5 backdrop-blur-md overflow-hidden">
+                    <CardContent className="py-4 flex items-center gap-6">
+                        <Badge className="bg-amber-500 text-black text-[10px] font-bold tracking-widest px-2 py-0.5">SIMULATION</Badge>
+                        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest opacity-60">
                             <Users size={14} />
-                            <span>Viewing as:</span>
+                            <span>Viewing as :</span>
                         </div>
                         <Select value={activePersona} onValueChange={handlePersonaChange}>
-                            <SelectTrigger className="w-[200px] h-8 text-sm bg-[var(--bg-tertiary)] border-[var(--glass-border)]">
+                            <SelectTrigger className="w-[240px] h-10 bg-black/20 border-white/5 hover:bg-black/30 transition-all font-medium">
                                 <SelectValue />
                             </SelectTrigger>
-                            <SelectContent className="bg-[var(--bg-secondary)] border-[var(--glass-border)]">
+                            <SelectContent className="bg-background/95 backdrop-blur-xl border-white/10">
                                 {personas.map(p => (
-                                    <SelectItem key={p.id} value={p.id} className="text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]">
+                                    <SelectItem key={p.id} value={p.id} className="text-sm">
                                         {p.name}
                                     </SelectItem>
                                 ))}
@@ -105,17 +105,22 @@ const ApproverDashboard = () => {
 
             {/* Action Required */}
             <section>
-                <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-3 flex items-center gap-2">
-                    <AlertCircle size={18} className="text-[var(--accent-color)]" />
-                    Action Required
-                    <Badge className={statusColors.PENDING}>{pendingForMe.length}</Badge>
-                </h2>
+                <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-xl font-bold tracking-tight text-foreground/90 flex items-center gap-3">
+                        <AlertCircle size={24} className="text-primary/70" />
+                        Action Required
+                    </h2>
+                    <Badge className={cn("px-2.5 py-0.5 font-bold tabular-nums", statusColors.PENDING)}>{pendingForMe.length}</Badge>
+                </div>
                 {isLoading && <div className="text-sm text-[var(--text-secondary)] p-4">Loading requests...</div>}
                 {!isLoading && pendingForMe.length === 0 && (
-                    <Card className="bg-[var(--bg-secondary)] border-[var(--glass-border)]">
-                        <CardContent className="py-8 flex flex-col items-center gap-2 text-[var(--text-secondary)]">
-                            <Check size={32} className="text-green-500 opacity-50" />
-                            <p className="text-sm">You're all caught up!</p>
+                    <Card className="bg-background/20 backdrop-blur-md border-dashed border-white/5 py-12">
+                        <CardContent className="flex flex-col items-center justify-center gap-4 text-muted-foreground">
+                            <div className="w-16 h-16 rounded-full bg-primary/5 flex items-center justify-center border border-primary/10 mb-2">
+                                <Check size={32} className="text-primary opacity-40" />
+                            </div>
+                            <p className="text-lg font-medium tracking-tight">You're all caught up!</p>
+                            <p className="text-xs uppercase tracking-[0.2em] opacity-50">No pending approvals at this time</p>
                         </CardContent>
                     </Card>
                 )}
@@ -158,7 +163,7 @@ const ApproverDashboard = () => {
 
             {/* Denial Dialog */}
             <Dialog open={!!denialState.reqId} onOpenChange={(open) => !open && setDenialState({ reqId: null, reason: '' })}>
-                <DialogContent className="bg-[var(--bg-secondary)] border-[var(--glass-border)] text-[var(--text-primary)]">
+                <DialogContent className="bg-background/95 backdrop-blur-2xl border-white/10 shadow-2xl">
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2 text-red-400">
                             <AlertCircle size={18} /> Deny Request
@@ -166,10 +171,10 @@ const ApproverDashboard = () => {
                     </DialogHeader>
                     <p className="text-sm text-[var(--text-secondary)]">Please provide a reason for denying this request.</p>
                     <Textarea
-                        placeholder="Reason for denial..."
+                        placeholder="Please explain why access is being denied..."
                         value={denialState.reason}
                         onChange={(e) => setDenialState(s => ({ ...s, reason: e.target.value }))}
-                        className="bg-[var(--bg-tertiary)] border-[var(--glass-border)] text-[var(--text-primary)]"
+                        className="bg-black/20 border-white/5 min-h-[120px] focus:border-primary/50 transition-all font-medium"
                         autoFocus
                     />
                     <DialogFooter>
@@ -198,62 +203,70 @@ const RequestCard = ({ req, isActionable, onApprove, onDeny, isHistory }: any) =
 
     return (
         <Card className={cn(
-            "bg-[var(--bg-secondary)] border-[var(--glass-border)] transition-all",
-            isHistory && "opacity-80"
+            "bg-background/40 backdrop-blur-xl border-white/5 transition-all duration-300 hover:border-white/10 hover:bg-background/60 shadow-lg group",
+            isHistory && "opacity-60 grayscale-[0.5]"
         )}>
-            <CardHeader className="py-3 px-4 flex flex-row items-center justify-between space-y-0">
-                <span className="text-xs text-[var(--text-secondary)]">
-                    {new Date(req.timestamp).toLocaleString()}
-                </span>
+            <CardHeader className="py-4 px-6 flex flex-row items-center justify-between space-y-0 border-b border-white/[0.02]">
+                <div className="flex items-center gap-3">
+                    <div className="w-1.5 h-1.5 rounded-full bg-primary/40 animate-pulse" />
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                        {new Date(req.timestamp).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
+                    </span>
+                </div>
                 {isHistory ? (
-                    <Badge className={cn("text-xs", statusColors[req.status] || statusColors.PENDING)}>
+                    <Badge className={cn("text-[10px] uppercase font-bold tracking-widest px-2 py-0.5 rounded-sm", statusColors[req.status] || statusColors.PENDING)}>
                         {req.status}
                     </Badge>
                 ) : (
-                    <span className="text-xs text-[var(--text-secondary)]">{approved}/{total} Approvals</span>
+                    <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-bold text-primary tracking-widest uppercase opacity-70">Progress</span>
+                        <span className="text-xs font-mono font-bold">{approved}/{total}</span>
+                    </div>
                 )}
             </CardHeader>
 
             {!isHistory && (
-                <div className="px-4 pb-2">
-                    <div className="h-1 rounded-full bg-[var(--bg-tertiary)] overflow-hidden">
+                <div className="px-6 pt-1">
+                    <div className="h-1 rounded-full bg-white/[0.03] overflow-hidden">
                         <div
-                            className="h-full rounded-full bg-[var(--accent-color)] transition-all"
+                            className="h-full rounded-full bg-gradient-to-r from-primary/40 to-primary shadow-[0_0_8px_rgba(88,166,255,0.3)] transition-all duration-700 ease-out"
                             style={{ width: `${progressPercent}%` }}
                         />
                     </div>
                 </div>
             )}
 
-            <CardContent className="px-4 pb-3 space-y-2">
+            <CardContent className="p-6 space-y-5">
                 <div>
-                    <p className="text-xs text-[var(--text-secondary)] uppercase tracking-wider mb-1">Resources</p>
-                    <div className="flex flex-wrap gap-1">
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em] mb-3 opacity-60">Requested Resources</p>
+                    <div className="flex flex-wrap gap-2">
                         {req.requestedObjects?.map((obj: any) => (
-                            <Badge key={obj.id} variant="secondary" className="text-xs bg-[var(--bg-tertiary)] text-[var(--text-primary)]">
+                            <Badge key={obj.id} variant="secondary" className="text-[11px] font-semibold bg-white/5 border-white/5 px-2.5 py-0.5 hover:bg-white/10 transition-colors">
                                 {obj.name}
                             </Badge>
                         ))}
                     </div>
                 </div>
                 {req.justification && (
-                    <p className="text-xs text-[var(--text-secondary)] italic">"{req.justification}"</p>
+                    <div className="bg-white/[0.02] p-3 rounded-lg border border-white/5">
+                        <p className="text-xs text-foreground/70 leading-relaxed italic">"{req.justification}"</p>
+                    </div>
                 )}
                 {!isHistory && (
-                    <div className="space-y-1">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
                         {Object.entries(req.approvalState || {}).map(([approver, status]: [string, any]) => (
-                            <div key={approver} className="flex items-center gap-2 text-xs">
-                                <div className={cn("w-2 h-2 rounded-full", {
-                                    'bg-green-500': status === 'APPROVED',
-                                    'bg-yellow-500': status === 'PENDING',
-                                    'bg-red-500': status === 'DENIED',
+                            <div key={approver} className="flex items-center gap-3 p-2 rounded-md bg-white/[0.01] border border-white/[0.03]">
+                                <div className={cn("w-2 h-2 rounded-full shadow-[0_0_8px_rgba(0,0,0,0.5)]", {
+                                    'bg-green-500 shadow-green-500/20': status === 'APPROVED',
+                                    'bg-amber-500 shadow-amber-500/20': status === 'PENDING',
+                                    'bg-red-500 shadow-red-500/20': status === 'DENIED',
                                 })} />
-                                <span className="text-[var(--text-secondary)]">{approver}</span>
-                                <span className={cn("ml-auto", {
+                                <span className="text-[11px] font-medium text-foreground/60">{approver}</span>
+                                <Badge variant="ghost" className={cn("ml-auto text-[10px] font-bold uppercase tracking-widest h-5 px-1.5", {
                                     'text-green-400': status === 'APPROVED',
-                                    'text-yellow-400': status === 'PENDING',
+                                    'text-amber-400': status === 'PENDING',
                                     'text-red-400': status === 'DENIED',
-                                })}>{status}</span>
+                                })}>{status}</Badge>
                             </div>
                         ))}
                     </div>
@@ -261,12 +274,12 @@ const RequestCard = ({ req, isActionable, onApprove, onDeny, isHistory }: any) =
             </CardContent>
 
             {isActionable && (
-                <CardFooter className="px-4 pb-3 pt-0 flex justify-end gap-2">
-                    <Button size="sm" variant="outline" onClick={onDeny} className="border-red-500/50 text-red-400 hover:bg-red-500/10">
-                        <X size={14} className="mr-1" /> Deny
+                <CardFooter className="px-6 pb-6 pt-0 flex justify-end gap-3">
+                    <Button variant="ghost" size="sm" onClick={onDeny} className="text-red-400 hover:bg-red-500/10 hover:text-red-400 h-9 px-4 font-bold tracking-tight">
+                        <X size={16} className="mr-2" /> Deny Request
                     </Button>
-                    <Button size="sm" onClick={onApprove} className="bg-[var(--accent-color)] text-[var(--bg-primary)] hover:bg-[var(--accent-hover)]">
-                        <Check size={14} className="mr-1" /> Approve
+                    <Button size="sm" onClick={onApprove} className="bg-primary hover:bg-primary-hover text-primary-foreground h-9 px-6 font-bold tracking-tight shadow-lg shadow-primary/10">
+                        <Check size={16} className="mr-2" /> Approve Request
                     </Button>
                 </CardFooter>
             )}

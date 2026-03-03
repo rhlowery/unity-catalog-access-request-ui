@@ -1,5 +1,5 @@
 import React, { lazy, Suspense } from 'react';
-import { LogOut } from 'lucide-react';
+import { LogOut, Activity, ShieldPlus, CheckCircle, FileText } from 'lucide-react';
 
 // Lazy load components that are not immediately needed
 const AccessForm = lazy(() => import('./AccessForm'));
@@ -7,15 +7,22 @@ const ApproverDashboard = lazy(() => import('./ApproverDashboard'));
 const ReviewerTab = lazy(() => import('./ReviewerTab'));
 const AuditLog = lazy(() => import('./AuditLog'));
 
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage
+} from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
+import {
+  Tabs,
+  TabsList,
+  TabsTrigger
+} from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
+
 // Loading fallback component
 const ComponentLoader = () => (
-  <div style={{ 
-    display: 'flex', 
-    justifyContent: 'center', 
-    alignItems: 'center', 
-    height: '200px',
-    color: 'var(--text-secondary)'
-  }}>
+  <div className="flex items-center justify-center h-[200px] text-muted-foreground">
     Loading...
   </div>
 );
@@ -23,98 +30,69 @@ const ComponentLoader = () => (
 // Memoized tab components to prevent unnecessary re-renders
 const ViewModeTabs = React.memo(({ viewMode, setViewMode, pendingCount, errorCount, user }: any) => {
   return (
-    <div className="glass-panel" style={{ padding: '4px', display: 'flex', gap: '4px' }}>
-      <TabButton
-        viewMode={viewMode}
-        mode="REVIEWER"
-        setViewMode={setViewMode}
-        label="Current Access"
-      />
-      <TabButton
-        viewMode={viewMode}
-        mode="CHANGE_REQUEST"
-        setViewMode={setViewMode}
-        label="Access Request"
-      />
-      <TabButton
-        viewMode={viewMode}
-        mode="APPROVER"
-        setViewMode={setViewMode}
-        label="Approver"
-        badge={pendingCount > 0 ? pendingCount : null}
-      />
-      {(user?.groups?.some((g: any) => ['group_security', 'group_platform_admins'].includes(g))) && (
-        <TabButton
-          viewMode={viewMode}
-          mode="AUDIT"
-          setViewMode={setViewMode}
-          label="Audit Log"
-          badge={null}
-        />
-      )}
-    </div>
-  );
-});
-
-const TabButton = React.memo(({ viewMode, mode, setViewMode, label, badge }: any) => {
-  const isActive = viewMode === mode;
-  const handleClick = React.useCallback(() => setViewMode(mode), [setViewMode, mode]);
-  
-  return (
-    <button
-      className={`btn ${isActive ? 'btn-primary' : 'btn-ghost'}`}
-      style={!isActive ? { border: 'none', background: 'transparent', color: 'var(--text-secondary)' } : {}}
-      onClick={handleClick}
-    >
-      {label}
-      {badge && (
-        <span style={{
-          position: 'absolute',
-          top: '-5px',
-          right: '-5px',
-          background: 'var(--danger)',
-          color: 'white',
-          fontSize: '0.6rem',
-          width: '18px',
-          height: '18px',
-          borderRadius: '50%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontWeight: 'bold',
-          border: '2px solid var(--glass-bg)'
-        }}>
-          {badge}
-        </span>
-      )}
-    </button>
+    <Tabs value={viewMode} onValueChange={setViewMode} className="w-auto">
+      <TabsList className="bg-white/5 backdrop-blur-2xl border border-white/10 h-12 p-1 gap-1.5 shadow-[0_8px_32px_rgba(0,0,0,0.4)] rounded-xl">
+        <TabsTrigger
+          value="REVIEWER"
+          className="px-5 h-full rounded-lg flex items-center gap-2.5 text-[11px] font-bold uppercase tracking-wider data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:shadow-[inset_0_0_12px_rgba(88,166,255,0.1)] transition-all duration-300 group"
+        >
+          <Activity size={14} className="opacity-50 group-data-[state=active]:opacity-100 group-data-[state=active]:text-primary transition-all" />
+          Current Access
+        </TabsTrigger>
+        <TabsTrigger
+          value="CHANGE_REQUEST"
+          className="px-5 h-full rounded-lg flex items-center gap-2.5 text-[11px] font-bold uppercase tracking-wider data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:shadow-[inset_0_0_12px_rgba(88,166,255,0.1)] transition-all duration-300 group"
+        >
+          <ShieldPlus size={14} className="opacity-50 group-data-[state=active]:opacity-100 group-data-[state=active]:text-primary transition-all" />
+          Access Request
+        </TabsTrigger>
+        <TabsTrigger
+          value="APPROVER"
+          className="relative px-5 h-full rounded-lg flex items-center gap-2.5 text-[11px] font-bold uppercase tracking-wider data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:shadow-[inset_0_0_12px_rgba(88,166,255,0.1)] transition-all duration-300 group"
+        >
+          <CheckCircle size={14} className="opacity-50 group-data-[state=active]:opacity-100 group-data-[state=active]:text-primary transition-all" />
+          Approver
+          {pendingCount > 0 && (
+            <Badge variant="destructive" className="ml-1 px-1 py-0 min-w-[1.1rem] h-[1.1rem] justify-center animate-pulse text-[9px] font-black border-none ring-2 ring-background">
+              {pendingCount}
+            </Badge>
+          )}
+        </TabsTrigger>
+        {(user?.groups?.some((g: any) => ['group_security', 'group_platform_admins'].includes(g))) && (
+          <TabsTrigger
+            value="AUDIT"
+            className="px-5 h-full rounded-lg flex items-center gap-2.5 text-[11px] font-bold uppercase tracking-wider data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:shadow-[inset_0_0_12px_rgba(88,166,255,0.1)] transition-all duration-300 group"
+          >
+            <FileText size={14} className="opacity-50 group-data-[state=active]:opacity-100 group-data-[state=active]:text-primary transition-all" />
+            Audit Log
+          </TabsTrigger>
+        )}
+      </TabsList>
+    </Tabs>
   );
 });
 
 const UserControls = React.memo(({ user, logout }: { user?: any; logout?: () => void }) => (
-  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', paddingLeft: '16px', borderLeft: '1px solid var(--glass-border)' }}>
-    <div style={{ textAlign: 'right', fontSize: '0.85rem' }}>
-      <div style={{ fontWeight: 500, color: 'var(--text-primary)' }}>{user?.name}</div>
-      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{user?.provider}</div>
+  <div className="flex items-center gap-5 pl-6 border-l border-white/10 ml-2">
+    <div className="text-right hidden sm:block">
+      <div className="text-sm font-semibold text-foreground/90 tracking-tight">{user?.name}</div>
+      <div className="text-[10px] text-muted-foreground uppercase tracking-widest leading-tight">{user?.provider}</div>
     </div>
-    <div style={{
-      width: '32px',
-      height: '32px',
-      borderRadius: '50%',
-      border: '2px solid var(--glass-border)',
-      background: 'var(--accent-color)',
-      color: 'white',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      fontSize: '0.8rem',
-      fontWeight: 600
-    }}>
-      {user?.initials || 'U'}
-    </div>
-    <button className="btn btn-secondary" style={{ padding: '6px' }} onClick={logout} title="Sign Out">
-      <LogOut size={16} />
-    </button>
+    <Avatar className="h-10 w-10 border border-white/10 ring-2 ring-transparent ring-offset-2 ring-offset-background hover:ring-primary/50 transition-all cursor-pointer shadow-lg">
+      <AvatarImage src={user?.avatar} />
+      <AvatarFallback className="bg-primary/10 text-primary font-bold border border-primary/20">
+        {user?.initials || 'U'}
+      </AvatarFallback>
+    </Avatar>
+    <Button
+      variant="ghost"
+      size="icon"
+      onClick={logout}
+      title="Sign Out"
+      className="h-10 w-10 rounded-full hover:bg-destructive/10 hover:text-destructive group transition-all"
+    >
+      <LogOut size={18} className="transition-transform group-hover:scale-110 opacity-70 group-hover:opacity-100" />
+    </Button>
   </div>
 ));
 

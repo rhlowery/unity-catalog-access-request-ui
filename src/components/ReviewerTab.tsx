@@ -87,10 +87,14 @@ const ReviewerTab = ({ selectedObject }: ReviewerTabProps) => {
 
     if (!selectedObject) {
         return (
-            <div className="empty-state">
-                <Shield size={48} className="text-secondary" />
-                <h3>No Object Selected</h3>
-                <p className="text-secondary">Select an object from the tree to review its access.</p>
+            <div className="flex flex-col items-center justify-center py-20 text-center animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="bg-muted p-6 rounded-full mb-6">
+                    <Shield size={64} className="text-muted-foreground" />
+                </div>
+                <h3 className="text-2xl font-bold tracking-tight mb-2">No Object Selected</h3>
+                <p className="text-muted-foreground max-w-xs mx-auto">
+                    Select an object from the tree to review its access.
+                </p>
             </div>
         );
     }

@@ -11,9 +11,21 @@ import { ViewModeTabs, UserControls, ContentView, ComponentLoader } from './Opti
 import { lazy } from 'react';
 const AdminSettings = lazy(() => import('./AdminSettings'));
 
+import { ModeToggle } from './ModeToggle';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogClose
+} from '@/components/ui/dialog';
+
 const MainLayout = () => {
   const { user, logout } = useAuth();
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState('');
+  // ... rest of state
   const {
     data: workspaces = [],
     isLoading: loadingWorkspaces,
@@ -166,34 +178,44 @@ const MainLayout = () => {
   }), []);
 
   return (
-    <div id="app-root" style={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-      <header className="glass-panel" style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        padding: '1rem 2rem',
-        marginBottom: '1rem',
-        borderRadius: 0,
-        borderLeft: 0, borderRight: 0, borderTop: 0
-      }}>
-        <div className="flex-center" style={{ gap: '12px' }}>
-          {isMobile && (
-            <button
-              className="btn btn-ghost"
-              style={{ border: 'none', background: 'transparent', color: 'var(--text-primary)', padding: '4px' }}
-              onClick={handleToggle}
-              title="Toggle Sidebar"
-            >
-              <Menu size={24} />
-            </button>
-          )}
-          <ShieldCheck size={24} color="var(--accent-color)" />
-          <h1 style={{ fontSize: '1.25rem', fontWeight: 600 }}>Access Control System</h1>
+    <div id="app-root" className="h-screen flex flex-col overflow-hidden bg-background text-foreground font-sans">
+      <header className="flex items-center h-16 border-b border-white/5 bg-background/60 backdrop-blur-xl sticky top-0 z-50">
+        {/* Left Zone: Synchronized with Sidebar Width */}
+        <div
+          className="flex items-center px-8 shrink-0 transition-all duration-200 overflow-hidden"
+          style={{ width: isSidebarCollapsed ? (isMobile ? 80 : 0) : sidebarWidth }}
+        >
+          <div className="flex items-center min-w-max">
+            {isMobile && (
+              <Button variant="ghost" size="icon" onClick={handleToggle} title="Toggle Sidebar" className="mr-2">
+                <Menu size={20} />
+              </Button>
+            )}
+            <div className="bg-primary/10 p-2 rounded-xl border border-primary/20 shadow-lg shadow-primary/5">
+              <ShieldCheck size={24} className="text-primary" />
+            </div>
+            {(!isSidebarCollapsed || isMobile) && (
+              <h1 className="ml-4 text-lg font-extrabold tracking-tight text-foreground drop-shadow-[0_0_10px_rgba(255,255,255,0.1)]">
+                Access Control System
+              </h1>
+            )}
+          </div>
         </div>
 
-        <div className="flex-center" style={{ gap: '16px' }}>
-          <ViewModeTabs viewMode={viewMode} setViewMode={setViewMode} pendingCount={pendingCount} errorCount={errorCount} user={user} />
-          <UserControls user={user} logout={logout} />
+        {/* Remaining Space: Contains Centered Tabs and Right-aligned Actions */}
+        <div className="flex-1 flex relative items-center h-full px-8">
+          {/* Absolute Center: Ensuring tabs are at exactly (Width - Sidebar) / 2 */}
+          <div className="absolute inset-0 flex justify-center items-center pointer-events-none">
+            <div className="pointer-events-auto">
+              <ViewModeTabs viewMode={viewMode} setViewMode={setViewMode} pendingCount={pendingCount} errorCount={errorCount} user={user} />
+            </div>
+          </div>
+
+          {/* Right Actions: Floating to the end without affecting centering */}
+          <div className="ml-auto flex items-center gap-4 relative z-10">
+            <ModeToggle />
+            <UserControls user={user} logout={logout} />
+          </div>
         </div>
       </header>
 
@@ -235,53 +257,35 @@ const MainLayout = () => {
           {!isMobile && (
             <div
               style={{
-                width: '5px',
+                width: '1px',
                 flexShrink: 0,
-                background: isResizing ? 'var(--accent-color)' : 'var(--glass-border)',
+                background: isResizing ? 'var(--accent-color)' : 'rgba(255, 255, 255, 0.05)',
                 cursor: 'col-resize',
                 position: 'relative',
-                transition: isResizing ? 'none' : 'background 0.2s ease, transform 0.1s ease'
+                transition: isResizing ? 'none' : 'background 0.3s ease'
               }}
               onMouseDown={handleResizeStart}
-              className="main-splitter"
-              onMouseEnter={(e) => {
-                if (!isResizing) {
-                  e.currentTarget.style.background = 'var(--accent-color)';
-                  e.currentTarget.style.transform = 'scaleX(1.2)';
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!isResizing) {
-                  e.currentTarget.style.background = 'var(--glass-border)';
-                  e.currentTarget.style.transform = 'scaleX(1)';
-                }
-              }}
-            />
+              className="main-splitter group"
+            >
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-8 bg-transparent group-hover:bg-primary/20 rounded-full transition-all flex items-center justify-center">
+                <div className="w-0.5 h-3 bg-white/20 rounded-full" />
+              </div>
+            </div>
           )}
 
-          <div
-            style={{
-              flex: 1,
-              position: 'relative',
-              overflow: 'hidden'
-            }}
-          >
-            <div className="glass-panel" style={{
-              width: '100%',
-              height: '100%',
-              overflowY: 'auto',
-              padding: '1.5rem',
-              display: 'flex',
-              flexDirection: 'column',
-              borderRadius: 'var(--border-radius)'
-            }}>
-              <ErrorBoundary>
-                <ContentView
-                  viewMode={viewMode}
-                  selectedObjects={selectedObjects}
-                  onClearSelection={clearSelection}
-                />
-              </ErrorBoundary>
+          <div className="flex-1 min-w-0 overflow-hidden relative">
+            <div className="h-full overflow-y-auto custom-scrollbar bg-background/20 backdrop-blur-[2px] transition-all p-8">
+              <div className="min-h-full flex flex-col items-center w-full">
+                <div className="max-w-6xl w-full">
+                  <ErrorBoundary>
+                    <ContentView
+                      viewMode={viewMode}
+                      selectedObjects={selectedObjects}
+                      onClearSelection={clearSelection}
+                    />
+                  </ErrorBoundary>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -293,77 +297,48 @@ const MainLayout = () => {
         </div>
       </main>
 
-      <footer style={{
-        padding: '0.5rem 2rem',
-        borderTop: '1px solid var(--glass-border)',
-        display: 'flex',
-        justifyContent: 'flex-end',
-        alignItems: 'center',
-        fontSize: '0.75rem',
-        color: 'var(--text-secondary)'
-      }}>
-        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-          <button
-            className="btn btn-ghost"
-            style={{ border: 'none', background: 'transparent', color: 'var(--text-secondary)', padding: '4px' }}
+      <footer className="py-3 px-8 border-t border-white/5 bg-background/40 flex justify-between items-center text-[10px] text-muted-foreground uppercase tracking-[0.2em] font-medium">
+        <div className="flex items-center gap-6">
+          <span className="opacity-70">v2.4.0</span>
+          <div className="flex items-center gap-2">
+            <div className="w-1.5 h-1.5 rounded-full bg-green-500/50 shadow-[0_0_8px_rgba(34,197,94,0.3)]" />
+            <span className="opacity-70">Backend: Online</span>
+          </div>
+        </div>
+        <div className="flex items-center gap-6">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-full transition-all"
             onClick={() => setShowSettings(true)}
             title="Settings"
           >
             <Settings size={16} />
-          </button>
-          Developed with AI
+          </Button>
+          <span className="opacity-60">Unity Catalog Access Request UI</span>
         </div>
       </footer>
 
-      {showSettings && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(0, 0, 0, 0.7)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 9999
-        }}>
-          <div style={{
-            width: '90%',
-            maxWidth: '800px',
-            maxHeight: '90vh',
-            overflow: 'auto',
-            position: 'relative'
-          }}>
-            <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: '1rem',
-              paddingBottom: '1rem',
-              borderBottom: '1px solid var(--glass-border)'
-            }}>
-              <h2 style={{ fontSize: '1.5rem', fontWeight: 600 }}>System Configuration</h2>
-              <button
-                className="btn btn-ghost"
-                style={{
-                  padding: '8px',
-                  background: 'transparent',
-                  border: 'none',
-                  color: 'var(--text-secondary)'
-                }}
-                onClick={() => setShowSettings(false)}
-                title="Close Settings"
-              >
-                <X size={24} />
-              </button>
-            </div>
+      <Dialog open={showSettings} onOpenChange={setShowSettings}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col p-0 border-border bg-background/95 backdrop-blur-xl">
+          <DialogHeader className="p-6 pb-0">
+            <DialogTitle className="text-2xl font-bold tracking-tight">System Configuration</DialogTitle>
+            <DialogDescription>
+              Manage your identity, storage, and Unity Catalog integration settings.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto p-6 pt-2">
             <React.Suspense fallback={<ComponentLoader />}>
               <AdminSettings />
             </React.Suspense>
           </div>
-        </div>
-      )}
+          <div className="p-4 border-t border-border bg-background/50 flex justify-end">
+            <DialogClose asChild>
+              <Button variant="outline">Close</Button>
+            </DialogClose>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

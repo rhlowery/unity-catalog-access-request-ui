@@ -6,17 +6,17 @@ import './CatalogTree.css';
 export const NodeIcon = ({ type }: { type?: string }) => {
     const iconType = type || 'TABLE';
     switch (iconType) {
-        case 'CATALOG': return <Folder size={16} className="node-icon icon-catalog" />;
-        case 'SCHEMA': return <Database size={16} className="node-icon icon-schema" />;
-        case 'TABLE': return <Table size={16} className="node-icon icon-table" />;
-        case 'VIEW': return <Eye size={16} className="node-icon icon-view" />;
-        case 'MODEL': return <Brain size={16} className="node-icon icon-model" />;
-        case 'FUNCTION': return <ScrollText size={16} className="node-icon icon-function" />;
-        case 'VOLUME': return <HardDrive size={16} className="node-icon icon-volume" />;
-        case 'LOCATION': return <Globe size={16} className="node-icon icon-location" />;
-        case 'CREDENTIAL': return <Key size={16} className="node-icon icon-credential" />;
-        case 'COMPUTE': return <Server size={16} className="node-icon icon-compute" />;
-        default: return <Table size={16} className="node-icon" />;
+        case 'CATALOG': return <Folder size={16} className="text-red-400/80" />;
+        case 'SCHEMA': return <Database size={16} className="text-amber-400/80" />;
+        case 'TABLE': return <Table size={16} className="text-blue-400/80" />;
+        case 'VIEW': return <Eye size={16} className="text-emerald-400/80" />;
+        case 'MODEL': return <Brain size={16} className="text-purple-400/80" />;
+        case 'FUNCTION': return <ScrollText size={16} className="text-orange-400/80" />;
+        case 'VOLUME': return <HardDrive size={16} className="text-sky-400/80" />;
+        case 'LOCATION': return <Globe size={16} className="text-green-400/80" />;
+        case 'CREDENTIAL': return <Key size={16} className="text-rose-400/80" />;
+        case 'COMPUTE': return <Server size={16} className="text-pink-400/80" />;
+        default: return <Table size={16} className="text-muted-foreground" />;
     }
 };
 
@@ -46,7 +46,7 @@ const CatalogTree = ({ nodes = [], selectedIds, onToggleSelection }: any) => {
         });
 
         observer.observe(containerRef.current);
-        updateHeight(); // Initial measurement
+        updateHeight();
 
         window.addEventListener('resize', updateHeight);
         return () => {
@@ -105,12 +105,15 @@ const CatalogTree = ({ nodes = [], selectedIds, onToggleSelection }: any) => {
         };
 
         return (
-            <div className="tree-node" style={{ paddingLeft: `${depth * 24}px` }} onClick={handleRowClick}>
-                <div className={`node-content ${isSelected ? 'selected' : ''}`}>
+            <div
+                className={`group flex items-center h-8 px-4 cursor-pointer transition-all duration-200 hover:bg-white/[0.03] ${isSelected ? 'bg-primary/10' : ''}`}
+                style={{ paddingLeft: `${(depth * 16) + 16}px` }}
+                onClick={handleRowClick}
+            >
+                <div className="flex items-center gap-2 w-full">
                     <button
-                        className="node-toggle"
+                        className={`w-5 h-5 flex items-center justify-center rounded-sm hover:bg-white/5 transition-colors text-muted-foreground ${!hasChildren ? 'invisible' : ''}`}
                         onClick={(e) => toggleExpand(node.id, e)}
-                        style={{ visibility: hasChildren ? 'visible' : 'hidden' }}
                     >
                         {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                     </button>
@@ -119,12 +122,16 @@ const CatalogTree = ({ nodes = [], selectedIds, onToggleSelection }: any) => {
                         type="checkbox"
                         checked={isSelected}
                         onChange={handleCheckboxChange}
-                        className="node-checkbox"
+                        className="w-4 h-4 rounded border-white/20 bg-transparent text-primary focus:ring-primary/50 transition-all cursor-pointer mr-1"
                         onClick={(e) => e.stopPropagation()}
                     />
 
-                    <NodeIcon type={nodeType} />
-                    <span className="node-label">{node.name}</span>
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <NodeIcon type={nodeType} />
+                        <span className={`text-[13px] truncate tracking-tight transition-colors ${isSelected ? 'text-primary font-semibold' : 'text-foreground/80 group-hover:text-foreground'}`}>
+                            {node.name}
+                        </span>
+                    </div>
                 </div>
             </div>
         );
@@ -132,16 +139,16 @@ const CatalogTree = ({ nodes = [], selectedIds, onToggleSelection }: any) => {
 
     if (!nodes || nodes.length === 0) return null;
 
-    const renderHeight = containerHeight || 800; // Better fallback for initial render
+    const renderHeight = containerHeight || 800;
 
     return (
-        <div className="tree-container" ref={containerRef} style={{ height: '100%', minHeight: '100%', overflow: 'hidden' }}>
+        <div className="flex-1 w-full bg-transparent overflow-hidden" ref={containerRef}>
             <VirtualList
                 items={flatNodes}
-                itemHeight={28}
+                itemHeight={32}
                 containerHeight={renderHeight}
                 renderItem={renderItem}
-                style={{ height: '100%' }}
+                style={{ height: '100%', width: '100%' }}
             />
         </div>
     );

@@ -2,6 +2,17 @@ import { StorageService } from '../services/storage/StorageService';
 import { ConfigService } from '../services/config/ConfigService';
 import CatalogTree from './CatalogTree';
 
+import {
+    Select,
+    SelectContent,
+    SelectGroup,
+    SelectItem,
+    SelectLabel,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+
 const Sidebar = ({
     catalogs,
     selectedIds,
@@ -14,50 +25,52 @@ const Sidebar = ({
     width = '300px'
 }) => {
     return (
-        <aside className="glass-panel" style={{
-            width,
-            margin: '0',
-            display: 'flex',
-            flexDirection: 'column',
-            height: '100%',
-            overflow: 'hidden'
-        }}>
+        <aside className="h-full flex flex-col overflow-hidden bg-background/40 backdrop-blur-xl border-r border-white/5 shadow-2xl" style={{ width, borderRadius: 0 }}>
             {(() => {
                 const config = ConfigService.getConfig();
-                // Show only if in ACCOUNT mode
                 if (config.ucAuthType === 'ACCOUNT') {
                     return (
-                        <div style={{ padding: '1rem', borderBottom: '1px solid var(--glass-border)' }}>
-                            <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '8px' }}>Active Workspace</label>
-                            <select
+                        <div className="p-6 border-b border-white/5 bg-white/[0.02]">
+                            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em] mb-3 block opacity-70">
+                                Active Workspace
+                            </label>
+                            <Select
                                 value={selectedWorkspaceId}
-                                onChange={e => onWorkspaceChange(e.target.value)}
+                                onValueChange={onWorkspaceChange}
                                 disabled={loadingWorkspaces || !!workspaceError}
-                                style={{ width: '100%', padding: '6px', borderRadius: '4px', background: 'rgba(0,0,0,0.2)', color: 'white', border: '1px solid var(--glass-border)' }}>
-                                {loadingWorkspaces ? (
-                                    <option>Loading...</option>
-                                ) : workspaceError ? (
-                                    <option>Error: {workspaceError}</option>
-                                ) : workspaces.length > 0 ? (
-                                    workspaces.map(ws => (
-                                        <option key={ws.id} value={ws.id}>{ws.name}</option>
-                                    ))
-                                ) : (
-                                    <option>No workspaces found</option>
-                                )}
-                            </select>
+                            >
+                                <SelectTrigger className="w-full bg-background/40 border-white/5 hover:bg-white/[0.05] transition-colors h-10">
+                                    <SelectValue placeholder={loadingWorkspaces ? "Loading..." : "Select Workspace"} />
+                                </SelectTrigger>
+                                <SelectContent className="bg-background/95 backdrop-blur-xl border-white/10">
+                                    <SelectGroup>
+                                        <SelectLabel className="text-xs uppercase tracking-widest opacity-50">Workspaces</SelectLabel>
+                                        {workspaceError ? (
+                                            <div className="p-2 text-xs text-destructive">Error: {workspaceError}</div>
+                                        ) : workspaces.length > 0 ? (
+                                            workspaces.map(ws => (
+                                                <SelectItem key={ws.id} value={ws.id} className="text-sm">
+                                                    {ws.name}
+                                                </SelectItem>
+                                            ))
+                                        ) : (
+                                            <div className="p-2 text-xs text-muted-foreground">No workspaces found</div>
+                                        )}
+                                    </SelectGroup>
+                                </SelectContent>
+                            </Select>
                         </div>
                     );
                 }
                 return null;
             })()}
 
-            <div style={{ padding: '1rem', borderBottom: '1px solid var(--glass-border)', flexShrink: 0 }}>
-                <h3 style={{ fontSize: '0.9rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>
+            <div className="px-6 py-4 border-b border-white/5 bg-white/[0.01] flex-shrink-0">
+                <h3 className="text-[10px] font-bold text-primary uppercase tracking-[0.2em]">
                     Data Catalog
                 </h3>
             </div>
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden', height: '100%' }}>
+            <div className="flex-1 flex flex-col min-h-0 overflow-hidden h-full">
                 <CatalogTree
                     nodes={catalogs}
                     selectedIds={selectedIds}
