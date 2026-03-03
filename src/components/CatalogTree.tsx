@@ -1,7 +1,6 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { Database, Folder, Table, Eye, Brain, Box, Server, ScrollText, HardDrive, Globe, Key, ChevronDown, ChevronRight } from 'lucide-react';
 import { VirtualList } from './VirtualList';
-import './CatalogTree.css';
 
 export const NodeIcon = ({ type }: { type?: string }) => {
     const iconType = type || 'TABLE';

@@ -8,7 +8,10 @@ import './index.css';
 const AppContent = () => {
   const { user, loading } = useAuth();
   if (loading) return null;
-  return user ? <MainLayout /> : <Login />;
+  // If user is logged in but hasn't selected a persona (mock mode), 
+  // we still want to show the login/selection screen.
+  const isFullyAuthenticated = user && !user.requiresUserSelection;
+  return isFullyAuthenticated ? <MainLayout /> : <Login />;
 };
 
 function App() {

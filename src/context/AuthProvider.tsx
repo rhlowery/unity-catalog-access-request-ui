@@ -6,7 +6,7 @@ import { AuthContextType, User } from './AuthContext';
 const AuthContext = createContext<AuthContextType | null>(null);
 
 interface AuthProviderProps {
-  children: ReactNode;
+    children: ReactNode;
 }
 
 export const AuthProvider = ({ children }: AuthProviderProps) => {
@@ -19,7 +19,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         const initAuth = async () => {
             try {
                 console.log('[AuthProvider] Initializing auth with session management...');
-                
+
                 // Check for existing valid session
                 const activeSession = SessionManager.getActiveSession();
                 if (activeSession) {
@@ -33,46 +33,31 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
                         initials: activeSession.userName.split(' ').map(n => n[0]).join(''),
                         type: 'USER'
                     };
-                    
+
                     setUser(userFromSession);
                     setLoading(false);
-                    
+
                     // Start session monitoring
                     SessionManager.checkSessionExpiration(activeSession.id);
                     return;
                 }
-                
+
                 // No valid session - try identity service
                 const adapter = IdentityService.getAdapter();
                 console.log('[AuthProvider] Using adapter:', adapter.name);
-                
+
                 const currentUser = await IdentityService.getCurrentUser();
                 console.log('[AuthProvider] Current user from identity service:', currentUser);
-                
-                // Check if this is mock identity with user selection
-                if (currentUser?.requiresUserSelection) {
-                    console.log('[AuthProvider] Mock user selection required');
+
+                // For mock provider, if we have a placeholder "user_selection" object,
+                // it means we still need to select a specific persona.
+                if (currentUser?.id === 'user_selection' || currentUser?.requiresUserSelection) {
+                    console.log('[AuthProvider] Identity requires user selection');
                     setUser(currentUser);
                     setLoading(false);
                     return;
                 }
-                
-                // For mock provider, check if there's a selected user in localStorage
-                if (currentUser?.id === 'user_selection') {
-                    try {
-                        const storedUser = localStorage.getItem('mock_current_user');
-                        if (storedUser) {
-                            const selectedUser = JSON.parse(storedUser);
-                            console.log('[AuthProvider] Found selected user:', selectedUser);
-                            setUser(selectedUser);
-                            setLoading(false);
-                            return;
-                        }
-                    } catch (e) {
-                        console.log('[AuthProvider] No selected user found in localStorage');
-                    }
-                }
-                
+
                 console.log('[AuthProvider] Setting current user:', currentUser);
                 setUser(currentUser);
             } catch (error) {
@@ -111,24 +96,31 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     const login = async (provider: string): Promise<User> => {
         try {
             console.log(`[AuthProvider] Attempting login with provider: ${provider}`);
-            
-            // Get identity and create session
+
+            // Get identity
             const currentUser = await IdentityService.login(provider);
-            
+
+            // If this is a mock provider and it requires selection, don't create a session yet
+            if (currentUser.requiresUserSelection) {
+                console.log('[AuthProvider] Login requires further selection, skipping session creation');
+                setUser(currentUser);
+                return currentUser;
+            }
+
             // Create session with tokens (mock tokens for now)
             const tokens = {
                 accessToken: `token_${Date.now()}`,
                 refreshToken: `refresh_${Date.now()}`
             };
-            
+
             const session = await SessionManager.createSession(currentUser, provider, tokens);
             console.log('[AuthProvider] Session created:', session);
-            
+
             setUser(currentUser);
-            
+
             // Track activity for new session
             SessionManager.trackActivity(session.id);
-            
+
             return currentUser;
         } catch (error) {
             console.error('Login error:', error);
@@ -139,19 +131,19 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     const logout = async () => {
         try {
             console.log('[AuthProvider] Logging out...');
-            
+
             const activeSession = SessionManager.getActiveSession();
             if (activeSession) {
                 await SessionManager.destroySession(activeSession.id);
             }
-            
+
             // Also call identity service logout
             IdentityService.logout();
-            
+
             setUser(null);
             setSessionWarning(null);
             setSessionExpired(null);
-            
+
             // Clear any remaining mock data
             if (localStorage.getItem('mock_current_user')) {
                 localStorage.removeItem('mock_current_user');
@@ -179,16 +171,16 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     };
 
     return (
-        <AuthContext.Provider value={{ 
-            user, 
-            loading, 
-            login, 
+        <AuthContext.Provider value={{
+            user,
+            loading,
+            login,
             logout,
             sessionExpiring: sessionExpiringHandler,
             sessionExpired: sessionExpiredHandler
         }}>
             {children}
-            
+
             {/* Session Warning Modal */}
             {sessionWarning && (
                 <div style={{
@@ -219,13 +211,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
                             {sessionWarning.message}
                         </p>
                         <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
-                            <button 
+                            <button
                                 className="btn btn-primary"
                                 onClick={dismissSessionWarning}
                             >
                                 Continue
                             </button>
-                            <button 
+                            <button
                                 className="btn btn-secondary"
                                 onClick={() => {
                                     dismissSessionWarning();
@@ -269,7 +261,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
                             {sessionExpired.message}
                         </p>
                         <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
-                            <button 
+                            <button
                                 className="btn btn-primary"
                                 onClick={dismissSessionExpired}
                             >
@@ -284,11 +276,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 };
 
 const useAuth = (): AuthContextType => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
+    const context = useContext(AuthContext);
+    if (!context) {
+        throw new Error('useAuth must be used within an AuthProvider');
+    }
+    return context;
 };
 
 export { useAuth };

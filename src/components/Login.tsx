@@ -3,57 +3,30 @@ import { useAuth } from '../context/AuthProvider';
 import { StorageService } from '../services/storage/StorageService';
 import { ConfigService } from '../services/config/ConfigService';
 import { Shield, Globe, Key, Lock, Loader2, Users, UserCheck, Crown, ShieldCheck, Settings, Database } from 'lucide-react';
-import { selectMockUser, getCurrentMockUser } from '../services/identity/adapters/MockIdentityAdapter';
-import './Login.css';
+import { selectMockUser } from '../services/identity/adapters/MockIdentityAdapter';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 const Login = () => {
-    console.log('[Login] Component rendering...');
     const { login, loading, user } = useAuth();
     const [activeProvider, setActiveProvider] = useState<string | null>(null);
     const [showUserSelection, setShowUserSelection] = useState(false);
-    const [showEmergencyReset, setShowEmergencyReset] = useState(false);
     const [configMode, setConfigMode] = useState('MOCK');
-    const [resetKey, setResetKey] = useState(['', '', '', '', '']);
-
-    const EMERGENCY_RESET_KEY = '0000-0000-0000-0000';
-
-    // Debug logs
-    useEffect(() => {
-        console.log('[Login] Debug - Active provider:', activeProvider);
-        console.log('[Login] Debug - Show user Selection:', showUserSelection);
-        console.log('[Login] Debug - Config mode:', configMode);
-    }, [activeProvider, showUserSelection, configMode]);
 
     useEffect(() => {
-        // Load current config to show correct provider interface
-        const config = ConfigService.getConfig();
-        const mode = config.identityType || 'MOCK';
-        setConfigMode(mode);
-        console.log(`[Login] Current identity mode: ${mode}`);
-        console.log(`[Login] Config:`, config);
-    }, []);
-
-    useEffect(() => {
-        // Check if we need to show user selection after login
-        if (user?.requiresUserSelection && user?.availableUsers) {
-            setShowUserSelection(true);
+        // Automatically trigger mock login if in MOCK mode and no user is set
+        if (configMode === 'MOCK' && !user && !activeProvider) {
+            handleLogin('MOCK');
         }
-    }, [user]);
+    }, [configMode, user]);
 
     const handleLogin = async (provider: string) => {
-        console.log(`[Login] Attempting login with provider: ${provider}`);
         setActiveProvider(provider);
-
         try {
             const loggedUser = await login(provider);
-            console.log(`[Login] Login response:`, loggedUser);
-
-            // Check if this is mock provider with user selection
+            console.log(`[Login] Logged in user:`, loggedUser);
             if (loggedUser?.requiresUserSelection) {
-                console.log(`[Login] Mock provider requires user selection - setting showUserSelection to true`);
                 setShowUserSelection(true);
-            } else {
-                console.log(`[Login] Login successful for user: ${loggedUser?.name}`);
             }
         } catch (error) {
             console.error(`[Login] Login error:`, error);
@@ -62,31 +35,20 @@ const Login = () => {
     };
 
     const handleUserSelect = async (userId: string) => {
-        console.log(`[Login] User selected: ${userId}`);
         try {
-            const selectedUser = await selectMockUser(userId);
-            console.log(`[Login] Selected user:`, selectedUser);
+            await selectMockUser(userId);
             setShowUserSelection(false);
-            // The user is now stored in localStorage, AuthProvider should pick it up
             window.location.reload();
         } catch (error) {
             console.error(`[Login] Error selecting user:`, error);
         }
     };
 
-    const handleBackToProviders = () => {
-        setShowUserSelection(false);
-        setActiveProvider(null);
-    };
-
     const changeProvider = (providerType: string) => {
-        console.log(`[Login] Changing provider to: ${providerType}`);
         const config = ConfigService.getConfig();
         const updatedConfig = { ...config, identityType: providerType };
-        console.log(`[Login] Saving config:`, updatedConfig);
         ConfigService.updateConfig(updatedConfig);
         setConfigMode(providerType);
-        console.log(`[Login] Provider change complete`);
     };
 
     const getUserIcon = (role: string) => {
@@ -101,270 +63,23 @@ const Login = () => {
 
     const getRoleBadgeColor = (role: string) => {
         switch (role) {
-            case 'STANDARD_USER': return '#3b82f6'; // blue
-            case 'FINANCE_APPROVER': return '#10b981'; // green
-            case 'MARKETING_APPROVER': return '#f59e0b'; // amber
-            case 'SECURITY_ADMIN': return '#ef4444'; // red
-            default: return '#6b7280'; // gray
+            case 'STANDARD_USER': return '#3b82f6';
+            case 'FINANCE_APPROVER': return '#10b981';
+            case 'MARKETING_APPROVER': return '#f59e0b';
+            case 'SECURITY_ADMIN': return '#ef4444';
+            default: return '#6b7280';
         }
     };
-
-    const getProviderConfig = (type: string) => {
-        const config = ConfigService.getConfig();
-        return config.identityType === type;
-    };
-
-    const ProviderSelector = () => (
-        <div className="provider-selector">
-            <h3>Select Identity Provider</h3>
-            <div className="provider-grid">
-                <div
-                    className={`provider-card ${configMode === 'MOCK' ? 'active' : ''}`}
-                    onClick={() => changeProvider('MOCK')}
-                >
-                    <Users size={24} />
-                    <h4>Mock Identity</h4>
-                    <p>Role-based user simulation for testing and demos</p>
-                </div>
-
-                <div
-                    className={`provider-card ${configMode === 'OAUTH' ? 'active' : ''}`}
-                    onClick={() => changeProvider('OAUTH')}
-                >
-                    <Globe size={24} />
-                    <h4>OAuth 2.0</h4>
-                    <p>Google Workspace, Microsoft Entra ID, SSO providers</p>
-                </div>
-
-                <div
-                    className={`provider-card ${configMode === 'SAML' ? 'active' : ''}`}
-                    onClick={() => changeProvider('SAML')}
-                >
-                    <Lock size={24} />
-                    <h4>SAML SSO</h4>
-                    <p>Enterprise SSO via Okta, Ping, ADFS</p>
-                </div>
-
-                <div
-                    className={`provider-card ${configMode === 'DATABRICKS' ? 'active' : ''}`}
-                    onClick={() => changeProvider('DATABRICKS')}
-                >
-                    <Database size={24} />
-                    <h4>Databricks UC</h4>
-                    <p>Unity Catalog identity with SCIM integration</p>
-                </div>
-            </div>
-        </div>
-    );
-
-    const MockLoginScreen = () => (
-        <div className="login-container flex-center">
-            <div className="glass-panel login-card animate-fade-in">
-                <div className="login-header">
-                    <div className="logo-circle">
-                        <Shield size={32} color="white" />
-                    </div>
-                    <h1>Access Control System</h1>
-                    <p className="text-secondary">Mock Identity Provider - Role Selection</p>
-                </div>
-
-                <div className="login-body">
-                    <div className="mock-tabs">
-                        <div className="mock-tab-panel">
-                            <div className="mock-tab-header">
-                                <h3 style={{ margin: 0, color: 'var(--text-primary)', fontSize: '1.1rem' }}>
-                                    Select User Role
-                                </h3>
-                                <p style={{ margin: '4px 0 0 0', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-                                    Choose a role to simulate different access levels and permissions
-                                </p>
-                            </div>
-
-                            <div className="mock-user-grid">
-                                {(user?.availableUsers || [
-                                    { id: 'user_standard', name: 'Alex Analyst', role: 'STANDARD_USER', email: 'alex@company.com', groups: ['group_all_users', 'group_finance_analysts'], description: 'Standard user with basic access to finance data' },
-                                    { id: 'user_finance_approver', name: 'Sarah Finance', role: 'FINANCE_APPROVER', email: 'sarah.f@company.com', groups: ['group_all_users', 'group_finance_admins', 'group_finance_analysts'], description: 'Finance approver with elevated permissions for financial data' },
-                                    { id: 'user_marketing_approver', name: 'Mike Marketing', role: 'MARKETING_APPROVER', email: 'mike.m@company.com', groups: ['group_all_users', 'group_marketing_admins', 'group_marketing_analysts'], description: 'Marketing approver with permissions for marketing data and campaigns' },
-                                    { id: 'user_security_admin', name: 'Jane Security', role: 'SECURITY_ADMIN', email: 'jane.s@company.com', groups: ['group_all_users', 'group_security', 'group_platform_admins', 'group_audit_admins'], description: 'Security admin with full system access and audit capabilities' }
-                                ]).map((mockUser) => (
-                                    <div
-                                        key={mockUser.id}
-                                        className={`mock-user-tab ${showUserSelection ? '' : 'active'}`}
-                                        onClick={() => handleUserSelect(mockUser.id)}
-                                    >
-                                        <div className="mock-user-avatar" style={{ backgroundColor: getRoleBadgeColor(mockUser.role) }}>
-                                            {getUserIcon(mockUser.role)}
-                                        </div>
-                                        <div className="mock-user-info">
-                                            <div className="mock-user-name">{mockUser.name}</div>
-                                            <div className="mock-user-role">{mockUser.role.replace('_', ' ')}</div>
-                                            <div className="mock-user-email">{mockUser.email}</div>
-                                            <div className="mock-user-groups">
-                                                <small>Groups: {mockUser.groups.length}</small>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-
-                            <div className="mock-details-panel">
-                                {showUserSelection && user?.availableUsers && (
-                                    <div className="mock-details-content">
-                                        <h4>User Roles Available:</h4>
-                                        <ul>
-                                            {user.availableUsers.map(mockUser => (
-                                                <li key={mockUser.id}>
-                                                    <strong>{mockUser.name}</strong> - {mockUser.description}
-                                                </li>
-                                            ))}
-                                        </ul>
-                                        <div style={{ marginTop: '12px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                                            <strong>Click a user card above to select and continue</strong>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-
-                    {!showUserSelection && (
-                        <div className="mock-back-panel">
-                            <button className="btn btn-ghost" onClick={() => setShowUserSelection(true)} style={{ width: '100%', marginTop: '12px' }}>
-                                Select User Role
-                            </button>
-                        </div>
-                    )}
-                </div>
-            </div>
-        </div>
-    );
-
-    const OAuthLoginScreen = () => (
-        <div className="login-container flex-center">
-            <div className="glass-panel login-card animate-fade-in">
-                <div className="login-header">
-                    <div className="logo-circle">
-                        <Globe size={32} color="white" />
-                    </div>
-                    <h1>Access Control System</h1>
-                    <p className="text-secondary">OAuth 2.0 Single Sign-On</p>
-                </div>
-
-                <div className="login-body">
-                    <p className="login-label">Sign in with your organization</p>
-
-                    <button className="sso-btn sso-google" onClick={() => handleLogin('GOOGLE')}>
-                        <Globe size={18} />
-                        <span>Sign in with Google Workspace</span>
-                    </button>
-
-                    <button className="sso-btn sso-microsoft" onClick={() => handleLogin('MICROSOFT')}>
-                        <Key size={18} />
-                        <span>Sign in with Microsoft Entra ID</span>
-                    </button>
-
-                    <button className="sso-btn" style={{ background: '#6366f1', border: '1px solid #4f46e5', marginTop: '8px' }} onClick={() => handleLogin('GENERIC_OAUTH')}>
-                        <Globe size={18} />
-                        <span>Other OAuth Provider</span>
-                    </button>
-                </div>
-
-                <div className="login-footer">
-                    <p className="text-secondary text-xs">
-                        Protected by Enterprise Grade Security. <br />
-                        By signing in you agree to our Acceptable Use Policy.
-                    </p>
-                </div>
-            </div>
-        </div>
-    );
-
-    const SAMLLoginScreen = () => (
-        <div className="login-container flex-center">
-            <div className="glass-panel login-card animate-fade-in">
-                <div className="login-header">
-                    <div className="logo-circle">
-                        <Lock size={32} color="white" />
-                    </div>
-                    <h1>Access Control System</h1>
-                    <p className="text-secondary">SAML SSO Authentication</p>
-                </div>
-
-                <div className="login-body">
-                    <p className="login-label">Enterprise Single Sign-On</p>
-
-                    <button className="sso-btn sso-saml" onClick={() => handleLogin('SAML')}>
-                        <Lock size={18} />
-                        <span>Continue with SAML SSO</span>
-                    </button>
-
-                    <div className="saml-config">
-                        <p className="text-secondary text-sm">
-                            Configure your SAML provider in settings:
-                        </p>
-                        <div className="config-item">
-                            <label>Identity Provider URL:</label>
-                            <input type="text" placeholder="https://your-company.okta.com" />
-                        </div>
-                    </div>
-                </div>
-
-                <div className="login-footer">
-                    <p className="text-secondary text-xs">
-                        Contact your IT administrator for SAML configuration details.
-                    </p>
-                </div>
-            </div>
-        </div>
-    );
-
-    const DatabricksLoginScreen = () => (
-        <div className="login-container flex-center">
-            <div className="glass-panel login-card animate-fade-in">
-                <div className="login-header">
-                    <div className="logo-circle" style={{ background: '#ff3621' }}>
-                        <Database size={32} color="white" />
-                    </div>
-                    <h1>Access Control System</h1>
-                    <p className="text-secondary">Databricks Unity Catalog</p>
-                </div>
-
-                <div className="login-body">
-                    <p className="login-label">Sign in with your Databricks account</p>
-
-                    <div className="databricks-login">
-                        <input type="text" placeholder="Workspace URL" className="db-input" />
-                        <input type="email" placeholder="Email" className="db-input" />
-                        <input type="password" placeholder="Password" className="db-input" />
-                        <button className="sso-btn" style={{ background: '#ff3621', border: '1px solid #e02520' }} onClick={() => handleLogin('DATABRICKS')}>
-                            <Database size={18} />
-                            <span>Sign in to Databricks</span>
-                        </button>
-                    </div>
-
-                    <div className="databricks-options">
-                        <button className="btn btn-ghost" onClick={() => handleLogin('DATABRICKS_TOKEN')}>
-                            Use Personal Access Token
-                        </button>
-                    </div>
-                </div>
-
-                <div className="login-footer">
-                    <p className="text-secondary text-xs">
-                        Powered by Databricks Unity Catalog Identity
-                    </p>
-                </div>
-            </div>
-        </div>
-    );
 
     // Show loading state
     if (activeProvider && loading) {
         return (
-            <div className="login-container flex-center">
-                <div className="glass-panel loading-card flex-center">
-                    <Loader2 size={48} className="spin-icon text-muted" />
-                    <p>Authenticating with {activeProvider.toLowerCase()}...</p>
+            <div className="h-screen w-screen bg-slate-950 flex items-center justify-center p-4">
+                <div className="w-full max-w-md p-10 flex flex-col items-center gap-6 bg-white/[0.03] border border-white/10 rounded-3xl backdrop-blur-2xl shadow-2xl animate-in fade-in zoom-in duration-500">
+                    <Loader2 size={64} className="animate-spin text-primary/50" />
+                    <p className="text-lg font-medium tracking-tight text-muted-foreground">
+                        Authenticating with <span className="text-foreground capitalize">{activeProvider.toLowerCase()}</span>...
+                    </p>
                 </div>
             </div>
         );
@@ -372,106 +87,129 @@ const Login = () => {
 
     // Show user selection for mock provider
     if (showUserSelection && user?.availableUsers) {
-        return <MockLoginScreen />;
-    }
-
-    // Show mock login directly if mock is default/selected, otherwise show provider selection
-    if (!activeProvider) {
-        console.log('[Login] No active provider, showing appropriate screen');
-
-        // If mock is default/selected, show mock login directly
-        if (configMode === 'MOCK' || !configMode) {
-            console.log('[Login] Showing mock login screen directly');
-            return <MockLoginScreen />;
-        }
-
-        // Otherwise show provider selection
-        console.log('[Login] Showing provider selection screen');
         return (
-            <div className="login-container flex-center">
-                <div className="glass-panel login-card animate-fade-in">
-                    <div className="login-header">
-                        <div className="logo-circle">
-                            <Shield size={32} color="white" />
+            <div className="h-screen w-screen bg-slate-950 flex items-center justify-center p-4 overflow-y-auto">
+                <div className="w-full max-w-4xl p-8 bg-white/[0.03] border border-white/10 rounded-3xl backdrop-blur-3xl shadow-2xl animate-in fade-in slide-in-from-bottom-8 duration-700">
+                    <div className="flex flex-col items-center text-center mb-10">
+                        <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center mb-6 shadow-2xl shadow-primary/20">
+                            <Shield size={32} className="text-primary" />
                         </div>
-                        <h1>Access Control System</h1>
-                        <p className="text-secondary">Unity Catalog Access Requests</p>
+                        <h1 className="text-3xl font-black tracking-tighter text-foreground mb-2">Select User Role</h1>
+                        <p className="text-muted-foreground text-sm uppercase tracking-[0.2em] font-medium">Mock Identity Provider Simulation</p>
                     </div>
 
-                    <div className="login-body">
-                        <h3>Select Identity Provider</h3>
-                        <div className="provider-grid">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
+                        {(user?.availableUsers || []).map((mockUser) => (
                             <div
-                                className={`provider-card ${configMode === 'MOCK' ? 'active' : ''}`}
-                                onClick={() => changeProvider('MOCK')}
+                                key={mockUser.id}
+                                className="group relative p-6 rounded-2xl bg-white/[0.02] border border-white/5 hover:border-primary/50 hover:bg-white/[0.05] transition-all duration-500 cursor-pointer overflow-hidden shadow-lg"
+                                onClick={() => handleUserSelect(mockUser.id)}
                             >
-                                <Users size={24} />
-                                <h4>Mock Identity</h4>
-                                <p>Role-based user simulation for testing and demos</p>
+                                <div className="absolute top-0 left-0 w-1 h-full bg-primary opacity-0 group-hover:opacity-100 transition-opacity" />
+                                <div
+                                    className="w-12 h-12 rounded-xl flex items-center justify-center mb-4 shadow-lg text-white"
+                                    style={{ backgroundColor: getRoleBadgeColor(mockUser.role) }}
+                                >
+                                    {getUserIcon(mockUser.role)}
+                                </div>
+                                <div className="font-bold text-lg leading-tight mb-1">{mockUser.name}</div>
+                                <div className="text-[10px] font-black uppercase tracking-widest text-primary/80 mb-3">{mockUser.role.replace('_', ' ')}</div>
+                                <div className="text-xs text-muted-foreground truncate mb-4">{mockUser.email}</div>
+                                <div className="flex items-center gap-2 pt-4 border-t border-white/5">
+                                    <Users size={12} className="text-muted-foreground" />
+                                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{mockUser.groups.length} Groups</span>
+                                </div>
                             </div>
-
-                            <div
-                                className={`provider-card ${configMode === 'OAUTH' ? 'active' : ''}`}
-                                onClick={() => changeProvider('OAUTH')}
-                            >
-                                <Globe size={24} />
-                                <h4>OAuth 2.0</h4>
-                                <p>Google Workspace, Microsoft Entra ID, SSO providers</p>
-                            </div>
-
-                            <div
-                                className={`provider-card ${configMode === 'SAML' ? 'active' : ''}`}
-                                onClick={() => changeProvider('SAML')}
-                            >
-                                <Lock size={24} />
-                                <h4>SAML SSO</h4>
-                                <p>Enterprise SSO via Okta, Ping, ADFS</p>
-                            </div>
-
-                            <div
-                                className={`provider-card ${configMode === 'DATABRICKS' ? 'active' : ''}`}
-                                onClick={() => changeProvider('DATABRICKS')}
-                            >
-                                <Database size={24} />
-                                <h4>Databricks UC</h4>
-                                <p>Unity Catalog identity with SCIM integration</p>
-                            </div>
-                        </div>
+                        ))}
                     </div>
 
-                    <div className="login-footer">
-                        <p className="text-secondary text-xs">
-                            <strong>Current Provider:</strong> {configMode || 'DEFAULT'} <br />
-                            {configMode === 'MOCK' && (
-                                <button className="btn btn-ghost" onClick={() => setShowUserSelection(true)} style={{ marginTop: '8px' }}>
-                                    Switch User Role
-                                </button>
-                            )}
-                            {!configMode && (
-                                <small style={{ color: 'var(--text-muted)' }}>
-                                    👆 Configure identity provider in settings
-                                </small>
-                            )}
-                        </p>
+                    <div className="flex flex-col items-center gap-6">
+                        <div className="max-w-2xl text-center p-6 bg-white/5 rounded-2xl border border-white/5 italic text-sm text-muted-foreground leading-relaxed shadow-inner">
+                            "This simulation mode allows you to test the Unity Catalog Access Request workflow from different persona perspectives. Each user belongs to specific organizational groups that determine their approval authority."
+                        </div>
                     </div>
                 </div>
             </div>
         );
     }
 
-    // Show provider-specific login screen (non-mock)
-    if (activeProvider && !showUserSelection) {
-        switch (configMode) {
-            case 'OAUTH':
-                return <OAuthLoginScreen />;
-            case 'SAML':
-                return <SAMLLoginScreen />;
-            case 'DATABRICKS':
-                return <DatabricksLoginScreen />;
-            default:
-                return <OAuthLoginScreen />;
-        }
-    }
+    // Show provider selection or specific provider screen
+    return (
+        <div className="h-screen w-screen bg-slate-950 flex items-center justify-center p-4">
+            <div className="w-full max-w-md p-10 bg-white/[0.03] border border-white/10 rounded-[2.5rem] backdrop-blur-3xl shadow-2xl animate-in fade-in slide-in-from-bottom-8 duration-1000">
+                <div className="flex flex-col items-center text-center mb-10">
+                    <div className="w-20 h-20 rounded-3xl bg-primary/20 flex items-center justify-center mb-8 rotate-3 hover:rotate-0 transition-transform duration-500 shadow-2xl shadow-primary/20 border border-primary/20">
+                        <Shield size={42} className="text-primary" />
+                    </div>
+                    <h1 className="text-3xl font-black tracking-tighter text-foreground mb-3">Unity Catalog ACS</h1>
+                    <p className="text-muted-foreground text-[10px] font-black uppercase tracking-[0.3em] leading-none">Security Governance Platform</p>
+                </div>
+
+                {!activeProvider ? (
+                    <div className="space-y-4">
+                        <div className="text-xs font-bold uppercase tracking-widest text-muted-foreground/60 mb-6 text-center">Authentication Methods</div>
+                        <div className="grid grid-cols-2 gap-3">
+                            <button
+                                onClick={() => {
+                                    changeProvider('MOCK');
+                                    handleLogin('MOCK');
+                                }}
+                                className={cn(
+                                    "p-5 rounded-2xl flex flex-col items-center gap-3 transition-all duration-500 border group",
+                                    configMode === 'MOCK' ? "bg-primary/10 border-primary/40 shadow-inner" : "bg-white/5 border-white/5 hover:bg-white/10"
+                                )}
+                            >
+                                <Users size={24} className={configMode === 'MOCK' ? "text-primary" : "text-muted-foreground group-hover:text-primary/70 transition-colors"} />
+                                <span className="text-[11px] font-bold uppercase tracking-widest text-center leading-tight">Mock Ident</span>
+                            </button>
+                            <button
+                                onClick={() => handleLogin('OAUTH')}
+                                className="p-5 rounded-2xl flex flex-col items-center gap-3 transition-all duration-500 border border-white/5 bg-white/5 hover:bg-white/10 group"
+                            >
+                                <Globe size={24} className="text-muted-foreground group-hover:text-blue-400/70 transition-colors" />
+                                <span className="text-[11px] font-bold uppercase tracking-widest text-center leading-tight">OAuth 2.0</span>
+                            </button>
+                            <button
+                                onClick={() => handleLogin('SAML')}
+                                className="p-5 rounded-2xl flex flex-col items-center gap-3 transition-all duration-500 border border-white/5 bg-white/5 hover:bg-white/10 group"
+                            >
+                                <Lock size={24} className="text-muted-foreground group-hover:text-amber-400/70 transition-colors" />
+                                <span className="text-[11px] font-bold uppercase tracking-widest text-center leading-tight">SAML SSO</span>
+                            </button>
+                            <button
+                                onClick={() => handleLogin('DATABRICKS')}
+                                className="p-5 rounded-2xl flex flex-col items-center gap-3 transition-all duration-500 border border-white/5 bg-white/5 hover:bg-white/10 group"
+                            >
+                                <Database size={24} className="text-muted-foreground group-hover:text-red-400/70 transition-colors" />
+                                <span className="text-[11px] font-bold uppercase tracking-widest text-center leading-tight">Databricks</span>
+                            </button>
+                        </div>
+
+                        <div className="pt-8 border-t border-white/5 flex flex-col items-center gap-2 text-center">
+                            <p className="text-[10px] text-muted-foreground leading-relaxed max-w-[240px]">
+                                Protected by Enterprise Grade Security. <br />
+                                By signing in you agree to our <span className="underline cursor-pointer hover:text-primary transition-colors">Acceptable Use Policy</span>.
+                            </p>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
+                        <div className="p-4 rounded-2xl bg-white/5 border border-white/5 text-center">
+                            <div className="text-xs font-bold uppercase tracking-widest text-primary mb-1">{activeProvider} Login</div>
+                            <p className="text-[10px] text-muted-foreground italic">Redirecting to organization SSO...</p>
+                        </div>
+                        <Button
+                            variant="ghost"
+                            className="w-full text-xs text-muted-foreground hover:bg-white/5"
+                            onClick={() => setActiveProvider(null)}
+                        >
+                            Back to Methods
+                        </Button>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
 };
 
 export default Login;

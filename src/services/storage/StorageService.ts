@@ -3,18 +3,21 @@ import { RDBMSAdapter } from './adapters/RDBMSAdapter';
 import { GitAdapter } from './adapters/GitAdapter';
 import { VolatileAdapter } from './adapters/VolatileAdapter';
 import { UnityCatalogAdapter } from './adapters/UnityCatalogAdapter';
+import { BFFStorageAdapter } from './adapters/BFFStorageAdapter';
 import { ConfigService } from '../config/ConfigService';
 import { IStorageAdapter, AccessRequest, Grant } from './IStorageAdapter';
 
 export const getAdapter = (config: any): IStorageAdapter => {
   // Determine storage type and return appropriate adapter
-  if (config?.storageType === 'LOCAL' || (!config?.storageType && config?.type === 'LOCAL')) {
-    console.warn('[Security] Using LOCAL storage bounds. Consider UNITY_CATALOG or GIT for production.');
+  const type = config?.storageType || config?.type || 'BFF'; // Default to BFF
+
+  if (type === 'LOCAL') {
+    console.warn('[Security] Using LOCAL storage bounds. Consider BFF, UNITY_CATALOG or GIT for production.');
   }
 
-  const type = config?.storageType || config?.type || 'LOCAL';
-
   switch (type) {
+    case 'BFF':
+      return BFFStorageAdapter;
     case 'LOCAL':
       return LocalStorageAdapter;
     case 'RDBMS':
@@ -26,7 +29,7 @@ export const getAdapter = (config: any): IStorageAdapter => {
     case 'UNITY_CATALOG':
       return UnityCatalogAdapter;
     default:
-      return LocalStorageAdapter; // Default to local storage
+      return BFFStorageAdapter; // Default to BFF
   }
 };
 

@@ -3,6 +3,8 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import cookieParser from 'cookie-parser';
 import axios, { AxiosError } from 'axios';
+import fs from 'fs';
+import path from 'path';
 
 dotenv.config();
 
@@ -16,6 +18,22 @@ app.use(cors({
 app.use(express.json());
 app.use(cookieParser());
 
+// =====================================================================
+// STORAGE: File-based persistence
+// =====================================================================
+const STORAGE_DIR = path.join(process.cwd(), 'data');
+const REQUESTS_FILE = path.join(STORAGE_DIR, 'requests.json');
+
+// Ensure storage directory exists
+if (!fs.existsSync(STORAGE_DIR)) {
+    fs.mkdirSync(STORAGE_DIR, { recursive: true });
+}
+
+// Initialize requests file if not present
+if (!fs.existsSync(REQUESTS_FILE)) {
+    fs.writeFileSync(REQUESTS_FILE, JSON.stringify([], null, 2));
+}
+
 // Health check
 app.get('/health', (_req: Request, res: Response) => {
     res.json({ status: 'ok', version: '1.0.0' });
@@ -27,13 +45,18 @@ app.get('/health', (_req: Request, res: Response) => {
 // to the browser.
 // =====================================================================
 app.post('/api/token', async (req: Request, res: Response) => {
-    const { clientId, clientSecret, host } = req.body;
+    // Prioritize credentials from environment variables for security
+    const clientId = process.env.DATABRICKS_CLIENT_ID || req.body.clientId;
+    const clientSecret = process.env.DATABRICKS_CLIENT_SECRET || req.body.clientSecret;
+    const host = req.body.host || process.env.DATABRICKS_HOST;
 
     if (!clientId || !clientSecret || !host) {
-        return res.status(400).json({ error: 'clientId, clientSecret, and host are required' });
+        console.error('[BFF] Token Error: Missing credentials (env or body)');
+        return res.status(400).json({ error: 'clientId, clientSecret, and host are required (or must be set in server .env)' });
     }
 
     try {
+        console.log(`[BFF] Exchanging credentials for host: ${host}`);
         const body = new URLSearchParams();
         body.append('grant_type', 'client_credentials');
         body.append('scope', 'all-apis');
@@ -121,11 +144,30 @@ app.all('/api/scim/*splat', async (req: Request, res: Response) => {
 });
 
 // =====================================================================
-// STORAGE BROKER: Placeholder for future server-side storage ops
-// This will eventually broker RDBMS and Unity Catalog storage ops
+// STORAGE BROKER: Server-side persistence for Access Requests
 // =====================================================================
-app.use('/api/storage', (_req: Request, res: Response) => {
-    res.status(501).json({ message: 'Server-side Storage Broker not yet implemented' });
+app.get('/api/storage/requests', (_req: Request, res: Response) => {
+    try {
+        const data = fs.readFileSync(REQUESTS_FILE, 'utf8');
+        res.json(JSON.parse(data));
+    } catch (err) {
+        console.error('[BFF] Storage Read Error:', err);
+        res.status(500).json({ error: 'Failed to read requests from storage' });
+    }
+});
+
+app.post('/api/storage/requests', (req: Request, res: Response) => {
+    try {
+        const requests = req.body;
+        if (!Array.isArray(requests)) {
+            return res.status(400).json({ error: 'Body must be an array of requests' });
+        }
+        fs.writeFileSync(REQUESTS_FILE, JSON.stringify(requests, null, 2));
+        res.json({ status: 'success', count: requests.length });
+    } catch (err) {
+        console.error('[BFF] Storage Write Error:', err);
+        res.status(500).json({ error: 'Failed to save requests to storage' });
+    }
 });
 
 // Error handler

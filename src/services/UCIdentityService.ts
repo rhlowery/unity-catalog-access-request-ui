@@ -52,13 +52,15 @@ export const getM2MToken = async (config) => {
 
         // Route through BFF to keep client_secret off the browser
         const BFF_URL = import.meta.env.VITE_BFF_URL || 'http://localhost:3001';
+
+        // Security: We only send the host. The BFF resolves clientId/clientSecret from its own .env
         const tokenRes = await fetch(`${BFF_URL}/api/token`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                clientId: config.ucClientId,
-                clientSecret: clientSecret,
                 host: host
+                // clientId and clientSecret are intentionally omitted here; 
+                // the BFF will use its own secure environment variables.
             })
         });
 

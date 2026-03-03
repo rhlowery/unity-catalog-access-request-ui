@@ -1,0 +1,50 @@
+[
+  {
+    "id": "req_1772573946542",
+    "status": "APPROVED",
+    "timestamp": "2026-03-03T21:39:06.542Z",
+    "expirationTime": "2026-03-03T22:39:06.542Z",
+    "approvalData": [
+      {
+        "approverId": "group_governance",
+        "message": "Approved via Dashboard",
+        "decision": "APPROVE",
+        "timestamp": "2026-03-03T21:39:30.253Z",
+        "isSimulation": false
+      }
+    ],
+    "approvalState": {
+      "group_governance": "APPROVED"
+    },
+    "requiredApprovers": [
+      "group_governance"
+    ],
+    "requestedObjects": [
+      {
+        "id": "tbl_transactions",
+        "name": "transactions",
+        "type": "TABLE",
+        "fullPath": "main_catalog.finance.transactions"
+      }
+    ],
+    "principals": [
+      {
+        "id": "user_standard",
+        "name": "Alex Analyst",
+        "email": "alex@company.com",
+        "type": "USER"
+      }
+    ],
+    "permissions": [
+      "SELECT"
+    ],
+    "timeConstraint": {
+      "type": "DURATION",
+      "value": 1,
+      "start": "",
+      "end": ""
+    },
+    "justification": "Test",
+    "requesterId": "Jane Security"
+  }
+]
