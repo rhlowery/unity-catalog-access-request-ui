@@ -1,115 +1,162 @@
 import React from 'react';
-import { Globe } from 'lucide-react';
+import { Globe, AlertTriangle, Info, Database, ShieldCheck } from 'lucide-react';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 
 interface UnityCatalogSettingsTabProps {
     config: any;
     setConfig: (config: any) => void;
 }
+import { SecretField, Field, Section } from './SettingsComponents';
 
 const UnityCatalogSettingsTab: React.FC<UnityCatalogSettingsTabProps> = ({ config, setConfig }) => {
-    return (
-        <div className="animate-fade-in">
-            <h4><Globe size={18} style={{ display: 'inline', marginRight: 8 }} /> Unity Catalog Schema Connection</h4>
-            <p className="text-secondary text-sm mb-4">Global settings for connecting to Databricks Workspace.</p>
+    const authType = config.ucAuthType || 'MOCK';
+    const isMock = authType === 'MOCK';
 
-            <div className="form-group">
-                <label>Connection Type</label>
-                <select
-                    value={config.ucAuthType}
-                    onChange={e => {
-                        const val = e.target.value;
-                        setConfig({
-                            ...config,
-                            ucAuthType: val,
-                            ucHost: val === 'ACCOUNT' ? 'accounts.cloud.databricks.com' : ''
-                        });
-                    }}
+    return (
+        <div className="space-y-6 animate-in fade-in duration-300">
+
+            {/* Connection type selector */}
+            <div className="space-y-1.5">
+                <Label className="text-sm font-medium">Connection Type</Label>
+                <p className="text-xs text-muted-foreground">
+                    How this application connects to the Databricks Unity Catalog workspace or account.
+                </p>
+                <Select
+                    value={authType}
+                    onValueChange={val => setConfig({
+                        ...config,
+                        ucAuthType: val,
+                        ucHost: val === 'ACCOUNT' ? 'accounts.cloud.databricks.com' : (val === 'MOCK' ? '' : config.ucHost || '')
+                    })}
                 >
-                    <option value="MOCK">Mock (Development)</option>
-                    <option value="WORKSPACE">Databricks Single Workspace</option>
-                    <option value="UC_OSS">Unity Catalog OSS</option>
-                    <option value="ACCOUNT">Databricks Account (Unified Login)</option>
-                </select>
+                    <SelectTrigger className="w-full max-w-sm">
+                        <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="MOCK">Mock (Development)</SelectItem>
+                        <SelectItem value="WORKSPACE">Databricks Single Workspace</SelectItem>
+                        <SelectItem value="UC_OSS">Unity Catalog OSS (Open Source)</SelectItem>
+                        <SelectItem value="ACCOUNT">Databricks Account (Unified Login)</SelectItem>
+                    </SelectContent>
+                </Select>
             </div>
 
-            {/* Hide real connection fields if MOCK */}
-            {config.ucAuthType !== 'MOCK' && (
-                <>
-                    <div className="form-group"><label>Catalog Name</label><input type="text" value={config.ucCatalog} onChange={e => setConfig({ ...config, ucCatalog: e.target.value })} placeholder="default" /></div>
-                    <div className="form-group"><label>Schema Name</label><input type="text" value={config.ucSchema} onChange={e => setConfig({ ...config, ucSchema: e.target.value })} placeholder="acs" /></div>
-                    <div className="form-group mb-4">
-                        <label>Additional Tables (comma-separated)</label>
-                        <input
-                            type="text"
-                            value={config.ucTables || ''}
-                            onChange={e => setConfig({ ...config, ucTables: e.target.value })}
-                            placeholder="requests,approvals,audit_log"
-                            style={{ fontFamily: 'monospace' }}
-                        />
-                        <p className="text-secondary text-xs">
-                            Enter table names to be created in the schema. Multiple tables support different services.
-                            <br />Example: <code>requests,approvals,audit_log</code>
+            {/* Mock info callout */}
+            {isMock && (
+                <div className="flex items-start gap-3 rounded-lg border border-dashed border-border/60 bg-muted/10 p-4 text-sm text-muted-foreground">
+                    <Info size={16} className="mt-0.5 shrink-0 text-primary" />
+                    <div>
+                        <p className="font-medium text-foreground">Mock Connection (Development Only)</p>
+                        <p className="mt-1 text-xs">
+                            Uses built-in mock catalog data. No workspace connection is needed. Switch to a real connection type when deploying to production.
                         </p>
                     </div>
+                </div>
+            )}
 
-                    {config.ucAuthType === 'ACCOUNT' && (
-                        <div className="form-group"><label>Databricks Account ID</label><input type="text" value={config.ucAccountId} onChange={e => setConfig({ ...config, ucAccountId: e.target.value })} placeholder="00000000-0000-0000-0000-000000000000" /></div>
-                    )}
-
-                    <div className="form-group">
-                        <label>Host URL {config.ucAuthType === 'ACCOUNT' ? '(Account Console)' : '(Workspace)'}</label>
-                        <input
-                            type="text"
-                            value={config.ucHost}
-                            placeholder={config.ucAuthType === 'ACCOUNT' ? "accounts.cloud.databricks.com" : "https://<workspace-id>.cloud.databricks.com"}
-                            onChange={e => setConfig({ ...config, ucHost: e.target.value })}
-                        />
-                    </div>
-
-                    <div className="form-group"><label>Service Principal Client ID</label><input type="text" value={config.ucClientId} onChange={e => setConfig({ ...config, ucClientId: e.target.value })} placeholder="UUID..." /></div>
-
-                    <div className="form-group">
-                        <label>Service Principal Client Secret</label>
-                        <div style={{ marginBottom: '12px', display: 'flex', gap: '8px', alignItems: 'center' }}>
-                            <select
-                                value={config.ucClientSecretSource}
-                                onChange={e => setConfig({ ...config, ucClientSecretSource: e.target.value })}
-                                style={{ width: 'auto' }}
-                            >
-                                <option value="PLAIN">Plain Text</option>
-                                <option value="VAULTED">Vaulted (Configured Provider)</option>
-                            </select>
-                            <span className="text-xs text-secondary">Source Provider</span>
+            {/* All real connection types */}
+            {!isMock && (
+                <>
+                    {/* Schema target */}
+                    <Section
+                        icon={<Database size={16} />}
+                        title="Schema &amp; Table Configuration"
+                        description="The catalog and schema where the application will store access requests, approvals, and audit records."
+                    >
+                        <div className="grid grid-cols-2 gap-4">
+                            <Field label="Catalog Name">
+                                <Input
+                                    value={config.ucCatalog || ''}
+                                    placeholder="default"
+                                    onChange={e => setConfig({ ...config, ucCatalog: e.target.value })}
+                                />
+                            </Field>
+                            <Field label="Schema Name">
+                                <Input
+                                    value={config.ucSchema || ''}
+                                    placeholder="acs"
+                                    onChange={e => setConfig({ ...config, ucSchema: e.target.value })}
+                                />
+                            </Field>
                         </div>
-
-                        {config.ucClientSecretSource === 'VAULTED' ? (
-                            <div className="pl-4 border-l-2 border-accent" style={{ borderLeft: '2px solid var(--accent-color)', paddingLeft: '1rem' }}>
-                                <div className="form-group">
-                                    <label className="text-xs">Vault JSON Key</label>
-                                    <input
-                                        type="text"
-                                        value={config.ucClientSecretVaultKey}
-                                        placeholder="client_secret"
-                                        onChange={e => setConfig({ ...config, ucClientSecretVaultKey: e.target.value })}
-                                    />
-                                    <small className="text-secondary" style={{ fontSize: '10px' }}>Resolving from: {config.vaultSecretPath}</small>
-                                </div>
-                            </div>
-                        ) : (
-                            <input
-                                type="password"
-                                value={config.ucClientSecret}
-                                placeholder="Secret..."
-                                onChange={e => setConfig({ ...config, ucClientSecret: e.target.value })}
+                        <Field
+                            label="Table Names (comma-separated)"
+                            hint="Tables to create in the schema. Used by the storage and audit services."
+                        >
+                            <Input
+                                value={config.ucTables || ''}
+                                placeholder="requests,approvals,audit_log"
+                                className="font-mono"
+                                onChange={e => setConfig({ ...config, ucTables: e.target.value })}
                             />
-                        )}
-                    </div>
+                        </Field>
+                    </Section>
 
-                    <div className="mt-6">
-                        <div className="text-xs text-secondary">
-                            * Uses OAuth 2.0 Client Credentials flow (M2M) to fetch a short-lived access token.
-                            <br />
-                            * <strong className="text-danger">WARNING:</strong> Configuration stored locally in this demo. Use Vault for production secrets.
+                    {/* Workspace / Account connection */}
+                    <Section
+                        icon={<ShieldCheck size={16} />}
+                        title={authType === 'ACCOUNT' ? 'Account Connection (M2M OAuth)' : 'Workspace Connection (M2M OAuth)'}
+                        description="Service principal credentials for the OAuth 2.0 Client Credentials (machine-to-machine) flow used to obtain short-lived access tokens."
+                    >
+                        {authType === 'ACCOUNT' && (
+                            <Field label="Databricks Account ID">
+                                <Input
+                                    value={config.ucAccountId || ''}
+                                    placeholder="00000000-0000-0000-0000-000000000000"
+                                    onChange={e => setConfig({ ...config, ucAccountId: e.target.value })}
+                                />
+                            </Field>
+                        )}
+
+                        <Field label={authType === 'ACCOUNT' ? 'Host URL (Account Console)' : 'Host URL (Workspace)'}>
+                            <Input
+                                value={config.ucHost || ''}
+                                placeholder={
+                                    authType === 'ACCOUNT'
+                                        ? 'accounts.cloud.databricks.com'
+                                        : 'https://<workspace-id>.cloud.databricks.com'
+                                }
+                                onChange={e => setConfig({ ...config, ucHost: e.target.value })}
+                            />
+                        </Field>
+
+                        <Field label="Service Principal Client ID">
+                            <Input
+                                value={config.ucClientId || ''}
+                                placeholder="00000000-0000-0000-0000-000000000000"
+                                onChange={e => setConfig({ ...config, ucClientId: e.target.value })}
+                            />
+                        </Field>
+
+                        <SecretField
+                            label="Service Principal Client Secret"
+                            description="The OAuth client secret for the service principal."
+                            sourceKey="ucClientSecretSource"
+                            plainKey="ucClientSecret"
+                            vaultKeyKey="ucClientSecretVaultKey"
+                            vaultPath={config.vaultSecretPath}
+                            placeholder="Client secret..."
+                            config={config}
+                            setConfig={setConfig}
+                        />
+                    </Section>
+
+                    {/* Warning footer */}
+                    <div className="flex items-start gap-3 rounded-lg border border-amber-500/20 bg-amber-500/5 p-4 text-xs text-muted-foreground">
+                        <AlertTriangle size={14} className="mt-0.5 shrink-0 text-amber-500" />
+                        <div className="space-y-1">
+                            <p>Uses <strong className="text-foreground">OAuth 2.0 Client Credentials</strong> (M2M) to fetch a short-lived access token at runtime.</p>
+                            <p className="text-amber-500/80">Credentials are stored locally in this demo build. Use the <strong className="text-foreground">Secrets</strong> tab to configure a vault provider for production deployments.</p>
                         </div>
                     </div>
                 </>

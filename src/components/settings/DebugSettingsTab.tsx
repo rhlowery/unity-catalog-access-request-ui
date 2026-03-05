@@ -1,7 +1,12 @@
-import React from 'react';
-import { Bug } from 'lucide-react';
+import React, { useState } from 'react';
+import { Bug, Eye, Database, ShieldCheck, Trash2, Terminal, AlertTriangle, Monitor } from 'lucide-react';
 import { ObservabilityService } from '../../services/ObservabilityService';
 import ErrorTestPanel from '../ErrorTestPanel';
+import { Section, Field } from './SettingsComponents';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 
 interface DebugSettingsTabProps {
     config: any;
@@ -9,86 +14,102 @@ interface DebugSettingsTabProps {
 }
 
 const DebugSettingsTab: React.FC<DebugSettingsTabProps> = ({ config, setConfig }) => {
-    return (
-        <div className="animate-fade-in">
-            <h4><Bug size={18} style={{ display: 'inline', marginRight: 8 }} /> Debug Tools</h4>
-            <p className="text-secondary text-sm mb-4">Development tools for testing and debugging.</p>
+    const [recentErrors, setRecentErrors] = useState(ObservabilityService.getRecentErrors());
 
+    const clearErrors = () => {
+        ObservabilityService.clearErrorLog();
+        setRecentErrors([]);
+    };
+
+    const logToConsole = () => {
+        const errors = ObservabilityService.getRecentErrors();
+        console.log('Recent errors:', errors);
+    };
+
+    return (
+        <div className="space-y-6 animate-in fade-in duration-300">
+            {/* Error Injection Panel */}
             <ErrorTestPanel />
 
-            <div className="glass-panel" style={{ padding: '1.5rem', margin: '1rem 0' }}>
-                <h5>Error Log Viewer</h5>
-                <p className="text-secondary text-sm mb-3">
-                    Recent errors caught by ErrorBoundaries (stored in localStorage)
-                </p>
-
-                <div style={{ marginBottom: '1rem' }}>
-                    <h5>Governance Settings</h5>
-                    <div className="form-group mb-4">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <label className="mb-0">Enable Persona Simulation</label>
-                                <p className="text-secondary text-xs">Allow users to switch personas in the Approver Dashboard for testing/demos.</p>
-                            </div>
-                            <button
-                                className={`btn ${config.enableSimulationMode ? 'btn-primary' : 'btn-secondary'}`}
-                                onClick={() => setConfig({ ...config, enableSimulationMode: !config.enableSimulationMode })}
-                                style={{ padding: '4px 12px', fontSize: '12px' }}
-                            >
-                                {config.enableSimulationMode ? 'Enabled' : 'Disabled'}
-                            </button>
+            {/* Governance Simulator */}
+            <Section
+                title="Governance Simulation"
+                description="Simulate different access control scenarios for testing purposes."
+                icon={<ShieldCheck size={18} />}
+            >
+                <div className="flex items-center justify-between p-4 rounded-lg bg-muted/30 border border-border/40">
+                    <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                            <Label className="text-sm font-medium">Enable Persona Simulation</Label>
+                            {config.enableSimulationMode && (
+                                <Badge variant="secondary" className="h-4 text-[10px] px-1 bg-primary/20 text-primary border-primary/20">Active</Badge>
+                            )}
                         </div>
+                        <p className="text-xs text-muted-foreground">Allows switching between Platform Admin, Security Admin, etc., for demos.</p>
+                    </div>
+                    <Switch
+                        checked={config.enableSimulationMode}
+                        onCheckedChange={checked => setConfig({ ...config, enableSimulationMode: checked })}
+                    />
+                </div>
+            </Section>
+
+            {/* Observability Tools */}
+            <Section
+                title="Observability Tools"
+                description="Monitor application health and persistent error logs."
+                icon={<Eye size={18} />}
+            >
+                <div className="space-y-4">
+                    <div className="flex items-center gap-2">
+                        <Button variant="outline" size="sm" className="h-8 gap-2" onClick={logToConsole}>
+                            <Terminal size={14} />
+                            Log to Console
+                        </Button>
+                        <Button variant="outline" size="sm" className="h-8 gap-2 text-destructive border-destructive/20 hover:bg-destructive/10" onClick={clearErrors}>
+                            <Trash2 size={14} />
+                            Clear Error Log
+                        </Button>
                     </div>
 
-                    <button
-                        className="btn btn-secondary"
-                        onClick={() => {
-                            const errors = ObservabilityService.getRecentErrors();
-                            console.log('Recent errors:', errors);
-                        }}
-                    >
-                        Log Errors to Console
-                    </button>
-
-                    <button
-                        className="btn btn-secondary"
-                        style={{ marginLeft: '0.5rem' }}
-                        onClick={() => {
-                            ObservabilityService.clearErrorLog();
-                            alert('Error log cleared');
-                        }}
-                    >
-                        Clear Error Log
-                    </button>
+                    <div className="rounded-lg bg-black/40 border border-border/40 overflow-hidden">
+                        <div className="p-2 border-b border-border/40 bg-muted/40 flex items-center justify-between">
+                            <Label className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">Stored Error Log</Label>
+                            <Badge variant="outline" className="text-[10px] h-4">{recentErrors.length} Errors</Badge>
+                        </div>
+                        <div className="p-4 max-h-[300px] overflow-y-auto font-mono text-[11px] space-y-3">
+                            {recentErrors.length === 0 ? (
+                                <div className="flex flex-col items-center justify-center py-8 text-muted-foreground opacity-40">
+                                    <Monitor size={32} className="mb-2" />
+                                    <p>No recent errors observed</p>
+                                </div>
+                            ) : (
+                                recentErrors.map((error: any) => (
+                                    <div key={error.id} className="p-3 rounded-md bg-destructive/5 border border-destructive/20 space-y-1">
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-destructive font-bold">{error.error?.message || 'Error'}</span>
+                                            <span className="text-muted-foreground text-[9px]">{new Date(error.timestamp).toLocaleString()}</span>
+                                        </div>
+                                        <div className="text-[10px] opacity-70">
+                                            <p><span className="text-muted-foreground">ID:</span> {error.id}</p>
+                                            <p><span className="text-muted-foreground">URL:</span> {error.url}</p>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
                 </div>
+            </Section>
 
-                <div style={{
-                    background: 'rgba(0,0,0,0.3)',
-                    padding: '1rem',
-                    borderRadius: '8px',
-                    maxHeight: '300px',
-                    overflowY: 'auto',
-                    fontFamily: 'monospace',
-                    fontSize: '0.8rem'
-                }}>
-                    {ObservabilityService.getRecentErrors().length === 0 ? (
-                        <div style={{ color: 'var(--text-secondary)' }}>No recent errors</div>
-                    ) : (
-                        ObservabilityService.getRecentErrors().map((error: any) => (
-                            <div key={error.id} style={{
-                                marginBottom: '1rem',
-                                padding: '0.5rem',
-                                background: 'rgba(255,0,0,0.1)',
-                                borderRadius: '4px',
-                                border: '1px solid rgba(255,0,0,0.3)'
-                            }}>
-                                <div><strong>ID:</strong> {error.id}</div>
-                                <div><strong>Time:</strong> {new Date(error.timestamp).toLocaleString()}</div>
-                                <div><strong>Error:</strong> {error.error?.message || 'Unknown error'}</div>
-                                <div><strong>URL:</strong> {error.url}</div>
-                            </div>
-                        ))
-                    )}
+            {/* Credential Safety Callout */}
+            <div className="flex items-start gap-3 rounded-lg border border-primary/20 bg-primary/5 p-4 text-sm text-muted-foreground">
+                <ShieldCheck size={16} className="mt-0.5 shrink-0 text-primary" />
+                <div>
+                    <p className="font-medium text-foreground">Debug Mode Best Practices</p>
+                    <p className="mt-1 text-xs px-0">
+                        Debug tools are intended for local development and non-production testing. Simulation mode allows bypassing normal authorization checks for UI testing purposes.
+                    </p>
                 </div>
             </div>
         </div>
