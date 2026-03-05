@@ -25,13 +25,22 @@ Given('I am on the login page', () => {
 When('I have valid credentials', () => {
   const username = Cypress.env('TEST_USER') || 'testuser';
   const password = Cypress.env('TEST_PASSWORD') || 'testpass';
-  
+
+  cy.get('[data-testid="username-input"]').type(username);
+  cy.get('[data-testid="password-input"]').type(password);
+});
+
+When('I have valid credentials for {string} and {string}', (username, password) => {
   cy.get('[data-testid="username-input"]').type(username);
   cy.get('[data-testid="password-input"]').type(password);
 });
 
 When('I click "Login with Google"', () => {
   cy.get('[data-testid="google-login-button"]').click();
+});
+
+When('I click the {string} login button', (provider: string) => {
+  cy.get(`[data-testid="${provider.toLowerCase()}-login-button"]`).click();
 });
 
 Then('I should see a loading indicator', () => {
@@ -60,7 +69,7 @@ And('the session is approaching expiration', () => {
     const now = Date.now();
     const expiresAt = win.sessionData?.expiresAt || 0;
     const isApproaching = (expiresAt - now) <= (60 * 60 * 1000);
-    
+
     cy.wrap(() => {
       cy.log('Session approaching expiration - checking logic');
     }).then(() => {
@@ -81,7 +90,7 @@ When('I click "Renew Session"', () => {
       }
     }
   }).as('renewalRequest');
-  
+
   cy.get('[data-testid="renew-session-button"]').click();
   cy.wait('@renewalRequest');
 });
@@ -105,12 +114,19 @@ Given('I have exceeded maximum login attempts', () => {
   });
 });
 
+Given('I have exceeded the maximum login attempts by {int} times', (attempts: number) => {
+  cy.window().then((win) => {
+    win.loginAttempts = attempts;
+    win.lockoutUntil = Date.now() + (15 * 60 * 1000);
+  });
+});
+
 When('I attempt to log in again', () => {
   cy.intercept('POST', '/api/auth/login', {
     statusCode: 429,
     body: { error: 'Too many login attempts. Please try again later.' }
   }).as('rateLimitRequest');
-  
+
   cy.get('[data-testid="login-button"]').click();
   cy.wait('@rateLimitRequest');
 });
@@ -123,6 +139,14 @@ And('I should be temporarily locked out', () => {
   cy.window().then((win) => {
     const isLockedOut = win.lockoutUntil ? Date.now() < win.lockoutUntil : false;
     expect(isLockedOut).to.be.true;
+  });
+});
+
+And('I should be temporarily locked out for {int} minutes', (minutes: number) => {
+  cy.window().then((win) => {
+    const expectedLockout = Date.now() + ((minutes - 1) * 60 * 1000);
+    const actualLockout = win.lockoutUntil || 0;
+    expect(actualLockout).to.be.greaterThan(expectedLockout);
   });
 });
 
@@ -168,7 +192,7 @@ Given('I am logged in on multiple devices', () => {
       },
       {
         id: 'session2',
-        userId: 'test-user', 
+        userId: 'test-user',
         deviceName: 'Mobile',
         createdAt: Date.now() - (2 * 60 * 1000),
       },
@@ -194,7 +218,7 @@ When('I attempt to log in from a fourth device', () => {
     statusCode: 403,
     body: { error: 'Maximum sessions reached. Oldest session terminated.' }
   }).as('maxSessionsRequest');
-  
+
   cy.get('[data-testid="login-button"]').click();
   cy.wait('@maxSessionsRequest');
 });
@@ -240,7 +264,7 @@ When('the security validation runs', () => {
     statusCode: 401,
     body: { error: 'Security violation detected' }
   }).as('securityValidationRequest');
-  
+
   cy.get('[data-testid="dashboard-link"]').click();
   cy.wait('@securityValidationRequest');
 });

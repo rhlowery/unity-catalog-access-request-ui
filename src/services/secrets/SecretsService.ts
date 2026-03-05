@@ -1,7 +1,6 @@
 import { EnvAdapter } from './adapters/EnvAdapter';
 import { VaultAdapter } from './adapters/VaultAdapter';
 import { MockVaultAdapter } from './adapters/MockVaultAdapter';
-import { StorageService } from '../storage/StorageService';
 import { ConfigService } from '../config/ConfigService';
 
 const ADAPTERS = {

@@ -10,32 +10,28 @@ declare global {
 // Correct step definitions without TypeScript errors
 defineParameterType({
   name: 'sessionData',
-  transformer: (value: any) => ({ id, timestamp, type, actor, action, target, details, signature, hash, previousHash }) => ({ id, timestamp, type, actor, action, target, details, signature, hash, previousHash }),
-  },
+  transformer: (value: any) => ({ id, timestamp, type, actor, action, target, details, signature, hash, previousHash }) => ({ id, timestamp, type, actor, action, target, details, signature, hash, previousHash })
 });
 
 defineParameterType({
   name: 'loginAttempts',
-  transformer: (value: number) => value,
-  },
+  transformer: (value: number) => value
 });
 
 defineParameterType({
   name: 'sessionDuration',
-  transformer: (value: number) => value,
-  },
+  transformer: (value: number) => value
 });
 
 defineParameterType({
   name: 'contentSecurityPolicy',
-  transformer: (value: { 
+  transformer: (value: {
     frameOptions?: string,
-    imgSrc?: string, 
-    sandbox?: boolean, 
-    reportOnly?: boolean, 
-    reportTo?: string 
-  }) => ({ frameOptions, imgSrc, sandbox, reportTo }),
-  },
+    imgSrc?: string,
+    sandbox?: boolean,
+    reportOnly?: boolean,
+    reportTo?: string
+  }) => ({ frameOptions, imgSrc, sandbox, reportTo })
 });
 
 // Step definitions without LSP errors
@@ -47,10 +43,10 @@ Given('I am on the login page', () => {
 When('I have valid credentials', () => {
   cy.get('[data-testid="username-input"]').should('be.visible');
   cy.get('[data-testid="password-input"]').should('be.visible');
-  
+
   const username = Cypress.env('TEST_USER') || 'testuser';
   const password = Cypress.env('TEST_PASSWORD') || 'testpass';
-  
+
   cy.get('[data-testid="username-input"]').type(username);
   cy.get('[data-testid="password-input"]').type(password);
 });
@@ -93,7 +89,7 @@ And('the session is approaching expiration', () => {
     const now = Date.now();
     const expiresAt = win.sessionData?.expiresAt || 0;
     const isApproaching = (expiresAt - now) <= (60 * 60 * 1000);
-    
+
     cy.wrap(() => {
       cy.log('Session approaching expiration check');
     }).then(() => {
@@ -106,15 +102,15 @@ And('the session is approaching expiration', () => {
 
 When('I click "Renew Session"', () => {
   cy.intercept('POST', '/api/session/renew', {
-      statusCode: 200,
-      body: {
-        success: true,
-        session: {
-          expiresAt: new Date(Date.now() + (8 * 60 * 60 * 1000)
-        }
+    statusCode: 200,
+    body: {
+      success: true,
+      session: {
+        expiresAt: new Date(Date.now() + (8 * 60 * 60 * 1000))
       }
-    }).as('renewalRequest');
-  
+    }
+  }).as('renewalRequest');
+
   cy.get('[data-testid="renew-session-button"]').click();
   cy.wait('@renewalRequest');
 });
@@ -123,7 +119,6 @@ Then('the session should be renewed', () => {
   cy.window().then((win) => {
     const session = win.sessionData;
     expect(session.expiresAt).to.be.greaterThan(Date.now());
-  });
   });
 });
 
@@ -145,18 +140,17 @@ Given('I am logged in as a regular user', () => {
 When('I submit an access request', () => {
   cy.intercept('POST', '/api/access/requests', {
     statusCode: 202,
-      body: {
-        success: true,
-        requestId: 'req-1',
-        status: 'PENDING',
-        request: {
-          userId: win.currentUser?.id,
-          resource: 'sensitive_data_resource',
-          permissions: ['SELECT', 'READ'],
-          justification: 'Business analysis report generation'
-        }
+    body: {
+      success: true,
+      requestId: 'req-1',
+      status: 'PENDING',
+      request: {
+        userId: win.currentUser?.id,
+        resource: 'sensitive_data_resource',
+        permissions: ['SELECT', 'READ'],
+        justification: 'Business analysis report generation'
       }
-    };
+    }
   }).as('accessRequest');
 });
 
@@ -178,11 +172,11 @@ Given('I have exceeded max attempts', () => {
 When('I attempt to log in again', () => {
   cy.intercept('POST', '/api/auth/login', {
     statusCode: 429,
-      body: {
-        error: 'Too many login attempts. Please try again later.',
-        retryAfter: 900000
-      }
-    }).as('rateLimitRequest');
+    body: {
+      error: 'Too many login attempts. Please try again later.',
+      retryAfter: 900000
+    }
+  }).as('rateLimitRequest');
   cy.get('[data-testid="login-button"]').click();
   cy.wait('@rateLimitRequest');
 });
@@ -223,9 +217,9 @@ When('suspicious activity is detected', () => {
 
 When('security validation runs', () => {
   cy.intercept('POST', '/api/session/validate', {
-      statusCode: 401,
-      body: { error: 'Security violation detected' }
-    }).as('securityValidationRequest');
+    statusCode: 401,
+    body: { error: 'Security violation detected' }
+  }).as('securityValidationRequest');
   cy.get('[data-testid="dashboard-link"]').click();
   cy.wait('@securityValidationRequest');
 });
@@ -259,43 +253,43 @@ Given('I am logged in as an approver', () => {
 
 And('there is a request awaiting my approval', () => {
   cy.intercept('GET', '/api/access/requests', {
-      statusCode: 200,
-      body: {
-        requests: [
-          {
-            id: 'req-1',
-            status: 'PENDING',
-            request: {
-              userId: win.currentUser?.id,
-              resource: 'sensitive_financial_data',
-              permissions: ['SELECT', 'READ'],
-              justification: 'Q4 2024 financial report preparation',
-              businessJustification: 'Quarterly financial analysis requiring access to sensitive financial data'
-            }
+    statusCode: 200,
+    body: {
+      requests: [
+        {
+          id: 'req-1',
+          status: 'PENDING',
+          request: {
+            userId: win.currentUser?.id,
+            resource: 'sensitive_financial_data',
+            permissions: ['SELECT', 'READ'],
+            justification: 'Q4 2024 financial report preparation',
+            businessJustification: 'Quarterly financial analysis requiring access to sensitive financial data'
           }
-        ]
-      }
-    }).as('getRequestsRequest');
+        }
+      ]
+    }
+  }).as('getRequestsRequest');
 });
 
 When('I review the request', () => {
   cy.window().then((win) => {
     cy.visit('/approver-dashboard');
-  cy.get('[data-testid="request-req-1"]').should('contain', 'PENDING');
+    cy.get('[data-testid="request-req-1"]').should('contain', 'PENDING');
   });
 });
 
 And('I approve the request', () => {
   cy.intercept('PUT', '/api/access/requests/req-1/approve', {
-      statusCode: 200,
-      body: {
-        success: true,
-        approver: {
-          id: win.currentUser?.id,
-          name: 'Test Approver'
-        }
+    statusCode: 200,
+    body: {
+      success: true,
+      approver: {
+        id: win.currentUser?.id,
+        name: 'Test Approver'
       }
-    }).as('approvalRequest');
+    }
+  }).as('approvalRequest');
 });
 
 Then('the request should change to "APPROVED"', () => {
@@ -357,10 +351,10 @@ And('there is a pending request', () => {
         ]
       }
     }).as('getRequestsRequest');
-});
+  });
 
-When('I deny a request', () => {
-  cy.intercept('PUT', '/api/access/requests/req-2/deny', {
+  When('I deny a request', () => {
+    cy.intercept('PUT', '/api/access/requests/req-2/deny', {
       statusCode: 200,
       body: {
         success: true,
@@ -371,43 +365,43 @@ When('I deny a request', () => {
         }
       }
     }).as('denyRequest');
-});
-
-And('the request should change to "DENIED"', () => {
-  cy.window().then((win) => {
-    expect(win.accessRequestStatus).to.equal('DENIED');
   });
-});
 
-And('the user should receive denial notification', () => {
-  cy.get('[data-testid="denial-message"]').should('contain', 'Access denied due to insufficient privileges');
-});
-
-And('an audit entry should be created', () => {
-  cy.window().then((win) => {
-    expect(win.denialAuditEntry).to.include({
-      type: 'ACCESS_DENIED',
-      actor: win.currentUser?.id,
-      action: 'DENIED',
-      target: 'another_sensitive_resource',
-      reason: 'Invalid access - insufficient permissions'
+  And('the request should change to "DENIED"', () => {
+    cy.window().then((win) => {
+      expect(win.accessRequestStatus).to.equal('DENIED');
     });
   });
-});
 
-// Role-based access control
-Given('I am logged in with limited permissions', () => {
-  cy.window().then((win) => {
-    win.currentUser = {
-      id: 'limited-user',
-      name: 'Limited User',
-      groups: ['group_readonly']
-    };
+  And('the user should receive denial notification', () => {
+    cy.get('[data-testid="denial-message"]').should('contain', 'Access denied due to insufficient privileges');
   });
-});
 
-When('I attempt to access admin functions', () => {
-  cy.intercept('GET', '/api/admin/users', {
+  And('an audit entry should be created', () => {
+    cy.window().then((win) => {
+      expect(win.denialAuditEntry).to.include({
+        type: 'ACCESS_DENIED',
+        actor: win.currentUser?.id,
+        action: 'DENIED',
+        target: 'another_sensitive_resource',
+        reason: 'Invalid access - insufficient permissions'
+      });
+    });
+  });
+
+  // Role-based access control
+  Given('I am logged in with limited permissions', () => {
+    cy.window().then((win) => {
+      win.currentUser = {
+        id: 'limited-user',
+        name: 'Limited User',
+        groups: ['group_readonly']
+      };
+    });
+  });
+
+  When('I attempt to access admin functions', () => {
+    cy.intercept('GET', '/api/admin/users', {
       statusCode: 200,
       body: {
         users: [
@@ -416,25 +410,25 @@ When('I attempt to access admin functions', () => {
         ]
       }
     });
-});
-
-When('I try to access admin functions', () => {
-  cy.get('[data-testid="admin-dashboard"]').should('exist');
-});
-
-Then('I should see "Access denied: insufficient privileges" message', () => {
-  cy.get('[data-testid="admin-access-denied"]').should('be.visible');
-});
-
-// Emergency access scenarios
-Given('an emergency situation requires immediate access', () => {
-  cy.window().then((win) => {
-    win.emergencyMode = true;
   });
-});
 
-When('I initiate a break-glass request', () => {
-  cy.intercept('POST', '/api/emergency/break-glass', {
+  When('I try to access admin functions', () => {
+    cy.get('[data-testid="admin-dashboard"]').should('exist');
+  });
+
+  Then('I should see "Access denied: insufficient privileges" message', () => {
+    cy.get('[data-testid="admin-access-denied"]').should('be.visible');
+  });
+
+  // Emergency access scenarios
+  Given('an emergency situation requires immediate access', () => {
+    cy.window().then((win) => {
+      win.emergencyMode = true;
+    });
+  });
+
+  When('I initiate a break-glass request', () => {
+    cy.intercept('POST', '/api/emergency/break-glass', {
       statusCode: 200,
       body: {
         success: true,
@@ -452,7 +446,7 @@ When('I initiate a break-glass request', () => {
 
 Then('elevated access should be granted immediately', () => {
   cy.window().then((win) => {
-    expect(win.emergencyAccess).to.be.true);
+    expect(win.emergencyAccess).to.be.true;
   });
 });
 
@@ -493,11 +487,11 @@ Given('I have been granted temporary access', () => {
 
 When('the temporary access expires', () => {
   cy.intercept('GET', '/api/session/check', {
-      statusCode: 200,
-      body: {
-        valid: false
-      }
-    }).as('sessionCheckRequest');
+    statusCode: 200,
+    body: {
+      valid: false
+    }
+  }).as('sessionCheckRequest');
   cy.get('[data-testid="session-check"]').click();
   cy.wait('@sessionCheckRequest');
 });
@@ -533,14 +527,14 @@ Given('tampering is detected and quarantine is triggered', () => {
 
 When('I attempt to restore from quarantine', () => {
   cy.intercept('POST', '/api/audit/restore', {
-      statusCode: 200,
-      body: {
-        backup: 'original_entries': 'test-backup-1',
-        quarantineStatus: 'disabled',
-        integrityValidation: 'PASSED'
-      }
-    }).as('restoreRequest');
-  
+    statusCode: 200,
+    body: {
+      backup: { original_entries: 'test-backup-1' },
+      quarantineStatus: 'disabled',
+      integrityValidation: 'PASSED'
+    }
+  }).as('restoreRequest');
+
   cy.get('[data-testid="restore-button"]').click();
   cy.wait('@restoreRequest');
 });
@@ -560,11 +554,11 @@ Given('I need to verify compliance', () => {
 
 When('I request a compliance audit', () => {
   cy.intercept('POST', '/api/compliance/audit', {
-      headers: {
-        'Authorization': `Bearer ${Cypress.env('COMPLIANCE_TOKEN')}`
-      }
-    }).as('complianceAuditRequest');
-  
+    headers: {
+      'Authorization': `Bearer ${Cypress.env('COMPLIANCE_TOKEN')}`
+    }
+  }).as('complianceAuditRequest');
+
   cy.get('[data-testid="compliance-audit-button"]').click();
   cy.wait('@complianceAuditRequest');
 });
@@ -591,10 +585,10 @@ Given('the application is running under heavy load', () => {
 
 When('I perform resource-intensive operations', () => {
   cy.intercept('POST', '/api/process/essource-intensive', {
-      body: {
-        operation: 'large_data_processing'
-      }
-    }).as('processRequest');
+    body: {
+      operation: 'large_data_processing'
+    }
+  }).as('processRequest');
   cy.get('[data-testid="performance-check"]').click();
   cy.wait('@processRequest');
 });
@@ -613,7 +607,8 @@ Given('the application is running under stress', () => {
       cpuUsage: 95,
       memoryUsage: 95,
       activeSessions: 150
-    });
+    };
+  });
 });
 
 When('security events are high', () => {
@@ -628,12 +623,11 @@ When('security events are high', () => {
 
 When('I request security metrics', () => {
   cy.intercept('GET', '/api/security/metrics', {
-      headers: {
-        'Authorization': `Bearer ${Cypress.env('COMPLIANCE_TOKEN')`
-      }
-    });
-    }).as('securityMetricsRequest');
-  
+    headers: {
+      'Authorization': `Bearer ${Cypress.env('COMPLIANCE_TOKEN')}`
+    }
+  }).as('securityMetricsRequest');
+
   cy.get('[data-testid="security-dashboard"]').click();
   cy.wait('@securityMetricsRequest');
 });
@@ -649,6 +643,6 @@ Then('system should show security metrics and trends', () => {
         mediumEvents: expect.any(Number),
         lowEvents: expect.any(Number)
       });
-    });
+    }
   });
 });

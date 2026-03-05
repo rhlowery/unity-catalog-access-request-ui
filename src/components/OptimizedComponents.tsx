@@ -6,6 +6,7 @@ const AccessForm = lazy(() => import('./AccessForm'));
 const ApproverDashboard = lazy(() => import('./ApproverDashboard'));
 const ReviewerTab = lazy(() => import('./ReviewerTab'));
 const AuditLog = lazy(() => import('./AuditLog'));
+const DataApproversView = lazy(() => import('./DataApproversView'));
 
 import {
   Avatar,
@@ -58,6 +59,15 @@ const ViewModeTabs = React.memo(({ viewMode, setViewMode, pendingCount, errorCou
             </Badge>
           )}
         </TabsTrigger>
+        {(user?.groups?.some((g: any) => ['group_security', 'group_platform_admins'].includes(g))) && (
+          <TabsTrigger
+            value="DATA_APPROVERS"
+            className="hidden md:flex px-5 h-full rounded-lg items-center gap-2.5 text-[11px] font-bold uppercase tracking-wider data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:shadow-[inset_0_0_12px_rgba(88,166,255,0.1)] transition-all duration-300 group"
+          >
+            <ShieldPlus size={14} className="opacity-50 group-data-[state=active]:opacity-100 group-data-[state=active]:text-primary transition-all text-amber-500/80" />
+            Data Approvers
+          </TabsTrigger>
+        )}
         {(user?.groups?.some((g: any) => ['group_security', 'group_platform_admins'].includes(g))) && (
           <TabsTrigger
             value="AUDIT"
@@ -125,6 +135,12 @@ const ContentView = React.memo(({ viewMode, selectedObjects, onClearSelection, o
         return (
           <Suspense fallback={<ComponentLoader />}>
             <AuditLog />
+          </Suspense>
+        );
+      case 'DATA_APPROVERS':
+        return (
+          <Suspense fallback={<ComponentLoader />}>
+            <DataApproversView selectedObjects={selectedObjects} />
           </Suspense>
         );
       default:

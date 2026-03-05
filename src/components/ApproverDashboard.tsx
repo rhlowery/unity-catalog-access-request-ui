@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Check, AlertCircle, X, Clock, Users } from 'lucide-react';
 import { useAuth } from '../context/AuthProvider';
@@ -29,6 +29,10 @@ const ApproverDashboard = () => {
     const [denialState, setDenialState] = useState<{ reqId: string | null; reason: string }>({ reqId: null, reason: '' });
     const [activePersona, setActivePersona] = useState('group_governance');
 
+    const hasApproverAccess = user?.groups?.some(g =>
+        ['admins', 'admin', 'approvers', 'governance'].includes(g.toLowerCase())
+    ) || user?.role === 'ADMIN' || user?.role === 'APPROVER';
+
     const personas = [
         { id: 'group_governance', name: 'Governance Team' },
         { id: 'user_marketing_lead', name: 'Marketing Lead' },
@@ -37,20 +41,62 @@ const ApproverDashboard = () => {
         { id: 'group_legal_compliance', name: 'Legal Compliance' },
     ];
 
-    const { data: requests = [], isLoading } = useQuery({
-        queryKey: ['requests'],
-        queryFn: getRequests
-    });
-
     const config = ConfigService.getConfig();
     const isProduction = import.meta.env.PROD;
     const isSimulationMode = (!isProduction || (window as any).ACS_DEMO_MODE) && config.enableSimulationMode;
+
+    const { data: requests = [], isLoading } = useQuery({
+        queryKey: ['requests'],
+        queryFn: getRequests,
+        enabled: hasApproverAccess // Only query if they have access
+    });
 
     const approveMutation = useMutation({
         mutationFn: async ({ reqId, action, reason }: any) =>
             await approveRequest(reqId, activePersona, reason, action, isSimulationMode),
         onSuccess: () => queryClient.invalidateQueries({ queryKey: ['requests'] })
     });
+
+    useEffect(() => {
+        if (!hasApproverAccess) return;
+
+        const BFF_URL = import.meta.env.VITE_BFF_URL || 'http://localhost:3001';
+        const eventSource = new EventSource(`${BFF_URL}/api/storage/requests/stream`, {
+            withCredentials: true
+        });
+
+        eventSource.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                if (data.type === 'UPDATE') {
+                    console.log('[SSE] Received update event, refreshing requests...');
+                    queryClient.invalidateQueries({ queryKey: ['requests'] });
+                }
+            } catch (err) {
+                console.error('[SSE] Failed to parse event', err);
+            }
+        };
+
+        eventSource.onerror = (err) => {
+            console.error('[SSE] Connection error', err);
+        };
+
+        return () => {
+            eventSource.close();
+        };
+    }, [hasApproverAccess, queryClient]);
+
+    if (!hasApproverAccess) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
+                <AlertCircle size={48} className="text-destructive opacity-50" />
+                <h2 className="text-xl font-bold text-destructive">Access Denied</h2>
+                <p className="text-muted-foreground text-center max-w-md">
+                    You don't have approver permissions. Contact your administrator to request access.
+                </p>
+            </div>
+        );
+    }
 
     const handleApprove = (reqId: string) =>
         approveMutation.mutate({ reqId, action: 'APPROVE', reason: 'Approved via Dashboard' });
@@ -195,7 +241,24 @@ const ApproverDashboard = () => {
     );
 };
 
-const RequestCard = ({ req, isActionable, onApprove, onDeny, isHistory }: any) => {
+interface RequestCardProps {
+    req: {
+        id: string;
+        timestamp?: number;
+        status?: string;
+        approvalState?: Record<string, string>;
+        requestedObjects?: Array<{ catalogName?: string; schemaName?: string }>;
+        requesterId?: string;
+        justification?: string;
+        [key: string]: unknown;
+    };
+    isActionable: boolean;
+    onApprove?: () => void;
+    onDeny?: () => void;
+    isHistory?: boolean;
+}
+
+const RequestCard = ({ req, isActionable, onApprove, onDeny, isHistory }: RequestCardProps) => {
     const states = Object.values(req.approvalState || {});
     const approved = states.filter((s: any) => s === 'APPROVED').length;
     const total = states.length;

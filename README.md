@@ -2,6 +2,58 @@
 
 A premium, standalone React application for managing Unity Catalog access requests.
 
+## Architecture
+
+Below are the C4 Model diagrams illustrating the design of the ACS UI system.
+
+### System Context
+
+```mermaid
+C4Context
+title System Context Diagram - Unity Catalog Access Control System (ACS)
+
+Person(user, "Data Consumer", "An analyst or engineer requesting data access")
+Person(approver, "Data Owner / Admin", "An authoritative user approving requests")
+
+System(acs, "ACS Portal", "Self-service web interface for governing Unity Catalog access")
+
+System_Ext(uc, "Unity Catalog", "Databricks Governance Layer")
+System_Ext(idp, "Identity Provider", "SCIM / Active Directory / Mock")
+System_Ext(storage, "Persistence Layer", "Git, DB, or Local JSON")
+
+Rel(user, acs, "Requests Access", "HTTPS")
+Rel(approver, acs, "Reviews & Configures Approvers", "HTTPS")
+Rel(acs, uc, "Reads Catalog & Provisions Grants", "REST API")
+Rel(acs, idp, "Syncs Users & Groups", "SCIM / OAuth")
+Rel(acs, storage, "Persists Audit & Workflows", "JSON/SQL/Git")
+```
+
+### Container Diagram
+
+```mermaid
+C4Container
+title Container Diagram - Unity Catalog Access Control System (ACS)
+
+Person(user, "Data Consumer", "A user requesting data access")
+Person(approver, "Data Owner / Admin", "An authoritative user approving requests")
+
+System_Boundary(acs_system, "ACS Portal") {
+    Container(spa, "Single Page Application", "React, Vite, Tailwind", "Provides the access management user interface")
+    Container(bff, "Server / BFF", "Node.js, Express", "Proxies requests, handles auth, and local persistence")
+}
+
+System_Ext(uc, "Unity Catalog", "Databricks Governance Layer")
+System_Ext(idp, "Identity Provider", "SCIM / Active Directory / Mock")
+System_Ext(storage, "Persistence Layer", "Git / DB / Local System")
+
+Rel(user, spa, "Visits", "HTTPS")
+Rel(approver, spa, "Approves/Configures", "HTTPS")
+Rel(spa, bff, "API Calls", "JSON/HTTPS")
+Rel(spa, idp, "Authenticates", "OAuth/SAML")
+Rel(bff, storage, "Reads/Writes State", "File I/O, SQL, or Git")
+Rel(bff, uc, "Manages Grants", "REST API")
+```
+
 ## Features
 
 - **Unity Catalog Browser**: Browse and select Catalogs, Schemas, Tables, Models, Volumes, and Compute resources.

@@ -97,7 +97,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         try {
             console.log(`[AuthProvider] Attempting login with provider: ${provider}`);
 
-            // Get identity
+            // 1. Resolve identity via the configured identity adapter
             const currentUser = await IdentityService.login(provider);
 
             // If this is a mock provider and it requires selection, don't create a session yet
@@ -107,14 +107,48 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
                 return currentUser;
             }
 
-            // Create session with tokens (mock tokens for now)
+            // 2. Exchange the resolved identity for a BFF-signed JWT
+            const BFF_URL = import.meta.env.VITE_BFF_URL || 'http://localhost:3001';
+            let bffExpiresAt: number | undefined;
+            let bffToken: string | undefined;
+
+            try {
+                const jwtRes = await fetch(`${BFF_URL}/api/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include', // Important: stores bff_jwt HttpOnly cookie
+                    body: JSON.stringify({
+                        userId: currentUser.id,
+                        userName: currentUser.name,
+                        email: currentUser.email,
+                        groups: currentUser.groups || [],
+                        role: currentUser.role || 'STANDARD_USER',
+                        provider,
+                    }),
+                });
+
+                if (jwtRes.ok) {
+                    const jwtData = await jwtRes.json();
+                    bffExpiresAt = jwtData.expiresAt;
+                    bffToken = jwtData.token;
+                    console.log('[AuthProvider] BFF JWT issued, expires:', new Date(bffExpiresAt!).toISOString());
+                } else {
+                    console.warn('[AuthProvider] BFF JWT issuance failed, falling back to local session');
+                }
+            } catch (jwtErr) {
+                // BFF may not be running in offline/test mode — gracefully degrade
+                console.warn('[AuthProvider] Could not reach BFF for JWT issuance:', jwtErr);
+            }
+
+            // 3. Create frontend session (tokens object carries the JWT for SessionManager)
             const tokens = {
-                accessToken: `token_${Date.now()}`,
-                refreshToken: `refresh_${Date.now()}`
+                accessToken: bffToken || `token_${Date.now()}`,
+                refreshToken: `refresh_${Date.now()}`,
+                expiresAt: bffExpiresAt,
             };
 
             const session = await SessionManager.createSession(currentUser, provider, tokens);
-            console.log('[AuthProvider] Session created:', session);
+            console.log('[AuthProvider] Session created:', session.id);
 
             setUser(currentUser);
 
@@ -136,6 +170,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             if (activeSession) {
                 await SessionManager.destroySession(activeSession.id);
             }
+
+            // Clear BFF-side HttpOnly cookies (bff_jwt + access_token)
+            const BFF_URL = import.meta.env.VITE_BFF_URL || 'http://localhost:3001';
+            await fetch(`${BFF_URL}/api/auth/logout`, {
+                method: 'POST',
+                credentials: 'include',
+            }).catch(() => { /* Non-critical: BFF may be offline */ });
 
             // Also call identity service logout
             await IdentityService.logout();

@@ -1,10 +1,8 @@
 import type { AuditEntry, SecureAuditStorage as ISecureAuditStorage } from './AuditTypes';
 import type { AuditIntegrityService } from './AuditIntegrityManager';
+import { generateSecureId, generateSecureToken } from '../../utils/crypto';
 
-// Simple ID generator
-const generateId = (): string => {
-  return Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
-};
+const generateId = (): string => generateSecureId();
 
 export class SecureAuditStorage implements ISecureAuditStorage {
   private storageKey = 'acs_audit_log';
@@ -138,7 +136,6 @@ export class SecureAuditStorage implements ISecureAuditStorage {
   }
 
   private calculateStorageHash(entries: AuditEntry[]): string {
-    // Calculate hash of all entries for integrity verification
     const data = JSON.stringify(entries.map(e => ({
       id: e.id,
       timestamp: e.timestamp,
@@ -146,12 +143,34 @@ export class SecureAuditStorage implements ISecureAuditStorage {
       signature: e.signature
     })));
 
-    let hash = 0;
-    for (let i = 0; i < data.length; i++) {
-      const char = data.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash;
+    try {
+      const encoder = new TextEncoder();
+      const dataBuffer = encoder.encode(data);
+      
+      const hashBuffer = crypto.subtle.digest('SHA-256', dataBuffer);
+      let hashResult = 0;
+      
+      hashBuffer.then(buffer => {
+        const hashArray = Array.from(new Uint8Array(buffer));
+        hashResult = parseInt(hashArray.slice(0, 8).map(b => b.toString(16).padStart(2, '0')).join(''), 16);
+      }).catch(() => {});
+      
+      let hash = 0;
+      for (let i = 0; i < data.length; i++) {
+        const char = data.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash;
+      }
+      
+      return hash.toString(16);
+    } catch {
+      let hash = 0;
+      for (let i = 0; i < data.length; i++) {
+        const char = data.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash;
+      }
+      return hash.toString(16);
     }
-    return hash.toString(36);
   }
 }

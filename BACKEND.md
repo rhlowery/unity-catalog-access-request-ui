@@ -2,7 +2,42 @@
 
 This document outlines the required schemas for the various backend datastores supported by the Access Control System.
 
-## 1. Core Data Models (YAML)
+## 1. Architecture Overview (C4 Component)
+
+The system abstracts the Identity Providers (IdP) and Storage Mechanisms via pluggable adapters. This diagram illustrates how the frontend components interact with these configurable adapters.
+
+```mermaid
+C4Component
+title Component Diagram - ACS UI Adapters
+
+Container(spa, "Single Page Application", "React", "Frontend Application")
+
+System_Boundary(adapters, "Pluggable Adapters") {
+    Component(config_svc, "ConfigService", "TypeScript", "Resolves active environment settings")
+    Component(id_svc, "IdentityService", "TypeScript", "Routes auth and profiles to selected IdP")
+    Component(storage_svc, "StorageService", "TypeScript", "Routes CRUD ops to selected backend")
+    
+    Component(mock_idp, "Mock/Local IdP", "Memory", "Simulated users")
+    Component(scim_idp, "SCIM IdP", "REST", "Syncs from Azure/Okta")
+    
+    Component(localStorage, "Local Adapter", "Browser", "Offline dev persistence")
+    Component(bffAdapter, "BFF Adapter", "Node.js", "Server-side JSON persistence")
+    Component(gitAdapter, "GitOps Adapter", "Git", "YAML & MR based persistence")
+}
+
+Rel(spa, config_svc, "Gets active config")
+Rel(spa, id_svc, "Calls")
+Rel(spa, storage_svc, "Calls")
+
+Rel(id_svc, mock_idp, "Uses (if configured)")
+Rel(id_svc, scim_idp, "Uses (if configured)")
+
+Rel(storage_svc, localStorage, "Uses (if configured)")
+Rel(storage_svc, bffAdapter, "Uses (if configured)")
+Rel(storage_svc, gitAdapter, "Uses (if configured)")
+```
+
+## 2. Core Data Models (YAML)
 
 All adapters communicate using a unified set of interfaces. For **Git (GitOps)** and **LocalStorage/Volatile** adapters, the following YAML structure is used for centralization and auditability.
 

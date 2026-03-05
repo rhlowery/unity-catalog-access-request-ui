@@ -39,6 +39,16 @@ export const UnityCatalogAdapter = {
         return [];
     },
 
+    async getApprovers(config) {
+        console.log(`[UC Adapter] Fetching approvers from ${config.catalog}.${config.schema}`);
+        return {};
+    },
+
+    async saveApprovers(approvers, config) {
+        console.log(`[UC Adapter] Saving approvers to ${config.catalog}.${config.schema}`);
+        return true;
+    },
+
     async getLiveGrants(object: any, config: any) {
         console.log(`[UC Adapter] Fetching LIVE GRANTS for ${object.name} from UC API...`);
 

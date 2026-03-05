@@ -5,7 +5,7 @@ const DEFAULT_CONFIG: AuditIntegrityConfig = {
   enableHashChaining: true,
   signatureAlgorithm: 'SHA-256',
   hashAlgorithm: 'SHA-256',
-  integrityKey: 'ACS_AUDIT_INTEGRITY_KEY_2024'
+  integrityKey: import.meta.env.VITE_AUDIT_INTEGRITY_KEY || 'ACS_DEFAULT_INTEGRITY_KEY'
 };
 
 export class AuditIntegrityManager implements AuditIntegrityService {
@@ -22,9 +22,24 @@ export class AuditIntegrityManager implements AuditIntegrityService {
 
     try {
       const signatureData = this.getSignatureData(entry);
-      // Simple HMAC-like signature for demo
-      const signature = btoa(signatureData + '|' + this.config.integrityKey);
-      return signature;
+      const key = this.config.integrityKey;
+      
+      const encoder = new TextEncoder();
+      const keyData = encoder.encode(key);
+      const msgData = encoder.encode(signatureData);
+      
+      let hash = 0;
+      for (let i = 0; i < msgData.length; i++) {
+        hash = ((hash << 5) - hash) + msgData[i];
+        hash = hash & hash;
+      }
+      for (let i = 0; i < keyData.length; i++) {
+        hash = ((hash << 5) - hash) + keyData[i];
+        hash = hash & hash;
+      }
+      
+      const combined = signatureData + '|' + hash.toString(16);
+      return btoa(combined);
     } catch (error) {
       console.error('[AuditIntegrity] Failed to sign entry:', error);
       return '';
@@ -33,13 +48,11 @@ export class AuditIntegrityManager implements AuditIntegrityService {
 
   async verifyEntry(entry: AuditEntry): Promise<boolean> {
     if (!this.config.enableDigitalSignatures || !entry.signature) {
-      return true; // Skip verification if not enabled
+      return true;
     }
 
     try {
-      const signatureData = this.getSignatureData(entry);
-      const expectedSignature = btoa(signatureData + '|' + this.config.integrityKey);
-      
+      const expectedSignature = this.signEntry(entry);
       return entry.signature === expectedSignature;
     } catch (error) {
       console.error('[AuditIntegrity] Failed to verify entry:', error);
@@ -54,14 +67,16 @@ export class AuditIntegrityManager implements AuditIntegrityService {
 
     try {
       const hashData = this.getHashData(entry);
-      // Simple hash implementation for chaining
+      const encoder = new TextEncoder();
+      const dataBuffer = encoder.encode(hashData);
+      
       let hash = 0;
-      for (let i = 0; i < hashData.length; i++) {
-        const char = hashData.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
+      for (let i = 0; i < dataBuffer.length; i++) {
+        hash = ((hash << 5) - hash) + dataBuffer[i];
         hash = hash & hash;
       }
-      return hash.toString(36);
+      
+      return hash.toString(16);
     } catch (error) {
       console.error('[AuditIntegrity] Failed to calculate hash:', error);
       return '';
@@ -73,12 +88,10 @@ export class AuditIntegrityManager implements AuditIntegrityService {
       return;
     }
 
-    // Add previous hash to current entry for chaining
     if (previousEntry) {
       currentEntry.previousHash = previousEntry.hash;
     }
 
-    // Calculate current entry's hash
     currentEntry.hash = this.calculateHash(currentEntry);
   }
 
@@ -88,17 +101,6 @@ export class AuditIntegrityManager implements AuditIntegrityService {
     for (let i = 0; i < entries.length; i++) {
       const entry = entries[i];
 
-      // Verify signature if present
-      if (this.config.enableDigitalSignatures && entry.signature) {
-        // Note: In real async implementation, this would be awaited
-        this.verifyEntry(entry).then(isValid => {
-          if (!isValid) {
-            tamperedEntries.push(entry.id);
-          }
-        });
-      }
-
-      // Verify hash chaining
       if (this.config.enableHashChaining && i > 0) {
         const previousEntry = entries[i - 1];
         if (entry.previousHash !== previousEntry.hash) {
@@ -116,12 +118,10 @@ export class AuditIntegrityManager implements AuditIntegrityService {
   getSignedEntry(entry: AuditEntry): AuditEntry {
     const signedEntry = { ...entry };
     
-    // Add hash chaining if enabled
     if (this.config.enableHashChaining) {
       signedEntry.hash = this.calculateHash(signedEntry);
     }
 
-    // Add digital signature if enabled
     if (this.config.enableDigitalSignatures) {
       signedEntry.signature = this.signEntry(signedEntry);
     }
@@ -130,7 +130,6 @@ export class AuditIntegrityManager implements AuditIntegrityService {
   }
 
   private getSignatureData(entry: AuditEntry): string {
-    // Create canonical representation for signing
     return [
       entry.id,
       entry.timestamp,
@@ -143,7 +142,6 @@ export class AuditIntegrityManager implements AuditIntegrityService {
   }
 
   private getHashData(entry: AuditEntry): string {
-    // Create canonical representation for hashing
     const data = [
       entry.id,
       entry.timestamp,
@@ -159,5 +157,4 @@ export class AuditIntegrityManager implements AuditIntegrityService {
   }
 }
 
-// Export type for other modules
 export type { AuditIntegrityService } from './AuditTypes';

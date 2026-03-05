@@ -32,7 +32,11 @@ export class WebCryptoService implements CryptoService {
       const encoder = new TextEncoder();
       const keyData = encoder.encode(password);
 
-      const salt = encoder.encode('ACS_PERMANENT_SALT');
+      const saltEnv = import.meta.env.VITE_ENCRYPTION_SALT;
+      if (!saltEnv) {
+        console.warn('[WebCryptoService] No VITE_ENCRYPTION_SALT set - using runtime-generated salt');
+      }
+      const salt = encoder.encode(saltEnv || crypto.randomUUID());
 
       const keyMaterial = await crypto.subtle.importKey(
         'raw', keyData, { name: 'PBKDF2' }, false, ['deriveKey']
@@ -60,7 +64,7 @@ export class WebCryptoService implements CryptoService {
 
     const raw = Base64.toUint8Array(exportedKey);
     return crypto.subtle.importKey(
-      'raw', raw, this.algorithm, false, ['encrypt', 'decrypt']
+      'raw', raw as any, this.algorithm, false, ['encrypt', 'decrypt']
     );
   }
 

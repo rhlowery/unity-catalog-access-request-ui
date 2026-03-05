@@ -1,16 +1,16 @@
 import type { SessionInfo, SessionConfig, SessionManager as ISessionManager, SessionStorage } from './SessionTypes';
 import { SecureSessionStorage } from './SecureSessionStorage';
+import { generateSecureId } from '../../utils/crypto';
 
-// Simple ID generator
-const generateId = (): string => {
-  return Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
-};
+let globalCleanupInterval: ReturnType<typeof setInterval> | null = null;
+let intervalRefCount = 0;
 
 export class SessionManagerService implements ISessionManager {
   private storage: SessionStorage;
   private config: SessionConfig;
   private activityTracker: Map<string, () => void> = new Map();
   private renewalTracker: Map<string, number> = new Map();
+  private renewalMutex: Map<string, Promise<SessionInfo | null>> = new Map();
 
   constructor(config: Partial<SessionConfig> = {}) {
     this.config = {
@@ -23,7 +23,10 @@ export class SessionManagerService implements ISessionManager {
     };
 
     this.storage = new SecureSessionStorage(this.config);
-    this.startPeriodicCleanup();
+    intervalRefCount++;
+    if (intervalRefCount === 1) {
+      this.startPeriodicCleanup();
+    }
   }
 
   /**
@@ -36,7 +39,7 @@ export class SessionManagerService implements ISessionManager {
    */
   async createSession(user: any, provider: string, tokens: any): Promise<SessionInfo> {
     const now = Date.now();
-    const sessionId = generateId();
+    const sessionId = generateSecureId();
 
     const session: SessionInfo = {
       id: sessionId,
@@ -104,29 +107,59 @@ export class SessionManagerService implements ISessionManager {
   }
 
   async renewSession(sessionId: string): Promise<SessionInfo | null> {
+    const existingRenewal = this.renewalMutex.get(sessionId);
+    if (existingRenewal) {
+      return existingRenewal;
+    }
+
     const session = await this.getSession(sessionId);
 
     if (!session || !session.refreshToken) {
       return null;
     }
 
+    const renewalPromise = this.performRenewal(sessionId, session);
+    this.renewalMutex.set(sessionId, renewalPromise);
+
     try {
-      // In a real implementation, call refresh token endpoint
-      const renewedSession: SessionInfo = {
-        ...session,
-        expiresAt: Date.now() + (this.config.timeoutMinutes * 60 * 1000),
-        lastActivity: Date.now(),
-        accessToken: `renewed_${Date.now()}` // Mock renewal
-      };
+      return await renewalPromise;
+    } finally {
+      this.renewalMutex.delete(sessionId);
+    }
+  }
 
-      await this.storage.updateSession(sessionId, renewedSession);
-      await this.setupRenewalTracking(sessionId);
+  private async performRenewal(sessionId: string, session: SessionInfo): Promise<SessionInfo | null> {
+    try {
+      const BFF_URL = import.meta.env.VITE_BFF_URL || 'http://localhost:3001';
+      const response = await fetch(`${BFF_URL}/api/auth/refresh`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
 
-      if (this.config.enableAuditLogging) {
-        console.log(`[SessionManager] Session renewed for ${session.userName}`);
+      if (response.ok) {
+        const data = await response.json();
+        const renewedSession: SessionInfo = {
+          ...session,
+          expiresAt: data.expiresAt || (Date.now() + (this.config.timeoutMinutes * 60 * 1000)),
+          lastActivity: Date.now(),
+          accessToken: data.token || `renewed_${Date.now()}`,
+        };
+
+        await this.storage.updateSession(sessionId, renewedSession);
+        await this.setupRenewalTracking(sessionId);
+
+        if (this.config.enableAuditLogging) {
+          console.log(`[SessionManager] Session renewed via BFF for ${session.userName}`);
+        }
+
+        return renewedSession;
+      } else {
+        console.warn('[SessionManager] BFF refresh failed, attempting local renewal');
+        throw new Error('BFF refresh failed');
       }
-
-      return renewedSession;
     } catch (error) {
       console.error('[SessionManager] Failed to renew session:', error);
       await this.destroySession(sessionId);
@@ -248,21 +281,23 @@ export class SessionManagerService implements ISessionManager {
   }
 
   private startPeriodicCleanup(): void {
-    // Clean up expired sessions every 5 minutes
-    setInterval(async () => {
+    if (globalCleanupInterval) return;
+    globalCleanupInterval = setInterval(async () => {
       await this.storage.cleanupExpiredSessions();
     }, 5 * 60 * 1000);
   }
 
-  private async getClientIP(): Promise<string | undefined> {
-    // In production, this would call a service to get the client IP
-    try {
-      const response = await fetch('https://api.ipify.org?format=json');
-      const data = await response.json();
-      return data.ip;
-    } catch {
-      return undefined;
+  static cleanup(): void {
+    intervalRefCount--;
+    if (intervalRefCount <= 0 && globalCleanupInterval) {
+      clearInterval(globalCleanupInterval);
+      globalCleanupInterval = null;
+      intervalRefCount = 0;
     }
+  }
+
+  private async getClientIP(): Promise<string | undefined> {
+    return undefined;
   }
 
   private notifySessionExpiring(session: SessionInfo, timeUntilExpiry: number): void {

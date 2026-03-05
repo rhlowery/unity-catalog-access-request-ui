@@ -151,5 +151,15 @@ export const GitAdapter = {
                 }
             });
         return grants;
+    },
+
+    async getApprovers(config: any) {
+        console.log(`[GitAdapter] Fetching CODEOWNERS mapping from Git (Simulated)...`);
+        return {};
+    },
+
+    async saveApprovers(approvers: any, config: any) {
+        console.log(`[GitAdapter] Pushing CODEOWNERS mapping to Git (Simulated)...`);
+        return true;
     }
 };

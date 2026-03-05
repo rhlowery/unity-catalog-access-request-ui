@@ -467,15 +467,53 @@ export const getIdentities = async () => {
     ]);
 };
 
-// Helper to get all owners for a list of objects
-const getRequiredApprovers = (objects) => {
-    const approvers = new Set();
-    // 1. Add asset owners
-    objects.forEach(obj => {
-        if (obj.owners) {
-            obj.owners.forEach(owner => approvers.add(owner));
+// Helper to find node objects for ancestry path
+const getNodeAncestry = (targetId: string, nodes: any[], currentPath: any[] = []): any[] | null => {
+    for (const node of nodes) {
+        const newPath = [...currentPath, node];
+        if (node.id === targetId) return newPath;
+        if (node.children) {
+            const found = getNodeAncestry(targetId, node.children, newPath);
+            if (found) return found;
         }
+    }
+    return null;
+};
+
+// Helper to get all owners for a list of objects considering hierarchical overrides
+const getRequiredApprovers = async (objects: any[], activeCatalogs: any[]) => {
+    const approvers = new Set<string>();
+    const objectApprovers = await StorageService.getApprovers() || {};
+
+    objects.forEach(obj => {
+        const ancestry = getNodeAncestry(obj.id, activeCatalogs);
+        if (!ancestry) {
+            // Fallback to literal object owners if ancestry lookup fails
+            if (obj.owners) {
+                obj.owners.forEach((o: string) => approvers.add(o));
+            }
+            return;
+        }
+
+        let effectiveGroups: string[] = [];
+
+        // Traverse top-down to find the most specific override or accumulate defaults
+        for (const ancestor of ancestry) {
+            if (objectApprovers[ancestor.id] !== undefined) {
+                // An explicit override replaces all inherited groups up to this point
+                // Note: it makes a copy to avoid mutating the config
+                effectiveGroups = [...objectApprovers[ancestor.id]];
+            } else if (ancestor.owners) {
+                // If no override, merge default owners
+                ancestor.owners.forEach((o: string) => {
+                    if (!effectiveGroups.includes(o)) effectiveGroups.push(o);
+                });
+            }
+        }
+
+        effectiveGroups.forEach(grp => approvers.add(grp));
     });
+
     // 2. Add Mandatory Governance Group
     approvers.add('group_governance');
 
@@ -533,13 +571,15 @@ const checkExpirations = (requests) => {
 };
 
 export const submitRequest = async (request) => {
+    const activeCatalogs = await getCatalogs();
+
     // Enrich requested objects with full path
     const enrichedObjects = request.requestedObjects.map(obj => ({
         ...obj,
-        fullPath: findObjectPath(obj.id) || obj.name
+        fullPath: findObjectPath(obj.id, activeCatalogs) || obj.name
     }));
 
-    const requiredApprovers = getRequiredApprovers(enrichedObjects);
+    const requiredApprovers = await getRequiredApprovers(enrichedObjects, activeCatalogs);
 
     // Calculate Expiration Time if applicable
     let expirationTime = null;

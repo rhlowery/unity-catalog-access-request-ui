@@ -60,17 +60,19 @@ const AdminSettings = () => {
             </div>
 
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                <TabsList className="w-full justify-start bg-background/50 border border-border h-12 p-1 mb-6">
-                    <TabsTrigger value="STORAGE" className="px-6">Storage</TabsTrigger>
-                    <TabsTrigger value="IDENTITY" className="px-6">Identity</TabsTrigger>
-                    <TabsTrigger value="SECRETS" className="px-6">Secrets</TabsTrigger>
-                    <TabsTrigger value="UNITY_CATALOG" className="px-6">Unity Catalog</TabsTrigger>
-                    {import.meta.env.DEV && (
-                        <TabsTrigger value="DEBUG" className="px-6 gap-2">
-                            <Bug size={14} /> Debug
-                        </TabsTrigger>
-                    )}
-                </TabsList>
+                <div className="overflow-x-auto pb-1 -mx-1 px-1">
+                    <TabsList className="w-max min-w-full justify-start bg-background/50 border border-border h-12 p-1 mb-6 flex-nowrap">
+                        <TabsTrigger value="STORAGE" className="px-4 whitespace-nowrap">Storage</TabsTrigger>
+                        <TabsTrigger value="IDENTITY" className="px-4 whitespace-nowrap">Identity</TabsTrigger>
+                        <TabsTrigger value="SECRETS" className="px-4 whitespace-nowrap">Secrets</TabsTrigger>
+                        <TabsTrigger value="UNITY_CATALOG" className="px-4 whitespace-nowrap">Unity Catalog</TabsTrigger>
+                        {import.meta.env.DEV && (
+                            <TabsTrigger value="DEBUG" className="px-4 gap-2 whitespace-nowrap">
+                                <Bug size={14} /> Debug
+                            </TabsTrigger>
+                        )}
+                    </TabsList>
+                </div>
 
                 <Card className="border-border/50 bg-card/30 backdrop-blur-sm min-h-[400px]">
                     <CardContent className="pt-6">

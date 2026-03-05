@@ -36,16 +36,18 @@ export const VaultService = {
             }
 
             // Construct URL. Ensure no double slashes.
-            // Note: Standard KV v2 reads are GET /v1/{mount}/data/{path}
-            // For simplicity, we assume user provides "api path" or we try to just append.
-            // A more robust implementation handles mount points. Here we assume fullPath includes 'data/' if needed.
             const url = `${vaultUrl.replace(/\/$/, '')}/v1/${fullPath.replace(/^\//, '')}`;
 
-            // Use proxy if we have CORS issues, but typically Vault allows CORS if configured.
-            // If running locally against localhost Vault, browser might block mix content if app is https, etc.
-            // For now, assume direct fetch is okay or handled via same proxy pattern if mapped.
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-            const response = await fetch(url, { method: 'GET', headers });
+            const response = await fetch(url, { 
+                method: 'GET', 
+                headers,
+                signal: controller.signal 
+            });
+
+            clearTimeout(timeoutId);
 
             if (!response.ok) {
                 throw new Error(`Vault API Error: ${response.status} ${response.statusText}`);
@@ -58,7 +60,6 @@ export const VaultService = {
 
             let secretData = json.data;
             if (json.data && json.data.data) {
-                // Handle V2 wrapping
                 secretData = json.data.data;
             }
 
@@ -70,7 +71,11 @@ export const VaultService = {
             }
 
         } catch (error) {
-            console.error('[VaultService] Failed to fetch secret:', error);
+            if (error instanceof Error && error.name === 'AbortError') {
+                console.error('[VaultService] Request timed out after 10 seconds');
+            } else {
+                console.error('[VaultService] Failed to fetch secret:', error);
+            }
             return null;
         }
     }

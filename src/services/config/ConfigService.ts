@@ -29,9 +29,15 @@ export const ConfigService = {
         localStorage.setItem('uc_config', JSON.stringify(config));
     },
     getConfig: () => {
-        const config = localStorage.getItem('uc_config');
-        const parsed = config ? JSON.parse(config) : {};
-        return parsed; // Return raw config for internal use
+        try {
+            const config = localStorage.getItem('uc_config');
+            const parsed = config ? JSON.parse(config) : {};
+            return parsed;
+        } catch (e) {
+            console.error('[ConfigService] Failed to parse config, using defaults:', e);
+            localStorage.removeItem('uc_config');
+            return {};
+        }
     },
     getSanitizedConfig: () => {
         return sanitizeConfig(ConfigService.getConfig());

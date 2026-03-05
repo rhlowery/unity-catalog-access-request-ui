@@ -74,13 +74,9 @@ export default defineConfig(({ mode }) => {
     server: {
       proxy: {
         '/api': {
-          // Target should ideally be the configured host. Fallback to accounts.cloud.databricks.com
           target: env.VITE_DATABRICKS_HOST || 'https://accounts.cloud.databricks.com',
           changeOrigin: true,
-          secure: false,
-          headers: {
-            Authorization: `Bearer ${env.VITE_DATABRICKS_TOKEN}`
-          }
+          secure: process.env.NODE_ENV === 'production'
         }
       }
     },

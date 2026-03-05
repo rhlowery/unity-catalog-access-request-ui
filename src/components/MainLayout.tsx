@@ -217,14 +217,12 @@ const MainLayout = () => {
           </div>
         </div>
 
-        <div className="flex-1 flex relative items-center h-full px-8">
-          <div className="absolute inset-0 flex justify-center items-center pointer-events-none">
-            <div className="pointer-events-auto">
-              <ViewModeTabs viewMode={viewMode} setViewMode={setViewMode} pendingCount={pendingCount} errorCount={errorCount} user={user} />
-            </div>
+        <div className="flex-1 flex items-center h-full px-2 sm:px-8 gap-4 overflow-hidden">
+          <div className="flex-1 flex justify-center sm:justify-start lg:justify-center overflow-x-auto hide-scrollbar">
+            <ViewModeTabs viewMode={viewMode} setViewMode={setViewMode} pendingCount={pendingCount} errorCount={errorCount} user={user} />
           </div>
 
-          <div className="ml-auto flex items-center gap-4 relative z-10">
+          <div className="flex items-center gap-2 sm:gap-4 shrink-0">
             <ModeToggle />
             <UserControls user={user} logout={logout} />
           </div>
@@ -333,8 +331,18 @@ const MainLayout = () => {
       </footer>
 
       <Dialog open={showSettings} onOpenChange={setShowSettings}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col p-0 border-border bg-background/95 backdrop-blur-xl">
-          <DialogHeader className="p-6 pb-0">
+        <DialogContent
+          className="resize overflow-hidden flex flex-col p-0 border-border bg-background/95 backdrop-blur-xl !max-w-none"
+          style={{
+            width: '85vw',
+            maxWidth: '1600px',
+            minWidth: '400px',
+            height: '85vh',
+            maxHeight: '95vh',
+            minHeight: '400px'
+          }}
+        >
+          <DialogHeader className="p-6 pb-0 shrink-0">
             <DialogTitle className="text-2xl font-bold tracking-tight">System Configuration</DialogTitle>
             <DialogDescription>
               Manage your identity, storage, and Unity Catalog integration settings.
@@ -351,8 +359,8 @@ const MainLayout = () => {
             </DialogClose>
           </div>
         </DialogContent>
-      </Dialog>
-    </div>
+      </Dialog >
+    </div >
   );
 };
 

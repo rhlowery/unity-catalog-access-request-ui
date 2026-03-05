@@ -24,7 +24,7 @@ interface FlatNode {
     depth: number;
 }
 
-const CatalogTree = ({ nodes = [], selectedIds, onToggleSelection }: any) => {
+const CatalogTree = ({ nodes = [], selectedIds, onToggleSelection, hideCheckboxes = false, onSelectNode }: any) => {
     const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
     const [containerHeight, setContainerHeight] = useState(0);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -92,20 +92,22 @@ const CatalogTree = ({ nodes = [], selectedIds, onToggleSelection }: any) => {
 
         const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
             e.stopPropagation();
-            onToggleSelection(node.id, node);
+            if (onToggleSelection) onToggleSelection(node.id, node);
         };
 
         const handleRowClick = (e: React.MouseEvent) => {
-            if (hasChildren) {
+            if (onSelectNode) {
+                onSelectNode(node);
+            } else if (hasChildren) {
                 toggleExpand(node.id, e);
             } else {
-                onToggleSelection(node.id, node);
+                if (onToggleSelection) onToggleSelection(node.id, node);
             }
         };
 
         return (
             <div
-                className={`group flex items-center h-8 px-4 cursor-pointer transition-all duration-200 hover:bg-white/[0.03] ${isSelected ? 'bg-primary/10' : ''}`}
+                className={`group flex items-center h-8 px-4 cursor-pointer transition-all duration-200 hover:bg-white/[0.03] ${isSelected ? 'bg-primary/20' : ''}`}
                 style={{ paddingLeft: `${(depth * 16) + 16}px` }}
                 onClick={handleRowClick}
             >
@@ -117,13 +119,15 @@ const CatalogTree = ({ nodes = [], selectedIds, onToggleSelection }: any) => {
                         {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                     </button>
 
-                    <input
-                        type="checkbox"
-                        checked={isSelected}
-                        onChange={handleCheckboxChange}
-                        className="w-4 h-4 rounded border-white/20 bg-transparent text-primary focus:ring-primary/50 transition-all cursor-pointer mr-1"
-                        onClick={(e) => e.stopPropagation()}
-                    />
+                    {!hideCheckboxes && (
+                        <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={handleCheckboxChange}
+                            className="w-4 h-4 rounded border-white/20 bg-transparent text-primary focus:ring-primary/50 transition-all cursor-pointer mr-1"
+                            onClick={(e) => e.stopPropagation()}
+                        />
+                    )}
 
                     <div className="flex items-center gap-2 flex-1 min-w-0">
                         <NodeIcon type={nodeType} />

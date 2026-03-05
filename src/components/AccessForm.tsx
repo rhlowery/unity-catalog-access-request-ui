@@ -8,6 +8,7 @@ import { SelectedObjectsList } from './access-form/SelectedObjectsList';
 import { PrincipalSelector } from './access-form/PrincipalSelector';
 import { PermissionSelector } from './access-form/PermissionSelector';
 import { ConstraintSelector } from './access-form/ConstraintSelector';
+import { toast } from 'sonner';
 
 interface AccessFormProps {
     selectedObjects: any[];
@@ -68,27 +69,66 @@ export const AccessForm: React.FC<AccessFormProps> = ({ selectedObjects, onClear
     };
 
     const handleSubmit = () => {
+        // Validation: principals
         if (selectedPrincipals.length === 0) {
-            window.alert("Please select at least one principal.");
+            toast.error("Please select at least one principal.");
             return;
         }
 
+        // Validation: permissions
         if (selectedPermissions.length === 0) {
-            window.alert("Please select at least one permission.");
+            toast.error("Please select at least one permission.");
             return;
         }
 
+        // Validation: justification
         if (!justification.trim()) {
-            window.alert("Please provide a justification.");
+            toast.error("Please provide a justification.");
             return;
         }
+
+        // Validation: justification length
+        if (justification.trim().length < 10) {
+            toast.error("Justification must be at least 10 characters.");
+            return;
+        }
+
+        if (justification.trim().length > 1000) {
+            toast.error("Justification must be less than 1000 characters.");
+            return;
+        }
+
+        // Validation: time constraint dates
+        if (timeConstraint.type === 'RANGE') {
+            if (!timeConstraint.start || !timeConstraint.end) {
+                toast.error("Please provide both start and end dates.");
+                return;
+            }
+            const startDate = new Date(timeConstraint.start);
+            const endDate = new Date(timeConstraint.end);
+            if (endDate < startDate) {
+                toast.error("End date must be after start date.");
+                return;
+            }
+            // Check max range of 1 year
+            const oneYear = 365 * 24 * 60 * 60 * 1000;
+            if (endDate.getTime() - startDate.getTime() > oneYear) {
+                toast.error("Access duration cannot exceed 1 year.");
+                return;
+            }
+        }
+
+        // Sanitize inputs
+        const sanitizedJustification = justification.trim()
+            .replace(/[<>]/g, '') // Remove potential HTML tags
+            .slice(0, 1000); // Truncate to max length
 
         const request = {
             objects: selectedObjects,
             principals: selectedPrincipals,
             permissions: selectedPermissions,
             timeConstraint,
-            justification,
+            justification: sanitizedJustification,
             timestamp: Date.now()
         };
 

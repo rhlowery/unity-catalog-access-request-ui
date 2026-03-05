@@ -213,15 +213,15 @@ export const fetchCatalogs = async (workspaceUrl) => {
 
         const workspaceHost = new URL(workspaceUrl).hostname;
         const BFF_URL = import.meta.env.VITE_BFF_URL || 'http://localhost:3001';
-        const bffBase = `${BFF_URL}/api/uc`;
+        // Use typed SDK proxy endpoints for better error messages and server-side SDK compatibility
+        const sdkBase = `${BFF_URL}/api/sdk`;
         const bffHeaders = {
             'x-workspace-host': workspaceHost
         };
 
-        console.log(`[UCIdentityService] Fetching catalogs via BFF (Cookie-based) for ${workspaceHost}...`);
+        console.log(`[UCIdentityService] Fetching catalogs via BFF SDK proxy for ${workspaceHost}...`);
 
-        // 1. Fetch Catalogs via BFF
-        const catalogsRes = await fetch(`${bffBase}/catalogs`, {
+        const catalogsRes = await fetch(`${sdkBase}/catalogs`, {
             headers: bffHeaders,
             credentials: 'include'
         }).catch(e => {
@@ -248,8 +248,8 @@ export const fetchCatalogs = async (workspaceUrl) => {
                 children: []
             };
 
-            // Fetch Schemas via BFF
-            const schemasRes = await fetch(`${bffBase}/schemas?catalog_name=${cat.name}`, {
+            // Fetch Schemas via BFF SDK proxy
+            const schemasRes = await fetch(`${sdkBase}/schemas?catalog_name=${cat.name}`, {
                 headers: bffHeaders,
                 credentials: 'include'
             }).catch(() => null);
@@ -266,8 +266,8 @@ export const fetchCatalogs = async (workspaceUrl) => {
                         children: []
                     };
 
-                    // Fetch Tables via BFF
-                    const tablesRes = await fetch(`${bffBase}/tables?catalog_name=${cat.name}&schema_name=${sch.name}`, {
+                    // Fetch Tables via BFF SDK proxy
+                    const tablesRes = await fetch(`${sdkBase}/tables?catalog_name=${cat.name}&schema_name=${sch.name}`, {
                         headers: bffHeaders,
                         credentials: 'include'
                     }).catch(() => null);

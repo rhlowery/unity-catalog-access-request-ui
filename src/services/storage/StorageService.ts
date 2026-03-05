@@ -102,5 +102,17 @@ export const StorageService = {
     const config = await ConfigService.getResolvedConfig();
     const adapter = getAdapter(config);
     return await adapter.getGrants(object, config);
+  },
+
+  async getApprovers(): Promise<Record<string, string[]>> {
+    const config = await ConfigService.getResolvedConfig();
+    const adapter = getAdapter(config);
+    return await adapter.getApprovers(config);
+  },
+
+  async saveApprovers(approvers: Record<string, string[]>): Promise<boolean> {
+    const config = await ConfigService.getResolvedConfig();
+    const adapter = getAdapter(config);
+    return await adapter.saveApprovers(approvers, config);
   }
 };

@@ -10,6 +10,11 @@ export const apiClient = axios.create({
     },
 });
 
+apiClient.interceptors.request.use((config) => {
+    config.headers['X-Correlation-ID'] = crypto.randomUUID();
+    return config;
+});
+
 apiClient.interceptors.response.use(
     (response) => response,
     async (error) => {
