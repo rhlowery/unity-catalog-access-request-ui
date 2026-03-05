@@ -314,9 +314,9 @@ export const MOCK_USERS = [
         email: 'alex@company.com',
         type: 'USER',
         initials: 'AA',
-        role: 'STANDARD_USER',
+        role: 'USER',
         groups: ['group_all_users', 'group_finance_analysts'],
-        description: 'Standard user with basic access to finance data'
+        description: 'Standard user — can browse catalog and submit access requests'
     },
     {
         id: 'user_finance_approver',
@@ -324,19 +324,29 @@ export const MOCK_USERS = [
         email: 'sarah.f@company.com',
         type: 'USER',
         initials: 'SF',
-        role: 'FINANCE_APPROVER',
-        groups: ['group_all_users', 'group_finance_admins', 'group_finance_analysts'],
-        description: 'Finance approver with elevated permissions for financial data'
+        role: 'APPROVER',
+        groups: ['group_all_users', 'group_finance_admins'],
+        description: 'Approver persona — group_finance_admins is assigned as approver of finance objects'
     },
     {
-        id: 'user_marketing_approver',
-        name: 'Mike Marketing',
-        email: 'mike.m@company.com',
+        id: 'user_hr_approver',
+        name: 'Dana HR',
+        email: 'dana.hr@company.com',
         type: 'USER',
-        initials: 'MM',
-        role: 'MARKETING_APPROVER',
-        groups: ['group_all_users', 'group_marketing_admins', 'group_marketing_analysts'],
-        description: 'Marketing approver with permissions for marketing data and campaigns'
+        initials: 'DH',
+        role: 'APPROVER',
+        groups: ['group_all_users', 'group_hr_admins'],
+        description: 'Approver persona — group_hr_admins is assigned as approver of HR objects'
+    },
+    {
+        id: 'user_auditor',
+        name: 'Chris Auditor',
+        email: 'chris.a@company.com',
+        type: 'USER',
+        initials: 'CA',
+        role: 'ACCESS_AUDITOR',
+        groups: ['group_all_users', 'group_auditors'],
+        description: 'Access Auditor persona — can view the Audit Log'
     },
     {
         id: 'user_security_admin',
@@ -345,8 +355,18 @@ export const MOCK_USERS = [
         type: 'USER',
         initials: 'JS',
         role: 'SECURITY_ADMIN',
-        groups: ['group_all_users', 'group_security', 'group_platform_admins', 'group_audit_admins'],
-        description: 'Security admin with full system access and audit capabilities'
+        groups: ['group_all_users', 'group_security'],
+        description: 'Security Admin persona — can view Audit Log and Data Approvers tabs'
+    },
+    {
+        id: 'user_platform_admin',
+        name: 'Pat Platform',
+        email: 'pat.p@company.com',
+        type: 'USER',
+        initials: 'PP',
+        role: 'PLATFORM_ADMIN',
+        groups: ['group_all_users', 'group_platform_admins'],
+        description: 'Platform Admin — full access to all tabs and Settings dialog'
     }
 ];
 
@@ -354,25 +374,35 @@ export const MOCK_IDENTITIES = {
     users: [
         { id: 'user_standard', name: 'Alex Analyst', email: 'alex@company.com', type: 'USER' },
         { id: 'user_finance_approver', name: 'Sarah Finance', email: 'sarah.f@company.com', type: 'USER' },
-        { id: 'user_marketing_approver', name: 'Mike Marketing', email: 'mike.m@company.com', type: 'USER' },
+        { id: 'user_hr_approver', name: 'Dana HR', email: 'dana.hr@company.com', type: 'USER' },
+        { id: 'user_auditor', name: 'Chris Auditor', email: 'chris.a@company.com', type: 'USER' },
         { id: 'user_security_admin', name: 'Jane Security', email: 'jane.s@company.com', type: 'USER' },
+        { id: 'user_platform_admin', name: 'Pat Platform', email: 'pat.p@company.com', type: 'USER' },
     ],
     groups: [
         { id: 'group_all_users', name: 'All Users', type: 'GROUP' },
         { id: 'group_finance_analysts', name: 'Finance Analysts', type: 'GROUP' },
         { id: 'group_finance_admins', name: 'Finance Admins', type: 'GROUP' },
-        { id: 'group_marketing_analysts', name: 'Marketing Analysts', type: 'GROUP' },
+        { id: 'group_hr_admins', name: 'HR Admins', type: 'GROUP' },
+        { id: 'group_marketing', name: 'Marketing', type: 'GROUP' },
         { id: 'group_marketing_admins', name: 'Marketing Admins', type: 'GROUP' },
-        { id: 'group_security', name: 'Security Team', type: 'GROUP' },
-        { id: 'group_platform_admins', name: 'Platform Admins', type: 'GROUP' },
+        // Persona-granting groups
+        { id: 'group_auditors', name: 'Access Auditors', type: 'GROUP' },
         { id: 'group_audit_admins', name: 'Audit Admins', type: 'GROUP' },
+        { id: 'group_security', name: 'Security Admins', type: 'GROUP' },
+        { id: 'group_platform_admins', name: 'Platform Admins', type: 'GROUP' },
+        // Other functional groups
+        { id: 'group_compliance_team', name: 'Compliance Team', type: 'GROUP' },
+        { id: 'group_risk_analysts', name: 'Risk Analysts', type: 'GROUP' },
         { id: 'group_data_scientists', name: 'Data Scientists', type: 'GROUP' },
+        { id: 'group_governance', name: 'Governance Team', type: 'GROUP' },
     ],
     servicePrincipals: [
         { id: 'sp_etl_job', name: 'ETL Job Runner', type: 'SERVICE_PRINCIPAL' },
         { id: 'sp_bi_tool', name: 'BI Tool Connector', type: 'SERVICE_PRINCIPAL' },
     ],
 };
+
 
 export const PERMISSIONS = [
     'SELECT', 'MODIFY', 'USE_SCHEMA', 'USE_CATALOG', 'ALL_PRIVILEGES',

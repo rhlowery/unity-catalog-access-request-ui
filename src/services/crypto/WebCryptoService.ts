@@ -33,10 +33,18 @@ export class WebCryptoService implements CryptoService {
       const keyData = encoder.encode(password);
 
       const saltEnv = import.meta.env.VITE_ENCRYPTION_SALT;
-      if (!saltEnv) {
-        console.warn('[WebCryptoService] No VITE_ENCRYPTION_SALT set - using runtime-generated salt');
+
+      let salt: Uint8Array<ArrayBuffer>;
+      if (saltEnv) {
+        salt = encoder.encode(saltEnv) as Uint8Array<ArrayBuffer>;
+      } else {
+        // Derive a stable salt from the password using SHA-256 so that
+        // encrypt() and decrypt() always produce the same key for the same
+        // password, even when VITE_ENCRYPTION_SALT is not configured.
+        console.warn('[WebCryptoService] No VITE_ENCRYPTION_SALT set - deriving salt from password');
+        const hashBuffer = await crypto.subtle.digest('SHA-256', keyData) as ArrayBuffer;
+        salt = new Uint8Array(hashBuffer) as Uint8Array<ArrayBuffer>;
       }
-      const salt = encoder.encode(saltEnv || crypto.randomUUID());
 
       const keyMaterial = await crypto.subtle.importKey(
         'raw', keyData, { name: 'PBKDF2' }, false, ['deriveKey']

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { ShieldCheck, X, Settings, Menu } from 'lucide-react';
+import { ShieldCheck, Settings, Menu } from 'lucide-react';
 import { useAuth } from '../context/AuthProvider';
 import ErrorBoundary from './ErrorBoundary';
 import Sidebar from './Sidebar';
@@ -8,6 +8,7 @@ import { StorageService } from '../services/storage/StorageService';
 import { ConfigService } from '../services/config/ConfigService';
 import { useQuery } from '@tanstack/react-query';
 import { ViewModeTabs, UserControls, ContentView, ComponentLoader } from './OptimizedComponents';
+import { usePersona } from '../hooks/usePersona';
 import { lazy } from 'react';
 const AdminSettings = lazy(() => import('./AdminSettings'));
 
@@ -52,6 +53,9 @@ const MainLayout = () => {
   const [viewMode, setViewMode] = useState('REVIEWER');
   const [pendingCount] = useState(0);
   const [errorCount] = useState(0);
+
+  // Resolve the user's effective persona and tab capabilities
+  const persona = usePersona(user);
   const [showSettings, setShowSettings] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(300);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -219,12 +223,22 @@ const MainLayout = () => {
 
         <div className="flex-1 flex items-center h-full px-2 sm:px-8 gap-4 overflow-hidden">
           <div className="flex-1 flex justify-center sm:justify-start lg:justify-center overflow-x-auto hide-scrollbar">
-            <ViewModeTabs viewMode={viewMode} setViewMode={setViewMode} pendingCount={pendingCount} errorCount={errorCount} user={user} />
+            <ViewModeTabs
+              viewMode={viewMode}
+              setViewMode={setViewMode}
+              pendingCount={pendingCount}
+              errorCount={errorCount}
+              user={user}
+              canViewApprover={persona.canViewApprover}
+              canViewDataApprovers={persona.canViewDataApprovers}
+              canViewAuditLog={persona.canViewAuditLog}
+              canViewUserGroupManagement={persona.canViewUserGroupManagement}
+            />
           </div>
 
           <div className="flex items-center gap-2 sm:gap-4 shrink-0">
             <ModeToggle />
-            <UserControls user={user} logout={logout} />
+            <UserControls user={user} logout={logout} persona={persona.persona} />
           </div>
         </div>
       </header>
@@ -317,15 +331,18 @@ const MainLayout = () => {
           </div>
         </div>
         <div className="flex items-center gap-6">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-full transition-all"
-            onClick={() => setShowSettings(true)}
-            title="Settings"
-          >
-            <Settings size={16} />
-          </Button>
+          {/* Settings only accessible to Platform Admins */}
+          {persona.canAccessSettings && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-full transition-all"
+              onClick={() => setShowSettings(true)}
+              title="Settings"
+            >
+              <Settings size={16} />
+            </Button>
+          )}
           <span className="opacity-60">Unity Catalog Access Request UI</span>
         </div>
       </footer>

@@ -297,7 +297,14 @@ export class SessionManagerService implements ISessionManager {
   }
 
   private async getClientIP(): Promise<string | undefined> {
-    return undefined;
+    try {
+      const BFF_URL = import.meta.env.VITE_BFF_URL || 'http://localhost:3001';
+      const response = await fetch(`${BFF_URL}/api/client-ip`);
+      const data = await response.json();
+      return data.ip as string | undefined;
+    } catch {
+      return undefined;
+    }
   }
 
   private notifySessionExpiring(session: SessionInfo, timeUntilExpiry: number): void {

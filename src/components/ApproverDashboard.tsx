@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthProvider';
 import { getRequests, approveRequest, MOCK_IDENTITIES } from '../services/mockData';
 import { ConfigService } from '../services/config/ConfigService';
 import { ObservabilityService } from '../services/ObservabilityService';
+import { usePersona } from '../hooks/usePersona';
 import ErrorTestPanel from './ErrorTestPanel';
 
 import { Button } from '@/components/ui/button';
@@ -29,16 +30,14 @@ const ApproverDashboard = () => {
     const [denialState, setDenialState] = useState<{ reqId: string | null; reason: string }>({ reqId: null, reason: '' });
     const [activePersona, setActivePersona] = useState('group_governance');
 
-    const hasApproverAccess = user?.groups?.some(g =>
-        ['admins', 'admin', 'approvers', 'governance'].includes(g.toLowerCase())
-    ) || user?.role === 'ADMIN' || user?.role === 'APPROVER';
+    const { canViewApprover: hasApproverAccess } = usePersona(user);
 
-    const personas = [
+    const personaOptions = [
         { id: 'group_governance', name: 'Governance Team' },
-        { id: 'user_marketing_lead', name: 'Marketing Lead' },
         { id: 'group_finance_admins', name: 'Finance Admins' },
-        { id: 'group_data_scientists', name: 'Data Scientists' },
-        { id: 'group_legal_compliance', name: 'Legal Compliance' },
+        { id: 'group_hr_admins', name: 'HR Admins' },
+        { id: 'group_security', name: 'Security Admins' },
+        { id: 'group_marketing', name: 'Marketing Admins' },
     ];
 
     const config = ConfigService.getConfig();
@@ -138,7 +137,7 @@ const ApproverDashboard = () => {
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent className="bg-background/95 backdrop-blur-xl border-white/10">
-                                {personas.map(p => (
+                                {personaOptions.map(p => (
                                     <SelectItem key={p.id} value={p.id} className="text-sm">
                                         {p.name}
                                     </SelectItem>

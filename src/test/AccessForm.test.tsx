@@ -3,9 +3,18 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AccessForm } from '../components/AccessForm';
 import { IdentityService } from '../services/identity/IdentityService';
+import { toast } from 'sonner';
 
 // Mock all dependencies
 vi.mock('../services/identity/IdentityService');
+vi.mock('sonner', () => ({
+    toast: {
+        error: vi.fn(),
+        success: vi.fn(),
+        info: vi.fn(),
+    },
+    Toaster: () => null,
+}));
 
 const mockIdentities = {
     users: [
@@ -74,8 +83,6 @@ describe('AccessForm', () => {
     });
 
     it('should alert if submitting with no principal selected', async () => {
-        const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => { });
-
         render(
             <AccessForm
                 selectedObjects={mockSelectedObjects}
@@ -87,15 +94,11 @@ describe('AccessForm', () => {
         const submitBtn = await screen.findByRole('button', { name: /Submit Provisioning Request/i });
         await userEvent.click(submitBtn);
 
-        expect(alertSpy).toHaveBeenCalledWith('Please select at least one principal.');
+        expect(toast.error).toHaveBeenCalledWith('Please select at least one principal.');
         expect(onSubmitMock).not.toHaveBeenCalled();
-
-        alertSpy.mockRestore();
     });
 
     it('should alert if submitting with no permission selected', async () => {
-        const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => { });
-
         render(
             <AccessForm
                 selectedObjects={mockSelectedObjects}
@@ -113,9 +116,7 @@ describe('AccessForm', () => {
         await userEvent.click(submitBtn);
 
         // Still no principal selected at this point
-        expect(alertSpy).toHaveBeenCalled();
+        expect(toast.error).toHaveBeenCalled();
         expect(onSubmitMock).not.toHaveBeenCalled();
-
-        alertSpy.mockRestore();
     });
 });
