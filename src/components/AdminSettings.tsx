@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Bug, Save, Lock, CheckCircle, Info } from 'lucide-react';
+import { Bug, Save, Lock, CheckCircle, Info, Activity, FileText } from 'lucide-react';
 import { ConfigService } from '../services/config/ConfigService';
 import { EventBus } from '../services/EventBus';
 import { clearTokenCache } from '../services/UCIdentityService';
@@ -34,6 +34,8 @@ import IdentitySettingsTab from './settings/IdentitySettingsTab';
 import SecretsSettingsTab from './settings/SecretsSettingsTab';
 import UnityCatalogSettingsTab from './settings/UnityCatalogSettingsTab';
 import DebugSettingsTab from './settings/DebugSettingsTab';
+import AdminHealthTab from './settings/AdminHealthTab';
+import AdminAuditTab from './settings/AdminAuditTab';
 
 const AdminSettings = () => {
     const [config, setConfig] = useState(ConfigService.getConfig());
@@ -66,6 +68,12 @@ const AdminSettings = () => {
                         <TabsTrigger value="IDENTITY" className="px-4 whitespace-nowrap">Identity</TabsTrigger>
                         <TabsTrigger value="SECRETS" className="px-4 whitespace-nowrap">Secrets</TabsTrigger>
                         <TabsTrigger value="UNITY_CATALOG" className="px-4 whitespace-nowrap">Unity Catalog</TabsTrigger>
+                        <TabsTrigger value="HEALTH" className="px-4 whitespace-nowrap flex gap-2 items-center">
+                            <Activity size={14} /> Health
+                        </TabsTrigger>
+                        <TabsTrigger value="AUDIT" className="px-4 whitespace-nowrap flex gap-2 items-center">
+                            <FileText size={14} /> Audit
+                        </TabsTrigger>
                         {import.meta.env.DEV && (
                             <TabsTrigger value="DEBUG" className="px-4 gap-2 whitespace-nowrap">
                                 <Bug size={14} /> Debug
@@ -87,6 +95,12 @@ const AdminSettings = () => {
                         </TabsContent>
                         <TabsContent value="UNITY_CATALOG" className="mt-0">
                             <UnityCatalogSettingsTab config={config} setConfig={setConfig} />
+                        </TabsContent>
+                        <TabsContent value="HEALTH" className="mt-0">
+                            <AdminHealthTab />
+                        </TabsContent>
+                        <TabsContent value="AUDIT" className="mt-0">
+                            <AdminAuditTab />
                         </TabsContent>
                         {import.meta.env.DEV && (
                             <TabsContent value="DEBUG" className="mt-0">

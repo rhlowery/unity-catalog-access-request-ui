@@ -9,8 +9,9 @@ import { StorageService } from './storage/StorageService';
 import { ConfigService } from './config/ConfigService';
 import { SecretsService } from './secrets/SecretsService';
 
+import { apiClient } from '../lib/axios';
+
 const API_BASE = '/api/2.0/preview/scim/v2';
-const BFF_URL = import.meta.env.VITE_BFF_URL || 'http://localhost:3001';
 
 // Simple in-memory cache for demo purposes
 let cachedToken = null;
@@ -55,24 +56,12 @@ export const getM2MToken = async (config) => {
         const host = new URL(baseUrl).hostname;
         // Route through BFF to keep client_secret off the browser
         // Security: We send host, clientId, and clientSecret. The BFF converts these into an HttpOnly cookie.
-        const tokenRes = await fetch(`${BFF_URL}/api/token`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include', // Important for cookies
-            body: JSON.stringify({
-                host: host,
-                clientId: config.ucClientId,
-                clientSecret: clientSecret
-            })
+        await apiClient.post('/api/token', {
+            host: host,
+            clientId: config.ucClientId,
+            clientSecret: clientSecret
         });
 
-        if (!tokenRes.ok) {
-            const errorBody = await tokenRes.text().catch(() => 'No body');
-            console.error(`[UCIdentityService] BFF Token exchange failed. Status: ${tokenRes.status}, Body: ${errorBody}`);
-            throw new Error(`Token exchange failed with status ${tokenRes.status}`);
-        }
-
-        const data = await tokenRes.json();
         // Since the token is in the cookie, we can return a placeholder or something to signal success
         cachedToken = 'COOKIE_BASED_TOKEN';
         console.log("[UCIdentityService] Token exchange successful; stored in cookie.");
@@ -103,43 +92,37 @@ export const fetchUCIdentities = async () => {
 
         console.log(`Fetching identities from Unity Catalog via BFF (Cookie-based)...`);
 
-        const BFF_URL = import.meta.env.VITE_BFF_URL || 'http://localhost:3001';
-        const scimBase = `${BFF_URL}/api/scim`;
-
         const bffHeaders = { 'x-scim-host': new URL(baseUrl).hostname };
 
         const [usersRes, groupsRes, spRes] = await Promise.allSettled([
-            fetch(`${scimBase}${scimPath}/Users`, { headers: bffHeaders, credentials: 'include' }),
-            fetch(`${scimBase}${scimPath}/Groups`, { headers: bffHeaders, credentials: 'include' }),
-            fetch(`${scimBase}${scimPath}/ServicePrincipals`, { headers: bffHeaders, credentials: 'include' })
+            apiClient.get(`/api/scim${scimPath}/Users`, { headers: bffHeaders }),
+            apiClient.get(`/api/scim${scimPath}/Groups`, { headers: bffHeaders }),
+            apiClient.get(`/api/scim${scimPath}/ServicePrincipals`, { headers: bffHeaders })
         ]);
-        // ... (rest of the normalization logic)
 
-        const users = usersRes.status === 'fulfilled' ? await usersRes.value.json() : { Resources: [] };
-        const groups = groupsRes.status === 'fulfilled' ? await groupsRes.value.json() : { Resources: [] };
-        const sps = spRes.status === 'fulfilled' ? await spRes.value.json() : { Resources: [] };
+        const users = usersRes.status === 'fulfilled' ? usersRes.value.data : { Resources: [] };
+        const groups = groupsRes.status === 'fulfilled' ? groupsRes.value.data : { Resources: [] };
+        const sps = spRes.status === 'fulfilled' ? spRes.value.data : { Resources: [] };
 
         // Normalize Data
-        const normalizedUsers = (users.Resources || []).map(u => ({
+        const normalizedUsers = (users.Resources || []).map((u: any) => ({
             id: u.id,
-            name: u.userName || u.displayName, // SCIM users usually have userName
+            name: u.userName || u.displayName,
             email: u.userName,
             type: 'USER'
         }));
 
-        const normalizedGroups = (groups.Resources || []).map(g => ({
+        const normalizedGroups = (groups.Resources || []).map((g: any) => ({
             id: g.id,
             name: g.displayName,
             type: 'GROUP'
         }));
 
-        const normalizedSPs = (sps.Resources || []).map(sp => ({
+        const normalizedSPs = (sps.Resources || []).map((sp: any) => ({
             id: sp.id,
             name: sp.displayName || sp.applicationId,
             type: 'SERVICE_PRINCIPAL'
         }));
-
-        console.log(`Fetched ${normalizedUsers.length} users, ${normalizedGroups.length} groups, ${normalizedSPs.length} SPs.`);
 
         return {
             users: normalizedUsers,
@@ -168,31 +151,22 @@ export const fetchWorkspaces = async () => {
         const baseUrl = getAccountBaseUrl(config);
         const workspaceHost = new URL(baseUrl).hostname;
 
-        const BFF_URL = import.meta.env.VITE_BFF_URL || 'http://localhost:3001';
         // Route through BFF /api/uc proxy
-        const workspacesUrl = `${BFF_URL}/api/uc/api/2.0/accounts/${config.ucAccountId}/workspaces`;
+        const workspacesUrl = `/api/uc/api/2.0/accounts/${config.ucAccountId}/workspaces`;
 
-        console.log(`[UCIdentityService] Fetching Workspaces via BFF (Cookie-based): ${workspacesUrl}`);
+        console.log(`[UCIdentityService] Fetching Workspaces via BFF: ${workspacesUrl}`);
 
-        const res = await fetch(workspacesUrl, {
-            headers: {
-                'x-workspace-host': workspaceHost
-            },
-            credentials: 'include'
+        const res = await apiClient.get(workspacesUrl, {
+            headers: { 'x-workspace-host': workspaceHost }
         });
-        if (!res.ok) {
-            const errorBody = await res.text().catch(() => 'No body');
-            console.error(`[UCIdentityService] Workspaces Fetch Failed. Status: ${res.status}, Body: ${errorBody}`);
-            throw new Error(`Workspaces Fetch Failed: ${res.statusText}`);
-        }
 
-        const data = await res.json();
+        const data = res.data;
         console.log(`[UCIdentityService] Successfully fetched ${data.length || 0} workspaces.`);
 
         const hostUrl = new URL(baseUrl);
         const domain = hostUrl.hostname.split('.').slice(1).join('.');
 
-        return (data.map(ws => ({
+        return (data.map((ws: any) => ({
             id: ws.workspace_id,
             name: ws.workspace_name,
             url: `https://${ws.deployment_name}.${domain}`
@@ -204,94 +178,115 @@ export const fetchWorkspaces = async () => {
     }
 };
 
-export const fetchCatalogs = async (workspaceUrl) => {
+/**
+ * Fetch top-level Catalogs only (for lazy loading).
+ */
+export const fetchCatalogs = async (workspaceUrl: string) => {
     try {
         const config = await ConfigService.getResolvedConfig();
-
-        // 1. Ensure cookie is set
         await getM2MToken(config);
 
         const workspaceHost = new URL(workspaceUrl).hostname;
-        const BFF_URL = import.meta.env.VITE_BFF_URL || 'http://localhost:3001';
-        // Use typed SDK proxy endpoints for better error messages and server-side SDK compatibility
-        const sdkBase = `${BFF_URL}/api/sdk`;
-        const bffHeaders = {
-            'x-workspace-host': workspaceHost
-        };
+        const bffHeaders = { 'x-workspace-host': workspaceHost };
 
-        console.log(`[UCIdentityService] Fetching catalogs via BFF SDK proxy for ${workspaceHost}...`);
+        console.log(`[UCIdentityService] Fetching top-level catalogs for ${workspaceHost}...`);
 
-        const catalogsRes = await fetch(`${sdkBase}/catalogs`, {
-            headers: bffHeaders,
-            credentials: 'include'
-        }).catch(e => {
-            console.error(`[UCIdentityService] Network error fetching catalogs:`, e);
-            return null;
+        const res = await apiClient.get('/api/sdk/catalogs', {
+            headers: bffHeaders
         });
 
-        if (!catalogsRes || !catalogsRes.ok) {
-            const status = catalogsRes ? `${catalogsRes.status} ${catalogsRes.statusText}` : 'Network Error';
-            console.warn(`[UCIdentityService] Failed to fetch catalogs (${status}). Using Mock data for demo.`);
-            return null;
-        }
-
-        const catalogsData = await catalogsRes.json();
-        const catalogs = catalogsData.catalogs || [];
-        console.log(`[UCIdentityService] Found ${catalogs.length} catalogs.`);
-
-        // 2. Build Tree (Parallel fetch for Schemas)
-        const tree = await Promise.all(catalogs.map(async (cat) => {
-            const catNode = {
-                id: cat.name, // using name as ID for simplicity or cat.catalog_name
-                name: cat.name,
-                type: 'CATALOG',
-                children: []
-            };
-
-            // Fetch Schemas via BFF SDK proxy
-            const schemasRes = await fetch(`${sdkBase}/schemas?catalog_name=${cat.name}`, {
-                headers: bffHeaders,
-                credentials: 'include'
-            }).catch(() => null);
-            if (schemasRes && schemasRes.ok) {
-                const schemasData = await schemasRes.json();
-                const schemas = schemasData.schemas || [];
-
-                catNode.children = await Promise.all(schemas.map(async (sch) => {
-                    const schNode = {
-                        id: `${cat.name}.${sch.name}`,
-                        name: sch.name,
-                        type: 'SCHEMA',
-                        parentId: catNode.id,
-                        children: []
-                    };
-
-                    // Fetch Tables via BFF SDK proxy
-                    const tablesRes = await fetch(`${sdkBase}/tables?catalog_name=${cat.name}&schema_name=${sch.name}`, {
-                        headers: bffHeaders,
-                        credentials: 'include'
-                    }).catch(() => null);
-                    if (tablesRes && tablesRes.ok) {
-                        const tablesData = await tablesRes.json();
-                        const tables = tablesData.tables || [];
-                        schNode.children = tables.map(tbl => ({
-                            id: `${cat.name}.${sch.name}.${tbl.name}`,
-                            name: tbl.name,
-                            type: tbl.table_type === 'VIEW' ? 'VIEW' : 'TABLE',
-                            parentId: schNode.id,
-                            owners: [tbl.owner]
-                        }));
-                    }
-                    return schNode;
-                }));
-            }
-            return catNode;
+        const catalogs = res.data.catalogs || [];
+        return catalogs.map((cat: any) => ({
+            id: cat.name,
+            name: cat.name,
+            type: 'CATALOG' as const,
+            hasChildren: true, // Optimistically assume schemas exist
+            children: []
         }));
-
-        return tree;
     } catch (e) {
-        console.error("Error in fetchCatalogs:", e);
+        console.error("[UCIdentityService] Failed to fetch catalogs:", e);
         return null;
+    }
+};
+
+/**
+ * Fetch Schemas for a specific Catalog (with pagination support).
+ */
+export const fetchSchemas = async (workspaceUrl: string, catalogName: string, pageToken?: string) => {
+    try {
+        const workspaceHost = new URL(workspaceUrl).hostname;
+        const bffHeaders = { 'x-workspace-host': workspaceHost };
+
+        const res = await apiClient.get(`/api/sdk/schemas`, {
+            headers: bffHeaders,
+            params: { catalog_name: catalogName, page_token: pageToken }
+        });
+
+        const schemas = res.data.schemas || [];
+        return {
+            items: schemas.map((sch: any) => ({
+                id: `${catalogName}.${sch.name}`,
+                name: sch.name,
+                type: 'SCHEMA' as const,
+                parentId: catalogName,
+                hasChildren: true,
+                children: []
+            })),
+            nextPageToken: res.data.next_page_token
+        };
+    } catch (e) {
+        console.error(`[UCIdentityService] Failed to fetch schemas for ${catalogName}:`, e);
+        return { items: [] };
+    }
+};
+
+/**
+ * Fetch Tables for a specific Schema (with pagination support).
+ */
+export const fetchTables = async (workspaceUrl: string, catalogName: string, schemaName: string, pageToken?: string) => {
+    try {
+        const workspaceHost = new URL(workspaceUrl).hostname;
+        const bffHeaders = { 'x-workspace-host': workspaceHost };
+
+        const res = await apiClient.get(`/api/sdk/tables`, {
+            headers: bffHeaders,
+            params: { catalog_name: catalogName, schema_name: schemaName, page_token: pageToken }
+        });
+
+        const tables = res.data.tables || [];
+        return {
+            items: tables.map((tbl: any) => ({
+                id: `${catalogName}.${schemaName}.${tbl.name}`,
+                name: tbl.name,
+                type: (tbl.table_type === 'VIEW' ? 'VIEW' : 'TABLE') as any,
+                parentId: `${catalogName}.${schemaName}`,
+                owners: [tbl.owner]
+            })),
+            nextPageToken: res.data.next_page_token
+        };
+    } catch (e) {
+        console.error(`[UCIdentityService] Failed to fetch tables for ${schemaName}:`, e);
+        return { items: [] };
+    }
+};
+
+/**
+ * Global search across catalogs/schemas/tables.
+ */
+export const searchCatalog = async (workspaceUrl: string, query: string) => {
+    try {
+        const workspaceHost = new URL(workspaceUrl).hostname;
+        const bffHeaders = { 'x-workspace-host': workspaceHost };
+
+        const res = await apiClient.get('/api/catalog/search', {
+            headers: bffHeaders,
+            params: { query }
+        });
+
+        return res.data.results || [];
+    } catch (e) {
+        console.error("[UCIdentityService] Search failed:", e);
+        return [];
     }
 };
 
@@ -311,17 +306,11 @@ export const fetchMe = async () => {
 
         console.log(`[UCIdentityService] Fetching /Me from ${scimHost}...`);
 
-        const res = await fetch(`${BFF_URL}/api/scim/api/2.0/preview/scim/v2/Me`, {
-            headers: { 'x-scim-host': scimHost },
-            credentials: 'include'
+        const res = await apiClient.get(`/api/scim/api/2.0/preview/scim/v2/Me`, {
+            headers: { 'x-scim-host': scimHost }
         });
 
-        if (!res.ok) {
-            console.warn(`[UCIdentityService] SCIM /Me failed (${res.status}).`);
-            return null;
-        }
-
-        const u = await res.json();
+        const u = res.data;
         return {
             id: u.id,
             name: u.displayName || u.userName,

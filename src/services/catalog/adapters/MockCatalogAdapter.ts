@@ -25,7 +25,7 @@ export const MockCatalogAdapter: ICatalogAdapter = {
         ];
     },
 
-    async fetchCatalogs(workspaceUrl: string, config: any): Promise<CatalogNode[]> {
+    async fetchCatalogs(workspaceUrl: string): Promise<CatalogNode[]> {
         await new Promise(resolve => setTimeout(resolve, 500));
         return MOCK_CATALOGS;
     },

@@ -10,8 +10,31 @@ export const apiClient = axios.create({
     },
 });
 
-apiClient.interceptors.request.use((config) => {
+apiClient.interceptors.request.use(async (config) => {
     config.headers['X-Correlation-ID'] = crypto.randomUUID();
+
+    // Inject identity headers from active session
+    try {
+        const session = await SessionManager.getActiveSession();
+        if (session) {
+            config.headers['X-User-Id'] = session.userId;
+            config.headers['X-User-Groups'] = (session.userGroups || []).join(',');
+        }
+    } catch (e) {
+        console.warn('[apiClient] Failed to fetch session for headers', e);
+    }
+
+    // Inject CSRF token from cookie
+    if (config.method !== 'get' && config.method !== 'head') {
+        const csrfToken = document.cookie
+            .split('; ')
+            .find(row => row.startsWith('csrf_token='))
+            ?.split('=')[1];
+        if (csrfToken) {
+            config.headers['X-CSRF-Token'] = csrfToken;
+        }
+    }
+
     return config;
 });
 

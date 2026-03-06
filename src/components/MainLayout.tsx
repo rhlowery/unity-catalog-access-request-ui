@@ -51,6 +51,73 @@ const MainLayout = () => {
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [selectedObjects, setSelectedObjects] = useState<any[]>([]);
   const [viewMode, setViewMode] = useState('REVIEWER');
+  const [treeData, setTreeData] = useState<any[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+
+  // Sync initial catalogs into tree state
+  useEffect(() => {
+    if (catalogs && catalogs.length > 0 && !isSearching) {
+      setTreeData(catalogs);
+    }
+  }, [catalogs, isSearching]);
+
+  const handleExpand = useCallback(async (node: any) => {
+    if (!selectedWorkspaceId) return;
+
+    if (node.type === 'CATALOG') {
+      const { items } = await CatalogService.fetchSchemas(selectedWorkspaceId, node.name);
+      setTreeData(prev => {
+        const updateChildren = (list: any[]): any[] => {
+          return list.map(item => {
+            if (item.id === node.id) {
+              return { ...item, children: items };
+            }
+            if (item.children) {
+              return { ...item, children: updateChildren(item.children) };
+            }
+            return item;
+          });
+        };
+        return updateChildren(prev);
+      });
+    } else if (node.type === 'SCHEMA') {
+      const [catalogName, schemaName] = node.id.split('.');
+      const { items } = await CatalogService.fetchTables(selectedWorkspaceId, catalogName, schemaName);
+      setTreeData(prev => {
+        const updateChildren = (list: any[]): any[] => {
+          return list.map(item => {
+            if (item.id === node.id) {
+              return { ...item, children: items };
+            }
+            if (item.children) {
+              return { ...item, children: updateChildren(item.children) };
+            }
+            return item;
+          });
+        };
+        return updateChildren(prev);
+      });
+    }
+  }, [selectedWorkspaceId]);
+
+  const handleSearch = useCallback(async (query: string) => {
+    if (!query) {
+      setIsSearching(false);
+      setTreeData(catalogs || []);
+      return;
+    }
+
+    setIsSearching(true);
+    const results = await CatalogService.searchCatalog(selectedWorkspaceId, query);
+    setTreeData(results.map((r: any) => ({
+      id: `${r.catalog_name}.${r.schema_name}.${r.name}`,
+      name: r.name,
+      type: r.table_type || 'TABLE',
+      catalog: r.catalog_name,
+      schema: r.schema_name
+    })));
+  }, [selectedWorkspaceId, catalogs]);
+
   const [pendingCount] = useState(0);
   const [errorCount] = useState(0);
 
@@ -248,9 +315,11 @@ const MainLayout = () => {
           <div style={sidebarStyles}>
             <ErrorBoundary>
               <Sidebar
-                catalogs={catalogs}
+                catalogs={treeData}
                 selectedIds={selectedIds}
                 onToggleSelection={handleToggleSelection}
+                onExpand={handleExpand}
+                onSearch={handleSearch}
                 workspaces={workspaces}
                 selectedWorkspaceId={selectedWorkspaceId}
                 onWorkspaceChange={setSelectedWorkspaceId}

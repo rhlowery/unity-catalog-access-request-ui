@@ -28,10 +28,19 @@ export const MockIdentityAdapter: IIdentityAdapter = {
         return null;
     },
 
-    async login(provider: string, _config: any, _credentials?: any) {
-        console.log(`[MockIdentity] Login with ${provider}`);
+    async login(provider: string, _config: any, credentials?: any) {
+        console.log(`[MockIdentity] Login with ${provider}`, credentials);
 
-        // For MOCK provider, show user selection
+        // If credentials contains a specific user ID, authenticate as that user
+        if (credentials?.id) {
+            const user = MOCK_USERS.find(u => u.id === credentials.id);
+            if (user) {
+                localStorage.setItem('mock_current_user', JSON.stringify(user));
+                return user;
+            }
+        }
+
+        // For MOCK provider, show user selection placeholder
         if (provider === 'MOCK') {
             console.log(`[MockIdentity] Available users:`, MOCK_USERS);
             return {

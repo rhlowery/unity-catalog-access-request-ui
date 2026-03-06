@@ -224,34 +224,15 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
             {/* Session Warning Modal */}
             {sessionWarning && (
-                <div style={{
-                    position: 'fixed',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    background: 'rgba(0, 0, 0, 0.7)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    zIndex: 9999
-                }}>
-                    <div style={{
-                        background: 'var(--glass-bg)',
-                        border: '1px solid var(--glass-border)',
-                        borderRadius: 'var(--border-radius)',
-                        padding: '2rem',
-                        maxWidth: '400px',
-                        width: '90%',
-                        textAlign: 'center'
-                    }}>
-                        <h3 style={{ color: 'var(--warning)', marginBottom: '1rem' }}>
+                <div className="modal-overlay">
+                    <div className="modal-content">
+                        <h3 className="modal-title warning">
                             Session Expiring Soon
                         </h3>
-                        <p style={{ color: 'var(--text-primary)', marginBottom: '1.5rem' }}>
+                        <p className="modal-body">
                             {sessionWarning.message}
                         </p>
-                        <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+                        <div className="modal-actions">
                             <button
                                 className="btn btn-primary"
                                 onClick={dismissSessionWarning}
@@ -274,34 +255,15 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
             {/* Session Expired Modal */}
             {sessionExpired && (
-                <div style={{
-                    position: 'fixed',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    background: 'rgba(0, 0, 0, 0.7)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    zIndex: 9999
-                }}>
-                    <div style={{
-                        background: 'var(--glass-bg)',
-                        border: '1px solid var(--glass-border)',
-                        borderRadius: 'var(--border-radius)',
-                        padding: '2rem',
-                        maxWidth: '400px',
-                        width: '90%',
-                        textAlign: 'center'
-                    }}>
-                        <h3 style={{ color: 'var(--danger)', marginBottom: '1rem' }}>
+                <div className="modal-overlay">
+                    <div className="modal-content">
+                        <h3 className="modal-title danger">
                             Session Expired
                         </h3>
-                        <p style={{ color: 'var(--text-primary)', marginBottom: '1.5rem' }}>
+                        <p className="modal-body">
                             {sessionExpired.message}
                         </p>
-                        <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+                        <div className="modal-actions">
                             <button
                                 className="btn btn-primary"
                                 onClick={dismissSessionExpired}

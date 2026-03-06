@@ -48,9 +48,21 @@ const Login = () => {
 
     const handleUserSelect = async (userId: string) => {
         try {
-            await selectMockUser(userId);
+            // Find the full user object from the available users
+            const selectedUser = user?.availableUsers?.find(u => u.id === userId);
+            if (!selectedUser) {
+                throw new Error(`User ${userId} not found`);
+            }
+
+            // Perform a secondary login with the selected user to establish the BFF session
+            await login('MOCK', selectedUser);
             setShowUserSelection(false);
-            window.location.reload();
+
+            // Success! The AuthProvider will update state and handle the redirect/reload if needed.
+            // We'll do a small delay and reload to Ensure everything is clean
+            setTimeout(() => {
+                window.location.reload();
+            }, 500);
         } catch (error) {
             console.error(`[Login] Error selecting user:`, error);
         }

@@ -104,7 +104,19 @@ app.use((_req, res, next) => {
     res.setHeader('X-Frame-Options', 'DENY');
     res.setHeader('X-XSS-Protection', '1; mode=block');
     res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
-    res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self';");
+    res.setHeader('Content-Security-Policy',
+        "default-src 'self'; " +
+        "script-src 'self' 'wasm-unsafe-eval'; " +
+        "style-src 'self' 'unsafe-inline'; " +
+        "img-src 'self' data: https:; " +
+        "font-src 'self' data:; " +
+        "connect-src 'self' https://*.databricks.com https://*.azuredatabricks.net; " +
+        "object-src 'none'; " +
+        "base-uri 'self'; " +
+        "form-action 'self'; " +
+        "frame-ancestors 'none'; " +
+        "upgrade-insecure-requests;"
+    );
     next();
 });
 
@@ -128,21 +140,19 @@ app.use(generalLimiter);
 const STORAGE_DIR = path.join(process.cwd(), 'data');
 const REQUESTS_FILE = path.join(STORAGE_DIR, 'requests.json');
 const APPROVERS_FILE = path.join(STORAGE_DIR, 'approvers.json');
+const AUDIT_FILE = path.join(STORAGE_DIR, 'audit.json');
 
 // Ensure storage directory exists
 if (!fs.existsSync(STORAGE_DIR)) {
     fs.mkdirSync(STORAGE_DIR, { recursive: true });
 }
 
-// Initialize requests file if not present
-if (!fs.existsSync(REQUESTS_FILE)) {
-    fs.writeFileSync(REQUESTS_FILE, JSON.stringify([], null, 2));
-}
-
-// Initialize approvers file if not present
-if (!fs.existsSync(APPROVERS_FILE)) {
-    fs.writeFileSync(APPROVERS_FILE, JSON.stringify({}, null, 2));
-}
+// Initialize files if not present
+[REQUESTS_FILE, APPROVERS_FILE, AUDIT_FILE].forEach(file => {
+    if (!fs.existsSync(file)) {
+        fs.writeFileSync(file, JSON.stringify(file === APPROVERS_FILE ? {} : [], null, 2));
+    }
+});
 
 // Health check
 app.get('/health', (_req: Request, res: Response) => {
@@ -167,7 +177,7 @@ app.get('/api/auth/csrf', (_req: Request, res: Response) => {
     res.cookie('csrf_token', csrfToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
+        sameSite: 'lax',
         maxAge: 3600000
     });
     res.json({ csrfToken });
@@ -178,6 +188,7 @@ const csrfLimiter = rateLimit({
     max: 100,
     message: { error: 'Too many requests, please try again later.' }
 });
+
 // =====================================================================
 // SECURITY: Helper and Middleware
 // =====================================================================
@@ -278,308 +289,281 @@ const validateCsrf = (req: Request, res: Response, next: () => void): void => {
 
 // =====================================================================
 // SECURITY: OAuth2 Token Exchange (Client Credentials)
-// This endpoint keeps the client_secret server-side, never exposing it
-// to the browser.
 // =====================================================================
 app.post('/api/token', authLimiter, async (req: Request, res: Response) => {
-    // Priority: 1. Request Body (runtime config), 2. Environment Variables
     const clientId = req.body.clientId || process.env.DATABRICKS_CLIENT_ID;
     const clientSecret = req.body.clientSecret || process.env.DATABRICKS_CLIENT_SECRET;
     const host = req.body.host || process.env.DATABRICKS_HOST;
 
     if (!clientId || !clientSecret || !host) {
-        console.error('[BFF] Token Error: Missing credentials');
-        return res.status(400).json({ error: 'DATABRICKS_CLIENT_ID, DATABRICKS_CLIENT_SECRET, and host are required (via env or body)' });
+        return res.status(400).json({ error: 'DATABRICKS_CLIENT_ID, DATABRICKS_CLIENT_SECRET, and host are required' });
     }
 
     try {
-        console.log(`[BFF] Exchanging credentials for host: ${host}`);
         const body = new URLSearchParams();
         body.append('grant_type', 'client_credentials');
         body.append('scope', 'all-apis');
 
-        const response = await axios.post(
-            `https://${host}/oidc/v1/token`,
-            body.toString(),
-            {
-                headers: {
-                    'Authorization': `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`,
-                    'Content-Type': 'application/x-www-form-urlencoded'
-                }
+        const response = await axios.post(`https://${host}/oidc/v1/token`, body.toString(), {
+            headers: {
+                'Authorization': `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`,
+                'Content-Type': 'application/x-www-form-urlencoded'
             }
-        );
-
-        const token = response.data.access_token;
-
-        // Set HttpOnly cookie
-        res.cookie('access_token', token, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'strict',
-            maxAge: 3600000 // 1 hour
         });
 
-        res.json({ status: 'success', message: 'Token exchanged and stored in cookie' });
+        res.cookie('access_token', response.data.access_token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            maxAge: 3600000
+        });
+
+        res.json({ status: 'success' });
     } catch (err) {
         const error = err as AxiosError;
-        console.error('[BFF] Token Error:', error.response?.data || error.message);
         res.status(error.response?.status || 500).json(error.response?.data || { error: 'Token exchange failed' });
     }
 });
 
 // =====================================================================
-// SQL EXECUTION: For Unity Catalog Storage Backend
-// Proxies SQL commands to Databricks SQL Warehouse.
+// PROXY: Databricks APIs (SCIM, Unity Catalog, SQL)
+// =====================================================================
+
+/**
+ * Proxy for SCIM APIs (Users, Groups, Service Principals)
+ * Route: /api/scim/api/2.0/...
+ */
+app.all(/^\/api\/scim\/(.*)/, requireAuth, async (req: Request, res: Response) => {
+    const scimHost = req.headers['x-scim-host'] as string;
+    const token = resolveToken(req);
+    if (!scimHost || !token) {
+        return res.status(400).json({ error: 'Missing x-scim-host or token' });
+    }
+
+    const scimPath = (req.params as any)[0];
+    try {
+        const response = await axios({
+            method: req.method,
+            url: `https://${scimHost}/${scimPath}`,
+            headers: { 'Authorization': token },
+            params: req.query,
+            data: req.body
+        });
+        res.json(response.data);
+    } catch (err) {
+        const error = err as AxiosError;
+        logger.error({ err, path: scimPath }, '[BFF] SCIM Proxy Error');
+        res.status(error.response?.status || 500).json(error.response?.data || { error: 'SCIM request failed' });
+    }
+});
+
+/**
+ * Direct Proxy for Unity Catalog REST APIs
+ * Route: /api/uc/api/2.1/unity-catalog/...
+ */
+app.all(/^\/api\/uc\/(.*)/, requireAuth, async (req: Request, res: Response) => {
+    const workspaceHost = req.headers['x-workspace-host'] as string;
+    const token = resolveToken(req);
+    if (!workspaceHost || !token) {
+        return res.status(400).json({ error: 'Missing x-workspace-host or token' });
+    }
+
+    const ucPath = (req.params as any)[0];
+    try {
+        const response = await axios({
+            method: req.method,
+            url: `https://${workspaceHost}/${ucPath}`,
+            headers: { 'Authorization': token },
+            params: req.query,
+            data: req.body
+        });
+        res.json(response.data);
+    } catch (err) {
+        const error = err as AxiosError;
+        logger.error({ err, path: ucPath }, '[BFF] UC Proxy Error');
+        res.status(error.response?.status || 500).json(error.response?.data || { error: 'UC request failed' });
+    }
+});
+
+/**
+ * Specialized SDK Helper Proxy with Pagination support
+ * Route: /api/sdk/:target (catalogs, schemas, tables)
+ */
+app.get('/api/sdk/:target', requireAuth, async (req: Request, res: Response) => {
+    const workspaceHost = req.headers['x-workspace-host'] as string;
+    const token = resolveToken(req);
+    const { target } = req.params;
+    const { catalog_name, schema_name, max_results, page_token } = req.query;
+
+    if (!workspaceHost || !token) {
+        return res.status(400).json({ error: 'Missing x-workspace-host or token' });
+    }
+
+    // Map targets to UC API paths
+    let url = `https://${workspaceHost}/api/2.1/unity-catalog/${target}`;
+    const params: any = {
+        max_results: max_results || 100,
+        page_token
+    };
+
+    if (target === 'schemas') {
+        params.catalog_name = catalog_name;
+    } else if (target === 'tables') {
+        params.catalog_name = catalog_name;
+        params.schema_name = schema_name;
+    }
+
+    try {
+        const response = await axios.get(url, {
+            headers: { 'Authorization': token },
+            params
+        });
+        res.json(response.data);
+    } catch (err) {
+        const error = err as AxiosError;
+        logger.error({ err, target }, '[BFF] SDK Fetch Error');
+        res.status(error.response?.status || 500).json(error.response?.data || { error: `SDK ${target} fetch failed` });
+    }
+});
+
+/**
+ * Server-side search for UC objects
+ * Route: /api/sdk/search
+ */
+app.get('/api/catalog/search', requireAuth, async (req: Request, res: Response) => {
+    const workspaceHost = req.headers['x-workspace-host'] as string;
+    const token = resolveToken(req);
+    const query = req.query.query as string;
+
+    if (!workspaceHost || !token || !query) {
+        return res.status(400).json({ error: 'Missing host, token, or query' });
+    }
+
+    try {
+        // Step 1: Search for tables across all catalogs using UC Search API (if supported)
+        // or fall back to listing schemas/tables for the specific query.
+        // For this implementation, we'll search across common catalogs.
+        const response = await axios.get(`https://${workspaceHost}/api/2.1/unity-catalog/tables?max_results=1000`, {
+            headers: { 'Authorization': token }
+        });
+
+        const allTables = response.data.tables || [];
+        const filtered = allTables.filter((t: any) =>
+            t.name.toLowerCase().includes(query.toLowerCase()) ||
+            t.catalog_name.toLowerCase().includes(query.toLowerCase()) ||
+            t.schema_name.toLowerCase().includes(query.toLowerCase())
+        ).slice(0, 100); // Limit results for performance
+
+        res.json({ results: filtered });
+    } catch (err) {
+        const error = err as AxiosError;
+        logger.error({ err }, '[BFF] Search Error');
+        res.status(error.response?.status || 500).json({ error: 'Search failed' });
+    }
+});
+
+// =====================================================================
+// SQL EXECUTION
 // =====================================================================
 app.post('/api/sql/execute', requireAuth, async (req: Request, res: Response) => {
     const { host, warehouseId, statement } = req.body;
     const token = resolveToken(req);
 
     if (!host || !warehouseId || !statement || !token) {
-        return res.status(400).json({ error: 'Missing host, warehouseId, statement, or auth token' });
+        return res.status(400).json({ error: 'Missing parameters' });
     }
 
     try {
-        console.log(`[BFF] Executing SQL on warehouse ${warehouseId}...`);
-        const response = await axios.post(
-            `https://${host}/api/2.0/sql/statements`,
-            { warehouse_id: warehouseId, statement },
-            { headers: { Authorization: token } }
-        );
-
-        // If the query is still running, the API might return a statement ID.
-        // For simplicity in this POC, we wait. In production, we'd poll or use long-polling.
+        const response = await axios.post(`https://${host}/api/2.0/sql/statements`, { warehouse_id: warehouseId, statement }, { headers: { Authorization: token } });
         res.json(response.data);
     } catch (err) {
         const error = err as AxiosError;
-        console.error('[BFF] SQL Execution Error:', error.response?.data || error.message);
         res.status(error.response?.status || 500).json(error.response?.data || { error: 'SQL execution failed' });
     }
 });
 
 // =====================================================================
 // AUTH: BFF-Issued JWT Login
-// Issues a signed JWT for any identity provider (mock or real).
-// For real providers (OAuth/SAML/Databricks), the upstream token is kept
-// server-side in an HttpOnly cookie; the JWT only carries identity claims.
 // =====================================================================
-
-/**
- * POST /api/auth/login
- * Body: { userId, userName, email, groups, role, provider, accessToken? }
- *
- * Signs and returns a short-lived JWT. The token is set in a HttpOnly
- * `bff_jwt` cookie AND returned in the body so the frontend can read
- * the `expiresAt` timestamp for session management.
- */
 app.post('/api/auth/login', authLimiter, (req: Request, res: Response) => {
     const validation = validateInput(loginSchema, req.body);
-    if (!validation.success) {
-        return res.status(400).json({ error: `Invalid input: ${validation.error}` });
-    }
+    if (!validation.success) return res.status(400).json({ error: validation.error });
 
     const { userId, userName, email, groups, role, provider, accessToken } = validation.data!;
+    const payload: JwtPayload = { sub: userId, name: userName, email: email || `${userId}@local`, groups: groups || [], role: role || 'STANDARD_USER', provider, jti: crypto.randomUUID() };
 
-    const payload: JwtPayload = {
-        sub: userId,
-        name: userName,
-        email: email || `${userId}@local`,
-        groups: Array.isArray(groups) ? groups : [],
-        role: role || 'STANDARD_USER',
-        provider,
-        jti: crypto.randomUUID(),
-    };
+    const token = jwt.sign(payload, env.effectiveJwtSecret, { expiresIn: env.JWT_EXPIRY as any, issuer: 'unity-catalog-acs-bff', audience: 'unity-catalog-acs-ui' });
 
-    const token = jwt.sign(payload, env.effectiveJwtSecret, {
-        expiresIn: env.JWT_EXPIRY as jwt.SignOptions['expiresIn'],
-        issuer: 'unity-catalog-acs-bff',
-        audience: 'unity-catalog-acs-ui',
-    });
-
-    // Optional: store an upstream OAuth/Databricks access token server-side
     if (accessToken) {
-        res.cookie('access_token', accessToken, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'strict',
-            maxAge: 8 * 60 * 60 * 1000,
-        });
+        res.cookie('access_token', accessToken, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', maxAge: 8 * 60 * 60 * 1000 });
     }
+    res.cookie('bff_jwt', token, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', maxAge: 8 * 60 * 60 * 1000 });
 
-    // BFF-issued JWT in its own HttpOnly cookie
-    res.cookie('bff_jwt', token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        maxAge: 8 * 60 * 60 * 1000,
-    });
-
-    const decoded = jwt.decode(token) as { exp: number };
-    console.log(`[BFF] Issued JWT for ${userId} (${provider}) exp=${new Date(decoded.exp * 1000).toISOString()}`);
-
-    res.json({
-        status: 'success',
-        token,
-        expiresAt: decoded.exp * 1000,
-        user: payload,
-    });
+    const decoded = jwt.decode(token) as any;
+    res.json({ status: 'success', token, expiresAt: decoded.exp * 1000, user: payload });
 });
 
-/**
- * POST /api/auth/refresh
- * Re-issues a fresh JWT if the current one is still valid.
- */
 app.post('/api/auth/refresh', authLimiter, (req: Request, res: Response) => {
-    const existingJwt =
-        req.cookies['bff_jwt'] ||
-        (req.headers['authorization'] as string)?.replace('Bearer ', '');
-
-    if (!existingJwt) {
-        return res.status(401).json({ error: 'No JWT provided' });
-    }
+    const existingJwt = req.cookies['bff_jwt'] || (req.headers['authorization'] as string)?.replace('Bearer ', '');
+    if (!existingJwt) return res.status(401).json({ error: 'No JWT provided' });
 
     try {
-        const decoded = jwt.verify(existingJwt, env.effectiveJwtSecret, {
-            issuer: 'unity-catalog-acs-bff',
-            audience: 'unity-catalog-acs-ui',
-        }) as JwtPayload;
+        const decoded = jwt.verify(existingJwt, env.effectiveJwtSecret, { issuer: 'unity-catalog-acs-bff', audience: 'unity-catalog-acs-ui' }) as JwtPayload;
+        if (decoded.jti && revokedTokens.has(decoded.jti)) return res.status(401).json({ error: 'Token revoked' });
 
-        if (decoded.jti && revokedTokens.has(decoded.jti)) {
-            res.clearCookie('bff_jwt');
-            return res.status(401).json({ error: 'Token has been revoked. Please log in again.' });
-        }
-
-        if (decoded.jti) {
-            revokedTokens.add(decoded.jti);
-        }
-
+        if (decoded.jti) revokedTokens.add(decoded.jti);
         const { sub, name, email, groups, role, provider } = decoded;
-        const newToken = jwt.sign(
-            { sub, name, email, groups, role, provider, jti: crypto.randomUUID() },
-            env.effectiveJwtSecret,
-            {
-                expiresIn: env.JWT_EXPIRY as jwt.SignOptions['expiresIn'],
-                issuer: 'unity-catalog-acs-bff',
-                audience: 'unity-catalog-acs-ui',
-            }
-        );
+        const newToken = jwt.sign({ sub, name, email, groups, role, provider, jti: crypto.randomUUID() }, env.effectiveJwtSecret, { expiresIn: env.JWT_EXPIRY as any, issuer: 'unity-catalog-acs-bff', audience: 'unity-catalog-acs-ui' });
 
-        res.cookie('bff_jwt', newToken, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'strict',
-            maxAge: 8 * 60 * 60 * 1000,
-        });
-
-        const decodedNew = jwt.decode(newToken) as { exp: number };
-        console.log(`[BFF] Refreshed JWT for ${sub}`);
+        res.cookie('bff_jwt', newToken, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', maxAge: 8 * 60 * 60 * 1000 });
+        const decodedNew = jwt.decode(newToken) as any;
         res.json({ status: 'success', token: newToken, expiresAt: decodedNew.exp * 1000 });
     } catch (err) {
-        console.warn('[BFF] JWT refresh failed:', (err as Error).message);
-        res.clearCookie('bff_jwt');
-        res.status(401).json({ error: 'Invalid or expired JWT. Please log in again.' });
+        res.status(401).json({ error: 'Invalid token' });
     }
 });
 
-/**
- * POST /api/auth/logout
- * Clears all authentication cookies.
- */
 app.post('/api/auth/logout', authLimiter, (req: Request, res: Response) => {
     const existingJwt = req.cookies['bff_jwt'];
     if (existingJwt) {
         try {
             const decoded = jwt.decode(existingJwt) as JwtPayload;
-            if (decoded?.jti) {
-                revokedTokens.add(decoded.jti);
-            }
-        } catch (e) {
-            // ignore malformed tokens on logout
-        }
+            if (decoded?.jti) revokedTokens.add(decoded.jti);
+        } catch (e) { }
     }
-
     res.clearCookie('bff_jwt');
     res.clearCookie('access_token');
-    logger.info('[BFF] User logged out, auth cookies cleared');
     res.json({ status: 'success' });
 });
 
-
-app.get('/api/session/validate', requireAuth, (_req: Request, res: Response) => {
-    res.json({ valid: true });
-});
+app.get('/api/session/validate', requireAuth, (_req: Request, res: Response) => res.json({ valid: true }));
 
 // =====================================================================
-// SERVER-SENT EVENTS (SSE)
-// =====================================================================
-const sseClients = new Set<Response>();
-
-const notifyClients = () => {
-    const payload = `data: ${JSON.stringify({ type: 'UPDATE' })}\n\n`;
-    for (const client of sseClients) {
-        client.write(payload);
-    }
-};
-
-app.get('/api/storage/requests/stream', requireAuth, (req: Request, res: Response) => {
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-    res.flushHeaders();
-
-    sseClients.add(res);
-
-    req.on('close', () => {
-        sseClients.delete(res);
-    });
-});
-
-// =====================================================================
-// STORAGE BROKER: Server-side persistence for Access Requests
+// STORAGE BROKER
 // =====================================================================
 app.get('/api/storage/requests', requireAuth, (req: Request, res: Response) => {
     try {
         const data = fs.readFileSync(REQUESTS_FILE, 'utf8');
         const allRequests: any[] = JSON.parse(data);
-
-        const userId = (req as any).userId as string;
-        const userGroups: string[] = (req as any).userGroups;
+        const userId = (req as any).userId;
+        const userGroups = (req as any).userGroups;
         const isAdmin = userGroups.includes('admins') || userGroups.includes('admin');
 
-        // Admins see ALL requests (needed for the Approver Dashboard)
-        // Non-admins see only their own requests OR requests relevant to their groups
-        const filteredRequests = isAdmin
-            ? allRequests
-            : allRequests.filter((r: any) => {
-                // Is this user the original requester?
-                const isOwner = r.requesterId === userId || r.userId === userId;
-                // Does the request target a catalog/schema associated with one of their groups?
-                const isGroupRelevant = r.approverGroups?.some((g: string) => userGroups.includes(g));
-                return isOwner || isGroupRelevant;
-            });
-
-        console.log(`[BFF] GET /api/storage/requests: user=${userId}, groups=[${userGroups}], returning ${filteredRequests.length}/${allRequests.length} requests`);
+        const filteredRequests = isAdmin ? allRequests : allRequests.filter((r: any) => r.requesterId === userId || r.userId === userId || r.approverGroups?.some((g: string) => userGroups.includes(g)));
         res.json(filteredRequests);
     } catch (err) {
-        console.error('[BFF] Storage Read Error:', err);
-        res.status(500).json({ error: 'Failed to read requests from storage' });
+        res.status(500).json({ error: 'Failed to read requests' });
     }
 });
 
 app.post('/api/storage/requests', requireAuth, (req: Request, res: Response) => {
     try {
         const validation = validateInput(storageRequestSchema, req.body);
-        if (!validation.success) {
-            return res.status(400).json({ error: `Invalid input: ${validation.error}` });
-        }
-
-        const requests = validation.data!;
-        fs.writeFileSync(REQUESTS_FILE, JSON.stringify(requests, null, 2));
-        notifyClients();
-        res.json({ status: 'success', count: requests.length });
+        if (!validation.success) return res.status(400).json({ error: validation.error });
+        fs.writeFileSync(REQUESTS_FILE, JSON.stringify(validation.data, null, 2));
+        res.json({ status: 'success' });
     } catch (err) {
-        logger.error({ err }, '[BFF] Storage Write Error');
-        res.status(500).json({ error: 'Failed to save requests to storage' });
+        res.status(500).json({ error: 'Failed to save requests' });
     }
 });
 
@@ -588,32 +572,59 @@ app.get('/api/storage/approvers', requireAuth, (req: Request, res: Response) => 
         const data = fs.readFileSync(APPROVERS_FILE, 'utf8');
         res.json(JSON.parse(data));
     } catch (err) {
-        console.error('[BFF] Approvers Read Error:', err);
-        res.status(500).json({ error: 'Failed to read approvers from storage' });
+        res.status(500).json({ error: 'Failed to read approvers' });
     }
 });
 
 app.post('/api/storage/approvers', requireAuth, (req: Request, res: Response) => {
     try {
-        // Only admins can save approvers globally
-        const userGroups: string[] = (req as any).userGroups || [];
-        const isAdmin = userGroups.includes('admins') || userGroups.includes('admin') || userGroups.includes('group_security');
-
-        if (!isAdmin) {
-            return res.status(403).json({ error: 'Insufficient permissions to update approvers' });
-        }
-
-        const approvers = req.body;
-        // Basic validation that it's an object mapping strings to string arrays
-        if (typeof approvers !== 'object' || Array.isArray(approvers)) {
-            return res.status(400).json({ error: 'Invalid input data' });
-        }
-
-        fs.writeFileSync(APPROVERS_FILE, JSON.stringify(approvers, null, 2));
+        const userGroups = (req as any).userGroups || [];
+        const isAdmin = userGroups.includes('admins') || userGroups.includes('admin');
+        if (!isAdmin) return res.status(403).json({ error: 'Forbidden' });
+        fs.writeFileSync(APPROVERS_FILE, JSON.stringify(req.body, null, 2));
         res.json({ status: 'success' });
     } catch (err) {
-        logger.error({ err }, '[BFF] Approvers Write Error');
-        res.status(500).json({ error: 'Failed to save approvers to storage' });
+        res.status(500).json({ error: 'Failed to save approvers' });
+    }
+});
+
+// =====================================================================
+// AUDIT LOGGING
+// =====================================================================
+app.post('/api/audit/log', requireAuth, (req: Request, res: Response) => {
+    try {
+        const entry = req.body;
+        if (!entry || !entry.type || !entry.actor) {
+            return res.status(400).json({ error: 'Invalid audit entry' });
+        }
+
+        const data = fs.readFileSync(AUDIT_FILE, 'utf8');
+        const auditLogs = JSON.parse(data);
+
+        // Add entry to the beginning (most recent first)
+        auditLogs.unshift({
+            ...entry,
+            serverTimestamp: Date.now()
+        });
+
+        // Limit to last 5000 entries
+        const limitedLogs = auditLogs.slice(0, 5000);
+
+        fs.writeFileSync(AUDIT_FILE, JSON.stringify(limitedLogs, null, 2));
+        res.json({ status: 'success' });
+    } catch (err) {
+        logger.error({ err }, '[BFF] Audit Log Write Error');
+        res.status(500).json({ error: 'Failed to save audit log' });
+    }
+});
+
+app.get('/api/audit/log', requireAuth, (req: Request, res: Response) => {
+    try {
+        const data = fs.readFileSync(AUDIT_FILE, 'utf8');
+        res.json(JSON.parse(data));
+    } catch (err) {
+        logger.error({ err }, '[BFF] Audit Log Read Error');
+        res.status(500).json({ error: 'Failed to read audit logs' });
     }
 });
 

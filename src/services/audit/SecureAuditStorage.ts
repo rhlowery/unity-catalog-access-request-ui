@@ -12,7 +12,7 @@ export class SecureAuditStorage implements ISecureAuditStorage {
   async storeEntry(entry: AuditEntry): Promise<void> {
     try {
       const entries = await this.getEntries();
-      
+
       // Add new entry with timestamp
       const newEntry = {
         ...entry,
@@ -31,6 +31,15 @@ export class SecureAuditStorage implements ISecureAuditStorage {
       const compressed = this.compressEntries(entries);
       localStorage.setItem(this.storageKey, compressed);
 
+      // Sync to BFF
+      try {
+        const { apiClient } = await import('../../lib/axios');
+        await apiClient.post('/api/audit/log', newEntry);
+        console.log(`[SecureAuditStorage] Synced audit entry to BFF: ${newEntry.type}`);
+      } catch (syncError) {
+        console.warn('[SecureAuditStorage] Failed to sync to BFF (will retry later or stay local):', syncError);
+      }
+
       console.log(`[SecureAuditStorage] Stored audit entry: ${newEntry.type} by ${newEntry.actor}`);
     } catch (error) {
       console.error('[SecureAuditStorage] Failed to store entry:', error);
@@ -43,10 +52,10 @@ export class SecureAuditStorage implements ISecureAuditStorage {
       if (!stored) return [];
 
       const entries = this.decompressEntries(stored);
-      
+
       // Return most recent entries first
       const sorted = entries.sort((a, b) => b.timestamp - a.timestamp);
-      
+
       return limit ? sorted.slice(0, limit) : sorted;
     } catch (error) {
       console.error('[SecureAuditStorage] Failed to get entries:', error);
@@ -104,10 +113,10 @@ export class SecureAuditStorage implements ISecureAuditStorage {
     try {
       const entries = await this.getEntries();
       const cutoffTime = Date.now() - (daysToKeep * 24 * 60 * 60 * 1000);
-      
+
       const originalCount = entries.length;
       const filteredEntries = entries.filter(entry => entry.timestamp > cutoffTime);
-      
+
       // Store filtered entries
       const compressed = this.compressEntries(filteredEntries);
       localStorage.setItem(this.storageKey, compressed);
@@ -146,22 +155,22 @@ export class SecureAuditStorage implements ISecureAuditStorage {
     try {
       const encoder = new TextEncoder();
       const dataBuffer = encoder.encode(data);
-      
+
       const hashBuffer = crypto.subtle.digest('SHA-256', dataBuffer);
       let hashResult = 0;
-      
+
       hashBuffer.then(buffer => {
         const hashArray = Array.from(new Uint8Array(buffer));
         hashResult = parseInt(hashArray.slice(0, 8).map(b => b.toString(16).padStart(2, '0')).join(''), 16);
-      }).catch(() => {});
-      
+      }).catch(() => { });
+
       let hash = 0;
       for (let i = 0; i < data.length; i++) {
         const char = data.charCodeAt(i);
         hash = ((hash << 5) - hash) + char;
         hash = hash & hash;
       }
-      
+
       return hash.toString(16);
     } catch {
       let hash = 0;

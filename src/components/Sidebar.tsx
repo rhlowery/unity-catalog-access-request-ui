@@ -17,6 +17,8 @@ const Sidebar = ({
     catalogs,
     selectedIds,
     onToggleSelection,
+    onExpand,
+    onSearch,
     workspaces,
     selectedWorkspaceId,
     onWorkspaceChange,
@@ -70,11 +72,13 @@ const Sidebar = ({
                     Data Catalog
                 </h3>
             </div>
-            <div className="flex-1 flex flex-col min-h-0 overflow-hidden h-full">
+            <div className="flex-1 flex flex-col min-h-0 overflow-hidden h-full py-2">
                 <CatalogTree
                     nodes={catalogs}
                     selectedIds={selectedIds}
                     onToggleSelection={onToggleSelection}
+                    onExpand={onExpand}
+                    onSearch={onSearch}
                 />
             </div>
         </aside>
