@@ -42,9 +42,10 @@ export interface IIdentityAdapter {
      * Login with specified provider
      * @param provider - Provider name (e.g., 'google', 'microsoft')
      * @param config - The global app configuration
+     * @param credentials - Optional login credentials
      * @returns User object
      */
-    login?(provider: string, config: any): Promise<IdentityUser>;
+    login?(provider: string, config: any, credentials?: any): Promise<IdentityUser>;
 
     /**
      * Logout current user

@@ -178,6 +178,75 @@ const csrfLimiter = rateLimit({
     max: 100,
     message: { error: 'Too many requests, please try again later.' }
 });
+// =====================================================================
+// SECURITY: Helper and Middleware
+// =====================================================================
+
+/**
+ * Helper: Resolves the authorization token from the cookie or Authorization header.
+ * Returns null if no token is found.
+ */
+const resolveToken = (req: Request): string | null => {
+    if (req.headers['authorization']) return req.headers['authorization'] as string;
+    if (req.cookies['access_token']) return `Bearer ${req.cookies['access_token']}`;
+    return null;
+};
+
+/**
+ * Verifies the BFF-issued JWT on all protected routes.
+ * Extracts userId and userGroups from JWT claims for downstream authz.
+ */
+const requireAuth = (req: Request, res: Response, next: any) => {
+    // 1. Try the BFF-issued JWT (preferred)
+    let bffJwt = req.cookies['bff_jwt'];
+
+    // 2. Fall back to Authorization header (e.g., API clients)
+    if (!bffJwt) {
+        const authHeader = req.headers['authorization'] as string;
+        if (authHeader?.startsWith('Bearer ')) {
+            bffJwt = authHeader.slice(7);
+        }
+    }
+
+    // 3. Fall back to legacy access_token cookie (Databricks OAuth flow)
+    const hasLegacyCookie = !!req.cookies['access_token'];
+
+    if (!bffJwt && !hasLegacyCookie) {
+        return res.status(401).json({ error: 'Unauthorized: No valid session token found' });
+    }
+
+    if (bffJwt) {
+        try {
+            const decoded = jwt.verify(bffJwt, env.effectiveJwtSecret, {
+                issuer: 'unity-catalog-acs-bff',
+                audience: 'unity-catalog-acs-ui',
+            }) as JwtPayload;
+
+            if (decoded.jti && revokedTokens.has(decoded.jti)) {
+                throw new Error('Token has been revoked');
+            }
+
+            // Attach verified identity to the request for downstream use
+            (req as any).userId = decoded.sub;
+            (req as any).userGroups = decoded.groups || [];
+            (req as any).userRole = decoded.role;
+            (req as any).jwtPayload = decoded;
+
+            return next();
+        } catch (err) {
+            const message = (err as Error).message;
+            logger.warn(`[BFF] JWT verification failed: ${message}`);
+            res.clearCookie('bff_jwt');
+            return res.status(401).json({ error: `Unauthorized: ${message}` });
+        }
+    }
+
+    // If we only have the legacy cookie but no BFF JWT yet, we still let them through
+    // for endpoints that handle token exchange or basic identity.
+    if (hasLegacyCookie) return next();
+
+    return res.status(401).json({ error: 'Authentication required' });
+};
 
 // CSRF validation middleware for state-changing operations
 const validateCsrf = (req: Request, res: Response, next: () => void): void => {
@@ -213,13 +282,14 @@ const validateCsrf = (req: Request, res: Response, next: () => void): void => {
 // to the browser.
 // =====================================================================
 app.post('/api/token', authLimiter, async (req: Request, res: Response) => {
-    const clientId = process.env.DATABRICKS_CLIENT_ID;
-    const clientSecret = process.env.DATABRICKS_CLIENT_SECRET;
+    // Priority: 1. Request Body (runtime config), 2. Environment Variables
+    const clientId = req.body.clientId || process.env.DATABRICKS_CLIENT_ID;
+    const clientSecret = req.body.clientSecret || process.env.DATABRICKS_CLIENT_SECRET;
     const host = req.body.host || process.env.DATABRICKS_HOST;
 
     if (!clientId || !clientSecret || !host) {
-        console.error('[BFF] Token Error: Missing credentials - must be set in server .env');
-        return res.status(400).json({ error: 'DATABRICKS_CLIENT_ID, DATABRICKS_CLIENT_SECRET, and host (env or body) are required' });
+        console.error('[BFF] Token Error: Missing credentials');
+        return res.status(400).json({ error: 'DATABRICKS_CLIENT_ID, DATABRICKS_CLIENT_SECRET, and host are required (via env or body)' });
     }
 
     try {
@@ -254,6 +324,36 @@ app.post('/api/token', authLimiter, async (req: Request, res: Response) => {
         const error = err as AxiosError;
         console.error('[BFF] Token Error:', error.response?.data || error.message);
         res.status(error.response?.status || 500).json(error.response?.data || { error: 'Token exchange failed' });
+    }
+});
+
+// =====================================================================
+// SQL EXECUTION: For Unity Catalog Storage Backend
+// Proxies SQL commands to Databricks SQL Warehouse.
+// =====================================================================
+app.post('/api/sql/execute', requireAuth, async (req: Request, res: Response) => {
+    const { host, warehouseId, statement } = req.body;
+    const token = resolveToken(req);
+
+    if (!host || !warehouseId || !statement || !token) {
+        return res.status(400).json({ error: 'Missing host, warehouseId, statement, or auth token' });
+    }
+
+    try {
+        console.log(`[BFF] Executing SQL on warehouse ${warehouseId}...`);
+        const response = await axios.post(
+            `https://${host}/api/2.0/sql/statements`,
+            { warehouse_id: warehouseId, statement },
+            { headers: { Authorization: token } }
+        );
+
+        // If the query is still running, the API might return a statement ID.
+        // For simplicity in this POC, we wait. In production, we'd poll or use long-polling.
+        res.json(response.data);
+    } catch (err) {
+        const error = err as AxiosError;
+        console.error('[BFF] SQL Execution Error:', error.response?.data || error.message);
+        res.status(error.response?.status || 500).json(error.response?.data || { error: 'SQL execution failed' });
     }
 });
 
@@ -403,222 +503,6 @@ app.post('/api/auth/logout', authLimiter, (req: Request, res: Response) => {
     logger.info('[BFF] User logged out, auth cookies cleared');
     res.json({ status: 'success' });
 });
-
-// =====================================================================
-// PROXY: Unity Catalog REST API
-// Forwards /api/uc/* to <workspace>/api/2.1/unity-catalog/*
-// The frontend sends x-workspace-host to specify the target workspace.
-// =====================================================================
-
-/**
- * Helper: Resolves the authorization token from the cookie or Authorization header.
- * Returns null if no token is found.
- */
-const resolveToken = (req: Request): string | null => {
-    if (req.headers['authorization']) return req.headers['authorization'] as string;
-    if (req.cookies['access_token']) return `Bearer ${req.cookies['access_token']}`;
-    return null;
-};
-
-// =====================================================================
-// TYPED SDK PROXY ENDPOINTS (Server-to-Server, no CORS)
-// These endpoints wrap the Databricks UC REST API with typed, validated
-// requests, eliminating the need for the @databricks/sdk in the browser.
-// =====================================================================
-
-/**
- * GET /api/sdk/catalogs
- * Lists all catalogs accessible in a given workspace.
- * Requires header: x-workspace-host
- */
-app.get('/api/sdk/catalogs', async (req: Request, res: Response) => {
-    const workspaceHost = req.headers['x-workspace-host'] as string;
-    const token = resolveToken(req);
-    if (!workspaceHost || !token) {
-        return res.status(400).json({ error: 'Missing x-workspace-host or auth token' });
-    }
-    try {
-        const response = await axios.get(
-            `https://${workspaceHost}/api/2.1/unity-catalog/catalogs`,
-            { headers: { Authorization: token }, params: { max_results: 200 } }
-        );
-        res.json(response.data);
-    } catch (err) {
-        const error = err as AxiosError;
-        console.error('[BFF] SDK Proxy /catalogs error:', error.response?.data || error.message);
-        res.status(error.response?.status || 500).json(error.response?.data || { error: 'Failed to list catalogs' });
-    }
-});
-
-/**
- * GET /api/sdk/schemas
- * Lists all schemas within a given catalog.
- * Requires header: x-workspace-host
- * Requires query param: catalog_name
- */
-app.get('/api/sdk/schemas', async (req: Request, res: Response) => {
-    const workspaceHost = req.headers['x-workspace-host'] as string;
-    const token = resolveToken(req);
-    const { catalog_name } = req.query;
-    if (!workspaceHost || !token || !catalog_name) {
-        return res.status(400).json({ error: 'Missing x-workspace-host, auth token, or catalog_name' });
-    }
-    try {
-        const response = await axios.get(
-            `https://${workspaceHost}/api/2.1/unity-catalog/schemas`,
-            { headers: { Authorization: token }, params: { catalog_name, max_results: 200 } }
-        );
-        res.json(response.data);
-    } catch (err) {
-        const error = err as AxiosError;
-        console.error('[BFF] SDK Proxy /schemas error:', error.response?.data || error.message);
-        res.status(error.response?.status || 500).json(error.response?.data || { error: 'Failed to list schemas' });
-    }
-});
-
-/**
- * GET /api/sdk/tables
- * Lists all tables within a given schema.
- * Requires header: x-workspace-host
- * Requires query params: catalog_name, schema_name
- */
-app.get('/api/sdk/tables', async (req: Request, res: Response) => {
-    const workspaceHost = req.headers['x-workspace-host'] as string;
-    const token = resolveToken(req);
-    const { catalog_name, schema_name } = req.query;
-    if (!workspaceHost || !token || !catalog_name || !schema_name) {
-        return res.status(400).json({ error: 'Missing x-workspace-host, auth token, catalog_name, or schema_name' });
-    }
-    try {
-        const response = await axios.get(
-            `https://${workspaceHost}/api/2.1/unity-catalog/tables`,
-            { headers: { Authorization: token }, params: { catalog_name, schema_name, max_results: 200 } }
-        );
-        res.json(response.data);
-    } catch (err) {
-        const error = err as AxiosError;
-        console.error('[BFF] SDK Proxy /tables error:', error.response?.data || error.message);
-        res.status(error.response?.status || 500).json(error.response?.data || { error: 'Failed to list tables' });
-    }
-});
-
-// Generic wildcard UC proxy (for any other UC calls not covered by typed endpoints above)
-app.all('/api/uc/*splat', async (req: Request, res: Response) => {
-    const workspaceHost = req.headers['x-workspace-host'] as string;
-    const token = resolveToken(req);
-
-    if (!workspaceHost || !token) {
-        return res.status(400).json({ error: 'Missing x-workspace-host or session token' });
-    }
-
-    // Strip the /api/uc prefix and append to the UC REST path
-    const ucPath = req.path.replace(/^\/api\/uc/, '');
-    const ucUrl = `https://${workspaceHost}/api/2.1/unity-catalog${ucPath}`;
-
-    try {
-        const response = await axios({
-            method: req.method,
-            url: ucUrl,
-            data: req.method !== 'GET' ? req.body : undefined,
-            params: req.query,
-            headers: { 'Authorization': token, 'Content-Type': 'application/json' }
-        });
-        res.json(response.data);
-    } catch (err) {
-        const error = err as AxiosError;
-        console.error(`[BFF] UC Proxy Error (${ucPath}):`, error.response?.data || error.message);
-        res.status(error.response?.status || 500).json(error.response?.data || { error: 'UC API call failed' });
-    }
-});
-
-// =====================================================================
-// PROXY: SCIM API (Users, Groups, Service Principals)
-// Forwards /api/scim/* to <host>/api/2.0/...
-// =====================================================================
-app.all('/api/scim/*splat', async (req: Request, res: Response) => {
-    const scimHost = req.headers['x-scim-host'] as string;
-    let token = req.headers['authorization'];
-
-    // Fallback to cookie if Authorization header is missing
-    if (!token && req.cookies['access_token']) {
-        token = `Bearer ${req.cookies['access_token']}`;
-    }
-
-    if (!scimHost || !token) {
-        return res.status(400).json({ error: 'Missing x-scim-host or session token' });
-    }
-
-    const scimPath = req.path.replace(/^\/api\/scim/, '');
-    const scimUrl = `https://${scimHost}${scimPath}`;
-
-    try {
-        const response = await axios({
-            method: req.method,
-            url: scimUrl,
-            data: req.method !== 'GET' ? req.body : undefined,
-            params: req.query,
-            headers: { 'Authorization': token, 'Content-Type': 'application/json' }
-        });
-        res.json(response.data);
-    } catch (err) {
-        const error = err as AxiosError;
-        console.error(`[BFF] SCIM Proxy Error (${scimPath}):`, error.response?.data || error.message);
-        res.status(error.response?.status || 500).json(error.response?.data || { error: 'SCIM API call failed' });
-    }
-});
-
-// =====================================================================
-// SECURITY: JWT Authentication Middleware
-// Verifies the BFF-issued JWT on all protected routes.
-// Extracts userId and userGroups from JWT claims for downstream authz.
-// =====================================================================
-const requireAuth = (req: Request, res: Response, next: any) => {
-    // 1. Try the BFF-issued JWT (preferred)
-    let bffJwt = req.cookies['bff_jwt'];
-
-    // 2. Fall back to Authorization header (e.g., API clients)
-    if (!bffJwt) {
-        const authHeader = req.headers['authorization'] as string;
-        if (authHeader?.startsWith('Bearer ')) {
-            bffJwt = authHeader.slice(7);
-        }
-    }
-
-    // 3. Fall back to legacy access_token cookie (Databricks OAuth flow)
-    const hasLegacyCookie = !!req.cookies['access_token'];
-
-    if (!bffJwt && !hasLegacyCookie) {
-        return res.status(401).json({ error: 'Unauthorized: No valid session token found' });
-    }
-
-    if (bffJwt) {
-        try {
-            const decoded = jwt.verify(bffJwt, env.effectiveJwtSecret, {
-                issuer: 'unity-catalog-acs-bff',
-                audience: 'unity-catalog-acs-ui',
-            }) as JwtPayload;
-
-            if (decoded.jti && revokedTokens.has(decoded.jti)) {
-                throw new Error('Token has been revoked');
-            }
-
-            // Attach verified identity to the request for downstream use
-            (req as any).userId = decoded.sub;
-            (req as any).userGroups = decoded.groups || [];
-            (req as any).userRole = decoded.role;
-            (req as any).jwtPayload = decoded;
-
-            return next();
-        } catch (err) {
-            const message = (err as Error).message;
-            logger.warn(`[BFF] JWT verification failed: ${message}`);
-            res.clearCookie('bff_jwt');
-            return res.status(401).json({ error: `Unauthorized: ${message}` });
-        }
-    }
-
-    return res.status(401).json({ error: 'Authentication required' });
-};
 
 
 app.get('/api/session/validate', requireAuth, (_req: Request, res: Response) => {

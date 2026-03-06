@@ -82,7 +82,7 @@ describe('IdentityService', () => {
             const user = await IdentityService.login('mock-provider');
 
             expect(user.id).toBe('mock-user');
-            expect(MockIdentityAdapter.login).toHaveBeenCalledWith('mock-provider', expect.any(Object));
+            expect(MockIdentityAdapter.login).toHaveBeenCalledWith('mock-provider', expect.any(Object), undefined);
         });
 
         it('should throw an error if adapter does not support login', async () => {

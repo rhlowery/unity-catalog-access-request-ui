@@ -11,125 +11,123 @@ C4Component
 title Component Diagram - ACS UI Adapters
 
 Container(spa, "Single Page Application", "React", "Frontend Application")
+Container(bff, "BFF Server", "Node.js/Express", "Proxies requests and handles server-side state")
 
-System_Boundary(adapters, "Pluggable Adapters") {
-    Component(config_svc, "ConfigService", "TypeScript", "Resolves active environment settings")
-    Component(id_svc, "IdentityService", "TypeScript", "Routes auth and profiles to selected IdP")
-    Component(storage_svc, "StorageService", "TypeScript", "Routes CRUD ops to selected backend")
-    
-    Component(mock_idp, "Mock/Local IdP", "Memory", "Simulated users")
-    Component(scim_idp, "SCIM IdP", "REST", "Syncs from Azure/Okta")
-    
-    Component(localStorage, "Local Adapter", "Browser", "Offline dev persistence")
-    Component(bffAdapter, "BFF Adapter", "Node.js", "Server-side JSON persistence")
-    Component(gitAdapter, "GitOps Adapter", "Git", "YAML & MR based persistence")
+System_Boundary(identity_adapters, "Identity Adapters") {
+    Component(mock_idp, "Mock Identity", "Memory", "Simulated personas for development")
+    Component(db_workspace_idp, "Databricks Workspace", "SCIM", "Workspace-level users/groups")
+    Component(db_account_idp, "Databricks Account", "SCIM", "Account-level users/groups")
 }
 
-Rel(spa, config_svc, "Gets active config")
-Rel(spa, id_svc, "Calls")
-Rel(spa, storage_svc, "Calls")
+System_Boundary(storage_adapters, "Storage Adapters") {
+    Component(localStorage, "Local Storage", "Browser", "Offline dev persistence")
+    Component(bffAdapter, "BFF Storage", "JSON Files", "Server-side persistence (requests.json)")
+    Component(ucAdapter, "Unity Catalog", "Delta Tables", "Governed storage within UC")
+}
 
-Rel(id_svc, mock_idp, "Uses (if configured)")
-Rel(id_svc, scim_idp, "Uses (if configured)")
+Rel(spa, bff, "API Calls (JSON/HTTPS)")
+Rel(bff, db_workspace_idp, "Proxies SCIM Calls")
+Rel(bff, db_account_idp, "Proxies SCIM Calls")
 
-Rel(storage_svc, localStorage, "Uses (if configured)")
-Rel(storage_svc, bffAdapter, "Uses (if configured)")
-Rel(storage_svc, gitAdapter, "Uses (if configured)")
+Rel(bff, bffAdapter, "Writes JSON")
+Rel(bff, ucAdapter, "Executes SQL statements")
 ```
 
-## 2. Core Data Models (YAML)
+## 2. Core Data Models (JSON/YAML)
 
-All adapters communicate using a unified set of interfaces. For **Git (GitOps)** and **LocalStorage/Volatile** adapters, the following YAML structure is used for centralization and auditability.
+All adapters communicate using a unified set of interfaces. For the **BFF (JSON)** and **Mock** adapters, the following structure represents an access request.
 
 ### Access Request Schema
-Represents the **request metadata**, stored centrally in the `/requests` directory in GitOps mode.
+Represents the **request metadata**, stored in `server/data/requests.json`.
 
-```yaml
-id: "1711629445"
-status: "APPROVED"         # PENDING | APPROVED | DENIED | EXPIRED | REVOKED
-createdAt: "2024-03-28T10:00:00Z"
-requester:                 # Clear requester identity
-  id: "user_alex"
-  name: "Alex Analyst"
-objects:                   # References to data objects involved
-  - id: "main.finance.transactions"
-    permissions: ["SELECT"]
-approvers:                 # List of individuals who approved
-  - id: "manager_sarah"
-    timestamp: "2024-03-28T10:30:00Z"
-    comment: "Approved for audit purpose"
-justification: "Need access for quarterly audit"
-gitMetadata:
-  branch: "req_1711629445"
-  mrId: 101
-  status: "MERGED"
+```json
+{
+  "id": "1711629445",
+  "status": "PENDING",          // PENDING | APPROVED | DENIED | EXPIRED | REVOKED
+  "createdAt": "2024-03-28T10:00:00Z",
+  "updatedAt": "2024-03-28T11:00:00Z",
+  "requesterId": "user_alex",   // ID of the user who created the request
+  "principals": [               // List of users/groups getting access
+    {
+      "id": "user_alex",
+      "name": "Alex Analyst",
+      "type": "USER"
+    }
+  ],
+  "objects": [                  // References to data objects involved
+    {
+      "id": "main.finance.transactions",
+      "type": "TABLE",
+      "catalog": "main",
+      "schema": "finance",
+      "table": "transactions"
+    }
+  ],
+  "permissions": ["SELECT"],    // Privileges requested (e.g., SELECT, MODIFY)
+  "justification": "Need access for quarterly audit",
+  "approvals": [                // Audit trail of decisions
+    {
+      "userId": "manager_sarah",
+      "status": "APPROVED",
+      "timestamp": "2024-03-28T10:30:00Z",
+      "comment": "Approved for audit purpose"
+    }
+  ]
+}
 ```
-
----
-
-## 2. RDBMS Schema (SQL)
-
-For persistent storage in relational databases (Postgres, MySQL, SQL Server), the following table structure is recommended.
-
-### Table: `access_requests`
-| Column | Type | Description |
-| :--- | :--- | :--- |
-| `id` | `VARCHAR(64)` | Primary Key |
-| `status` | `VARCHAR(20)` | Current lifecycle state |
-| `created_at` | `TIMESTAMP` | ISO timestamp |
-| `justification` | `TEXT` | User-provided justification |
-| `request_blob` | `JSONB` / `TEXT` | The full JSON/YAML representation for extensibility |
-
-### Table: `request_objects` (Normalization)
-| Column | Type | Description |
-| :--- | :--- | :--- |
-| `request_id` | `VARCHAR(64)` | Foreign Key to `access_requests.id` |
-| `object_id` | `VARCHAR(255)` | UC Full Name |
-| `object_type` | `VARCHAR(32)` | catalog, schema, table, etc. |
 
 ---
 
 ## 3. Unity Catalog Schema (Delta)
 
-When using `UNITY_CATALOG` storage, requests are stored as Delta tables within a governing catalog/schema (e.g., `system.access_control`).
+When using `UNITY_CATALOG` storage mode, requests are persisted as Delta tables. The system uses a **SQL Warehouse** to execute these commands.
 
-### Delta Table: `requests`
+### Delta Table: `access_requests`
+This table acts as the source of truth for all workflows.
+
 ```sql
-CREATE TABLE IF NOT EXISTS system.access_control.requests (
-  id STRING,
-  status STRING,
+CREATE TABLE IF NOT EXISTS system.access_control.access_requests (
+  id STRING NOT NULL,           -- Primary Key
+  status STRING,                -- PENDING, APPROVED, etc.
+  requester_id STRING,
+  justification STRING,
   created_at TIMESTAMP,
-  request_json STRING -- Full serialized record for future-proofing
-) USING DELTA;
+  updated_at TIMESTAMP,
+  request_json STRING,          -- Full serialized record (JSON) for auditability
+  principals_json STRING,       -- Snapshot of target principals at point of request
+  objects_json STRING           -- Snapshot of target objects
+) USING DELTA
+PARTITIONED BY (status);
 ```
+
+### Configuration Required:
+- **Host**: Databricks workspace URL.
+- **Token**: PAT or Service Principal Secret.
+- **SQL Warehouse ID**: The ID of the warehouse used to execute DDL/DML.
+- **Catalog/Schema**: Namespace where meta-tables reside.
 
 ---
 
-## 4. Git Repository Structure (Hierarchical YAML)
+## 4. Identity Mapping
 
-When using the `GIT` strategy, the repository reflects the Unity Catalog object hierarchy combined with centralized request tracking.
+The system supports multiple identity sources, mapped via the `IdentityService`.
 
-```text
-/
-├── .codeowners                   # Root codeowners (default)
-├── requests/                     # Centralized request metadata
-│   ├── 1711629445.yaml           # Metadata for request #1711629445
-│   └── 1711630122.yaml
-├── data_objects/                 # Hierarchical permissions (active state)
-│   └── <catalog>/
-│       └── <schema>/
-│           └── <table_or_view>/
-│               └── active.yaml   # Current active grants for this object
-└── CODEOWNERS                    # Dynamically generated per branch
-```
+| Type | Source | Auth Method | Description |
+| :--- | :--- | :--- | :--- |
+| `MOCK` | Local Memory | Session Simulation | Zero-config, pre-populated personas. |
+| `DATABRICKS_WORKSPACE` | Workspace SCIM | PAT / OAuth | Users/groups specific to a single workspace. |
+| `DATABRICKS_ACCOUNT` | Account SCIM | PAT / OAuth | Global users/groups across all workspaces. |
 
-### active.yaml Example
-```yaml
-# Active grants for main.finance.transactions
-permissions:
-  SELECT:
-    - principal: "user_alex"
-      name: "Alex Analyst"
-      grantedAt: "2024-03-28T11:00:00Z"
-      requestId: "1711629445"  # Link back to metadata in /requests
+### User Profile Schema (`/api/scim/v2/Me`)
+Fetched via the BFF proxy to ensure identity consistency.
+```json
+{
+  "id": "12345",
+  "userName": "alex@example.com",
+  "displayName": "Alex Analyst",
+  "emails": [{ "value": "alex@example.com", "primary": true }],
+  "groups": [
+    { "display": "analysts", "value": "group_999" }
+  ]
+}
 ```

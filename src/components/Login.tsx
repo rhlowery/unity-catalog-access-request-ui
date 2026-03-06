@@ -11,6 +11,8 @@ const Login = () => {
     const { login, loading, user } = useAuth();
     const [activeProvider, setActiveProvider] = useState<string | null>(null);
     const [showUserSelection, setShowUserSelection] = useState(false);
+    const [showCredentials, setShowCredentials] = useState(false);
+    const [credentials, setCredentials] = useState({ username: '', password: '', token: '', type: 'PAT' });
     const [configMode, setConfigMode] = useState('MOCK');
 
     useEffect(() => {
@@ -20,17 +22,27 @@ const Login = () => {
         }
     }, [configMode, user]);
 
-    const handleLogin = async (provider: string) => {
+    const handleLogin = async (provider: string, creds?: any) => {
         setActiveProvider(provider);
         try {
-            const loggedUser = await login(provider);
+            const loggedUser = await login(provider, creds);
             console.log(`[Login] Logged in user:`, loggedUser);
             if (loggedUser?.requiresUserSelection) {
                 setShowUserSelection(true);
+            } else if (loggedUser?.requiresCredentials) {
+                setShowCredentials(true);
+            } else {
+                setShowCredentials(false);
             }
         } catch (error) {
             console.error(`[Login] Login error:`, error);
             setActiveProvider(null);
+        }
+    };
+
+    const handleCredentialSubmit = () => {
+        if (activeProvider) {
+            handleLogin(activeProvider, credentials);
         }
     };
 
@@ -72,7 +84,7 @@ const Login = () => {
     };
 
     // Show loading state
-    if (activeProvider && loading) {
+    if (activeProvider && loading && !showCredentials) {
         return (
             <div className="h-screen w-screen bg-slate-950 flex items-center justify-center p-4">
                 <div className="w-full max-w-md p-10 flex flex-col items-center gap-6 bg-white/[0.03] border border-white/10 rounded-3xl backdrop-blur-2xl shadow-2xl animate-in fade-in zoom-in duration-500">
@@ -177,7 +189,7 @@ const Login = () => {
                                 <span className="text-[11px] font-bold uppercase tracking-widest text-center leading-tight">SAML SSO</span>
                             </button>
                             <button
-                                onClick={() => handleLogin('DATABRICKS')}
+                                onClick={() => handleLogin('DATABRICKS_WORKSPACE')}
                                 className="p-5 rounded-2xl flex flex-col items-center gap-3 transition-all duration-500 border border-white/5 bg-white/5 hover:bg-white/10 group"
                             >
                                 <Database size={24} className="text-muted-foreground group-hover:text-red-400/70 transition-colors" />
@@ -191,6 +203,86 @@ const Login = () => {
                                 By signing in you agree to our <span className="underline cursor-pointer hover:text-primary transition-colors">Acceptable Use Policy</span>.
                             </p>
                         </div>
+                    </div>
+                ) : showCredentials ? (
+                    <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
+                        <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-4">
+                            <div className="text-center">
+                                <div className="text-xs font-bold uppercase tracking-widest text-primary mb-1">Databricks Authentication</div>
+                                <p className="text-[10px] text-muted-foreground italic mb-4">Enter your credentials to continue</p>
+                            </div>
+
+                            <div className="space-y-3">
+                                <div className="flex bg-white/5 rounded-xl p-1 mb-2">
+                                    <button
+                                        className={cn("flex-1 text-[10px] font-black uppercase py-2 rounded-lg transition-all", credentials.type === 'PAT' ? "bg-primary text-white" : "text-muted-foreground hover:bg-white/5")}
+                                        onClick={() => setCredentials({ ...credentials, type: 'PAT' })}
+                                    >
+                                        Access Token
+                                    </button>
+                                    <button
+                                        className={cn("flex-1 text-[10px] font-black uppercase py-2 rounded-lg transition-all", credentials.type === 'PWD' ? "bg-primary text-white" : "text-muted-foreground hover:bg-white/5")}
+                                        onClick={() => setCredentials({ ...credentials, type: 'PWD' })}
+                                    >
+                                        Password
+                                    </button>
+                                </div>
+
+                                {credentials.type === 'PWD' ? (
+                                    <>
+                                        <div className="space-y-1">
+                                            <div className="text-[9px] font-bold uppercase text-muted-foreground ml-1">Username / Email</div>
+                                            <input
+                                                type="text"
+                                                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary/50"
+                                                placeholder="user@organization.com"
+                                                value={credentials.username}
+                                                onChange={(e) => setCredentials({ ...credentials, username: e.target.value })}
+                                            />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <div className="text-[9px] font-bold uppercase text-muted-foreground ml-1">Password</div>
+                                            <input
+                                                type="password"
+                                                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary/50"
+                                                placeholder="••••••••"
+                                                value={credentials.password}
+                                                onChange={(e) => setCredentials({ ...credentials, password: e.target.value })}
+                                            />
+                                        </div>
+                                    </>
+                                ) : (
+                                    <div className="space-y-1">
+                                        <div className="text-[9px] font-bold uppercase text-muted-foreground ml-1">Personal Access Token</div>
+                                        <input
+                                            type="password"
+                                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary/50 font-mono"
+                                            placeholder="dapi..."
+                                            value={credentials.token}
+                                            onChange={(e) => setCredentials({ ...credentials, token: e.target.value })}
+                                        />
+                                    </div>
+                                )}
+
+                                <Button
+                                    className="w-full rounded-xl py-6 font-bold uppercase tracking-widest text-xs mt-2"
+                                    onClick={handleCredentialSubmit}
+                                    disabled={loading}
+                                >
+                                    {loading ? <Loader2 className="animate-spin mr-2" size={16} /> : "Authenticate"}
+                                </Button>
+                            </div>
+                        </div>
+                        <Button
+                            variant="ghost"
+                            className="w-full text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:bg-white/5"
+                            onClick={() => {
+                                setShowCredentials(false);
+                                setActiveProvider(null);
+                            }}
+                        >
+                            Cancel
+                        </Button>
                     </div>
                 ) : (
                     <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">

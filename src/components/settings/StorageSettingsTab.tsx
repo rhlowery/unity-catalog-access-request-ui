@@ -66,7 +66,7 @@ const StorageSettingsTab: React.FC<StorageSettingsTabProps> = ({ config, setConf
                     description="Store application data in a managed Unity Catalog table."
                     icon={<Database size={18} />}
                 >
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <Field label="Catalog">
                             <Input
                                 value={config.ucCatalog || ''}
@@ -81,11 +81,36 @@ const StorageSettingsTab: React.FC<StorageSettingsTabProps> = ({ config, setConf
                                 placeholder="default"
                             />
                         </Field>
-                        <Field label="Table Name">
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <Field label="Requests Table">
                             <Input
                                 value={config.ucTable || ''}
                                 onChange={e => setConfig({ ...config, ucTable: e.target.value })}
                                 placeholder="access_requests"
+                            />
+                        </Field>
+                        <Field label="Approver Policies Table">
+                            <Input
+                                value={config.ucApproversTable || ''}
+                                onChange={e => setConfig({ ...config, ucApproversTable: e.target.value })}
+                                placeholder="approver_policies"
+                            />
+                        </Field>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <Field label="Audit Log Table">
+                            <Input
+                                value={config.ucAuditTable || ''}
+                                onChange={e => setConfig({ ...config, ucAuditTable: e.target.value })}
+                                placeholder="audit_log"
+                            />
+                        </Field>
+                        <Field label="SQL Warehouse ID" hint="Required for executing SQL queries against the storage table.">
+                            <Input
+                                value={config.ucWarehouseId || ''}
+                                onChange={e => setConfig({ ...config, ucWarehouseId: e.target.value })}
+                                placeholder="0123-456789-abcd012"
                             />
                         </Field>
                     </div>

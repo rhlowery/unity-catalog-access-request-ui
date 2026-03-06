@@ -59,6 +59,10 @@ export interface StorageConfig {
     ucCatalog?: string;
     ucSchema?: string;
     ucTable?: string;
+    ucApproversTable?: string;
+    ucAuditTable?: string;
+    ucTables?: string;
+    ucWarehouseId?: string;
     rdbmsConn?: string;
     rdbmsUser?: string;
     rdbmsPassword?: string;

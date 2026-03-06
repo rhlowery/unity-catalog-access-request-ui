@@ -33,11 +33,23 @@ const UnityCatalogSettingsTab: React.FC<UnityCatalogSettingsTabProps> = ({ confi
                 </p>
                 <Select
                     value={authType}
-                    onValueChange={val => setConfig({
-                        ...config,
-                        ucAuthType: val,
-                        ucHost: val === 'ACCOUNT' ? 'accounts.cloud.databricks.com' : (val === 'MOCK' ? '' : config.ucHost || '')
-                    })}
+                    onValueChange={val => {
+                        const newConfig = {
+                            ...config,
+                            ucAuthType: val,
+                            ucHost: val === 'ACCOUNT' ? 'accounts.cloud.databricks.com' : (val === 'MOCK' ? '' : config.ucHost || '')
+                        };
+
+                        // Sync identityType if it's currently set to a Databricks provider
+                        const isDatabricksIdentity = ['DATABRICKS', 'DATABRICKS_WORKSPACE', 'DATABRICKS_ACCOUNT'].includes(config.identityType);
+                        if (isDatabricksIdentity) {
+                            if (val === 'WORKSPACE') newConfig.identityType = 'DATABRICKS_WORKSPACE';
+                            if (val === 'ACCOUNT') newConfig.identityType = 'DATABRICKS_ACCOUNT';
+                            if (val === 'MOCK') newConfig.identityType = 'MOCK';
+                        }
+
+                        setConfig(newConfig);
+                    }}
                 >
                     <SelectTrigger className="w-full max-w-sm">
                         <SelectValue />
@@ -67,40 +79,6 @@ const UnityCatalogSettingsTab: React.FC<UnityCatalogSettingsTabProps> = ({ confi
             {/* All real connection types */}
             {!isMock && (
                 <>
-                    {/* Schema target */}
-                    <Section
-                        icon={<Database size={16} />}
-                        title="Schema &amp; Table Configuration"
-                        description="The catalog and schema where the application will store access requests, approvals, and audit records."
-                    >
-                        <div className="grid grid-cols-2 gap-4">
-                            <Field label="Catalog Name">
-                                <Input
-                                    value={config.ucCatalog || ''}
-                                    placeholder="default"
-                                    onChange={e => setConfig({ ...config, ucCatalog: e.target.value })}
-                                />
-                            </Field>
-                            <Field label="Schema Name">
-                                <Input
-                                    value={config.ucSchema || ''}
-                                    placeholder="acs"
-                                    onChange={e => setConfig({ ...config, ucSchema: e.target.value })}
-                                />
-                            </Field>
-                        </div>
-                        <Field
-                            label="Table Names (comma-separated)"
-                            hint="Tables to create in the schema. Used by the storage and audit services."
-                        >
-                            <Input
-                                value={config.ucTables || ''}
-                                placeholder="requests,approvals,audit_log"
-                                className="font-mono"
-                                onChange={e => setConfig({ ...config, ucTables: e.target.value })}
-                            />
-                        </Field>
-                    </Section>
 
                     {/* Workspace / Account connection */}
                     <Section

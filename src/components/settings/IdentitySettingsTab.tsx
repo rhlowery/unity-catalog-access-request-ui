@@ -22,7 +22,8 @@ import { SecretField, Field, Section } from './SettingsComponents';
 
 const IdentitySettingsTab: React.FC<IdentitySettingsTabProps> = ({ config, setConfig }) => {
     const idpType = config.identityType || 'MOCK';
-    const isAuthProvider = !['MOCK', 'DATABRICKS'].includes(idpType);
+    const isDatabricksIdentity = ['DATABRICKS', 'DATABRICKS_WORKSPACE', 'DATABRICKS_ACCOUNT'].includes(idpType);
+    const isAuthProvider = !['MOCK', ...['DATABRICKS', 'DATABRICKS_WORKSPACE', 'DATABRICKS_ACCOUNT']].includes(idpType);
 
     return (
         <div className="space-y-6 animate-in fade-in duration-300">
@@ -35,7 +36,13 @@ const IdentitySettingsTab: React.FC<IdentitySettingsTabProps> = ({ config, setCo
                 </p>
                 <Select
                     value={idpType}
-                    onValueChange={v => setConfig({ ...config, identityType: v })}
+                    onValueChange={v => {
+                        const newConfig = { ...config, identityType: v };
+                        // Sync with Unity Catalog connection if selecting a Databricks provider
+                        if (v === 'DATABRICKS_WORKSPACE') newConfig.ucAuthType = 'WORKSPACE';
+                        if (v === 'DATABRICKS_ACCOUNT') newConfig.ucAuthType = 'ACCOUNT';
+                        setConfig(newConfig);
+                    }}
                 >
                     <SelectTrigger className="w-full max-w-sm">
                         <SelectValue />
@@ -44,8 +51,11 @@ const IdentitySettingsTab: React.FC<IdentitySettingsTabProps> = ({ config, setCo
                         <SelectItem value="MOCK">
                             <span className="flex items-center gap-2"><Shield size={14} /> Mock (Development)</span>
                         </SelectItem>
-                        <SelectItem value="DATABRICKS">
-                            <span className="flex items-center gap-2"><Globe size={14} /> Databricks / Unity Catalog</span>
+                        <SelectItem value="DATABRICKS_WORKSPACE">
+                            <span className="flex items-center gap-2"><Globe size={14} /> Databricks Workspace</span>
+                        </SelectItem>
+                        <SelectItem value="DATABRICKS_ACCOUNT">
+                            <span className="flex items-center gap-2"><Globe size={14} /> Databricks Account (Unified)</span>
                         </SelectItem>
                         <SelectItem value="AZURE">
                             <span className="flex items-center gap-2"><Lock size={14} /> Microsoft Azure Entra ID (AD)</span>
@@ -74,16 +84,16 @@ const IdentitySettingsTab: React.FC<IdentitySettingsTabProps> = ({ config, setCo
             )}
 
             {/* ── DATABRICKS ──────────────────────────────────── */}
-            {idpType === 'DATABRICKS' && (
+            {isDatabricksIdentity && (
                 <Section
                     icon={<Globe size={16} />}
-                    title="Databricks / Unity Catalog Identity"
-                    description="Users and groups are read from the connected Databricks workspace or account. Configure the workspace connection in the Unity Catalog tab."
-                    badge="No extra config needed"
+                    title={idpType === 'DATABRICKS_ACCOUNT' ? "Databricks Account Identity" : "Databricks Workspace Identity"}
+                    description={`Users and groups are read from the connected Databricks ${idpType === 'DATABRICKS_ACCOUNT' ? 'account' : 'workspace'}. Configure the specific connection in the Unity Catalog tab.`}
+                    badge="Managed via Unity Catalog"
                 >
                     <div className="flex items-start gap-3 rounded-lg bg-primary/5 border border-primary/20 p-3 text-xs text-muted-foreground">
                         <AlertCircle size={14} className="mt-0.5 shrink-0 text-primary" />
-                        <p>Requires a valid Unity Catalog workspace connection. Verify the connection in the <strong className="text-foreground">Unity Catalog</strong> settings tab.</p>
+                        <p>Requires a valid Unity Catalog {idpType === 'DATABRICKS_ACCOUNT' ? 'account' : 'workspace'} connection. Verify the host and credentials in the <strong className="text-foreground">Unity Catalog</strong> settings tab.</p>
                     </div>
                 </Section>
             )}

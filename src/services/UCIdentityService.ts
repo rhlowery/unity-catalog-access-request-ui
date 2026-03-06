@@ -10,6 +10,7 @@ import { ConfigService } from './config/ConfigService';
 import { SecretsService } from './secrets/SecretsService';
 
 const API_BASE = '/api/2.0/preview/scim/v2';
+const BFF_URL = import.meta.env.VITE_BFF_URL || 'http://localhost:3001';
 
 // Simple in-memory cache for demo purposes
 let cachedToken = null;
@@ -52,17 +53,16 @@ export const getM2MToken = async (config) => {
         console.log("Exchanging M2M credentials via BFF...");
         const baseUrl = getAccountBaseUrl(config);
         const host = new URL(baseUrl).hostname;
-
         // Route through BFF to keep client_secret off the browser
-        const BFF_URL = import.meta.env.VITE_BFF_URL || 'http://localhost:3001';
-
-        // Security: We only send the host. The BFF resolves clientId/clientSecret from its own .env
+        // Security: We send host, clientId, and clientSecret. The BFF converts these into an HttpOnly cookie.
         const tokenRes = await fetch(`${BFF_URL}/api/token`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include', // Important for cookies
             body: JSON.stringify({
-                host: host
+                host: host,
+                clientId: config.ucClientId,
+                clientSecret: clientSecret
             })
         });
 
@@ -291,6 +291,48 @@ export const fetchCatalogs = async (workspaceUrl) => {
         return tree;
     } catch (e) {
         console.error("Error in fetchCatalogs:", e);
+        return null;
+    }
+};
+
+/**
+ * Fetch the current user profile from Databricks SCIM /Me.
+ */
+export const fetchMe = async () => {
+    try {
+        const config = await ConfigService.getResolvedConfig();
+        await getM2MToken(config);
+
+        const baseUrl = getAccountBaseUrl(config);
+        const host = new URL(baseUrl).hostname;
+
+        // SCIM /Me is workspace-level. If host specified, use it.
+        const scimHost = config.ucHost || host;
+
+        console.log(`[UCIdentityService] Fetching /Me from ${scimHost}...`);
+
+        const res = await fetch(`${BFF_URL}/api/scim/api/2.0/preview/scim/v2/Me`, {
+            headers: { 'x-scim-host': scimHost },
+            credentials: 'include'
+        });
+
+        if (!res.ok) {
+            console.warn(`[UCIdentityService] SCIM /Me failed (${res.status}).`);
+            return null;
+        }
+
+        const u = await res.json();
+        return {
+            id: u.id,
+            name: u.displayName || u.userName,
+            email: u.emails?.[0]?.value || u.userName,
+            type: 'USER',
+            initials: (u.displayName || u.userName || '??').split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2),
+            provider: 'Databricks',
+            groups: (u.groups || []).map((g: any) => g.display)
+        };
+    } catch (e) {
+        console.error("[UCIdentityService] fetchMe failed:", e);
         return null;
     }
 };

@@ -93,12 +93,12 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         };
     }, []);
 
-    const login = async (provider: string): Promise<User> => {
+    const login = async (provider: string, credentials?: any): Promise<User> => {
         try {
             console.log(`[AuthProvider] Attempting login with provider: ${provider}`);
 
             // 1. Resolve identity via the configured identity adapter
-            const currentUser = await IdentityService.login(provider);
+            const currentUser = await IdentityService.login(provider, credentials);
 
             // If this is a mock provider and it requires selection, don't create a session yet
             if (currentUser.requiresUserSelection) {

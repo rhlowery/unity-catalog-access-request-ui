@@ -28,9 +28,9 @@ export const MockIdentityAdapter: IIdentityAdapter = {
         return null;
     },
 
-    async login(provider: string, _config: any) {
+    async login(provider: string, _config: any, _credentials?: any) {
         console.log(`[MockIdentity] Login with ${provider}`);
-        
+
         // For MOCK provider, show user selection
         if (provider === 'MOCK') {
             console.log(`[MockIdentity] Available users:`, MOCK_USERS);
@@ -46,7 +46,7 @@ export const MockIdentityAdapter: IIdentityAdapter = {
                 availableUsers: MOCK_USERS
             };
         }
-        
+
         // For OAuth/SAML providers, return a mock user with provider info
         const mockUser = {
             id: `user_${provider.toLowerCase()}`,
@@ -57,7 +57,7 @@ export const MockIdentityAdapter: IIdentityAdapter = {
             provider: provider.toLowerCase(),
             groups: ['group_all_users', 'group_standard_users']
         };
-        
+
         console.log(`[MockIdentity] Returning mock user for ${provider}:`, mockUser);
         return mockUser;
     },
@@ -76,10 +76,10 @@ export const selectMockUser = async (userId: string): Promise<IdentityUser> => {
     if (!user) {
         throw new Error(`User ${userId} not found in mock users`);
     }
-    
+
     // Store the selected user
     localStorage.setItem('mock_current_user', JSON.stringify(user));
-    
+
     console.log(`[MockIdentity] Selected user: ${user.name} (${user.role})`);
     return user;
 };

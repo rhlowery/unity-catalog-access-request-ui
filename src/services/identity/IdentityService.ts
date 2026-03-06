@@ -9,6 +9,8 @@ const ADAPTERS: Record<string, IIdentityAdapter> = {
     'OAUTH': MockIdentityAdapter, // Fallback to mock for demo
     'SAML': MockIdentityAdapter, // Fallback to mock for demo
     'DATABRICKS': DatabricksIdentityAdapter,
+    'DATABRICKS_WORKSPACE': DatabricksIdentityAdapter,
+    'DATABRICKS_ACCOUNT': DatabricksIdentityAdapter,
     'GOOGLE': MockIdentityAdapter, // OAuth providers - fallback to mock
     'MICROSOFT': MockIdentityAdapter,
     'GENERIC_OAUTH': MockIdentityAdapter,
@@ -53,15 +55,16 @@ export const IdentityService = {
     /**
      * Authenticates a user against a specific provider.
      * @param {string} provider - The string ID of the authentication provider.
+     * @param {any} credentials - Optional credentials (user/pass or token).
      * @returns {Promise<IdentityUser>} The authenticated user profile.
      */
-    async login(provider: string): Promise<IdentityUser> {
+    async login(provider: string, credentials?: any): Promise<IdentityUser> {
         const adapter = this.getAdapter();
         const config = await ConfigService.getResolvedConfig();
         if (!adapter.login) {
             throw new Error('Login not supported by current adapter');
         }
-        return await adapter.login(provider, config);
+        return await adapter.login(provider, config, credentials);
     },
 
     /**

@@ -63,8 +63,10 @@ Rel(bff, uc, "Manages Grants", "REST API")
     - **Mandatory Governance**: A governance group must check every request.
     - **Unanimous Consent**: All owners + governance must approve.
 - **Audit Logging**: Full audit trail of all requests and decisions.
-- **Simulated SSO**: Login simulation for Google, Microsoft, and SAML (Mock).
-- **Offline First**: All data is mocked and persisted locally (`localStorage`). No external dependencies required at runtime.
+- **Enterprise Authentication**:
+    - **Databricks Login**: Secure direct authentication via Personal Access Token (PAT) or Username/Password.
+    - **Cloud SSO**: Simulation for Google, Microsoft, and SAML (Mock).
+- **Offline First**: All data is mocked and persisted locally (`localStorage`) by default.
 
 ## Prerequisites
 
