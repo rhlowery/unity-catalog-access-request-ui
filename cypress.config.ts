@@ -17,6 +17,7 @@ export default defineConfig({
 
       return config;
     },
+    baseUrl: 'http://localhost:5173',
     specPattern: '**/*.feature',
     supportFile: 'cypress/support/e2e.ts',
     video: false,

@@ -96,6 +96,7 @@ export const ConstraintSelector: React.FC<ConstraintSelectorProps> = ({
                     </div>
                     <Textarea
                         id="justification"
+                        data-testid="justification-input"
                         placeholder="Provide details on the business requirement for this access..."
                         className="min-h-[160px] resize-none bg-white/[0.02] border-white/5 focus:border-primary/40 focus:bg-white/[0.04] focus:ring-primary/10 rounded-2xl transition-all duration-500 p-6 text-sm leading-relaxed shadow-inner"
                         value={justification}

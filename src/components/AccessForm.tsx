@@ -221,6 +221,7 @@ export const AccessForm: React.FC<AccessFormProps> = ({ selectedObjects, onClear
                 </Button>
                 <Button
                     onClick={handleSubmit}
+                    data-testid="submit-request-button"
                     className="relative group px-12 h-14 bg-primary hover:bg-primary/90 text-primary-foreground font-black uppercase tracking-[0.3em] text-sm rounded-2xl shadow-2xl shadow-primary/30 active:scale-95 transition-all overflow-hidden border-t border-white/20"
                 >
                     <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 skew-x-[30deg]" />

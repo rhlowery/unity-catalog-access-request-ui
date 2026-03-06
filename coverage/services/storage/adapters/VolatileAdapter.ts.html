@@ -23,30 +23,30 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">10% </span>
+                <span class="strong">11.53% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>2/20</span>
+                <span class='fraction'>3/26</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/6</span>
+                <span class='fraction'>0/12</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>0/9</span>
+                <span class='fraction'>0/11</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">11.11% </span>
+                <span class="strong">12.5% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>2/18</span>
+                <span class='fraction'>3/24</span>
             </div>
         
             
@@ -113,10 +113,23 @@
 <a name='L48'></a><a href='#L48'>48</a>
 <a name='L49'></a><a href='#L49'>49</a>
 <a name='L50'></a><a href='#L50'>50</a>
-<a name='L51'></a><a href='#L51'>51</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L51'></a><a href='#L51'>51</a>
+<a name='L52'></a><a href='#L52'>52</a>
+<a name='L53'></a><a href='#L53'>53</a>
+<a name='L54'></a><a href='#L54'>54</a>
+<a name='L55'></a><a href='#L55'>55</a>
+<a name='L56'></a><a href='#L56'>56</a>
+<a name='L57'></a><a href='#L57'>57</a>
+<a name='L58'></a><a href='#L58'>58</a>
+<a name='L59'></a><a href='#L59'>59</a>
+<a name='L60'></a><a href='#L60'>60</a>
+<a name='L61'></a><a href='#L61'>61</a>
+<a name='L62'></a><a href='#L62'>62</a>
+<a name='L63'></a><a href='#L63'>63</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
@@ -160,6 +173,17 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -167,7 +191,8 @@
  * Mock (Volatile) Storage Adapter
  * Persists data only in memory for the current session.
  */
-let memoryStore = [];
+let memoryStore: any[] = [];
+let memoryApprovers: Record&lt;string, Record&lt;string, string[]&gt;&gt; = {};
 &nbsp;
 export const VolatileAdapter = {
     name: 'Mock (Volatile)',
@@ -211,6 +236,17 @@ export const VolatileAdapter = {
                 }
             });
 <span class="cstat-no" title="statement not covered" >        return grants;</span>
+    },
+&nbsp;
+    async <span class="fstat-no" title="function not covered" >getApprovers(c</span>onfig: any) {
+        const identityType = <span class="cstat-no" title="statement not covered" >config.identityType || 'MOCK';</span>
+<span class="cstat-no" title="statement not covered" >        return { ...(memoryApprovers[identityType] || {}) };</span>
+    },
+&nbsp;
+    async <span class="fstat-no" title="function not covered" >saveApprovers(a</span>pprovers: any, config: any) {
+        const identityType = <span class="cstat-no" title="statement not covered" >config.identityType || 'MOCK';</span>
+<span class="cstat-no" title="statement not covered" >        memoryApprovers[identityType] = { ...approvers };</span>
+<span class="cstat-no" title="statement not covered" >        return true;</span>
     }
 };
 &nbsp;</pre></td></tr></table></pre>
@@ -220,7 +256,7 @@ export const VolatileAdapter = {
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-03-03T22:47:29.686Z
+                at 2026-03-06T18:36:23.490Z
             </div>
         <script src="../../../prettify.js"></script>
         <script>

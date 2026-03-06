@@ -126,6 +126,7 @@ const Login = () => {
                         {(user?.availableUsers || []).map((mockUser) => (
                             <div
                                 key={mockUser.id}
+                                data-testid={`mock-user-${mockUser.id}`}
                                 className="group relative p-6 rounded-2xl bg-white/[0.02] border border-white/5 hover:border-primary/50 hover:bg-white/[0.05] transition-all duration-500 cursor-pointer overflow-hidden shadow-lg"
                                 onClick={() => handleUserSelect(mockUser.id)}
                             >
@@ -178,6 +179,7 @@ const Login = () => {
                                     changeProvider('MOCK');
                                     handleLogin('MOCK');
                                 }}
+                                data-testid="mock-login-button"
                                 className={cn(
                                     "p-5 rounded-2xl flex flex-col items-center gap-3 transition-all duration-500 border group",
                                     configMode === 'MOCK' ? "bg-primary/10 border-primary/40 shadow-inner" : "bg-white/5 border-white/5 hover:bg-white/10"
@@ -188,6 +190,7 @@ const Login = () => {
                             </button>
                             <button
                                 onClick={() => handleLogin('OAUTH')}
+                                data-testid="oauth-login-button"
                                 className="p-5 rounded-2xl flex flex-col items-center gap-3 transition-all duration-500 border border-white/5 bg-white/5 hover:bg-white/10 group"
                             >
                                 <Globe size={24} className="text-muted-foreground group-hover:text-blue-400/70 transition-colors" />
@@ -195,6 +198,7 @@ const Login = () => {
                             </button>
                             <button
                                 onClick={() => handleLogin('SAML')}
+                                data-testid="saml-login-button"
                                 className="p-5 rounded-2xl flex flex-col items-center gap-3 transition-all duration-500 border border-white/5 bg-white/5 hover:bg-white/10 group"
                             >
                                 <Lock size={24} className="text-muted-foreground group-hover:text-amber-400/70 transition-colors" />
@@ -202,6 +206,7 @@ const Login = () => {
                             </button>
                             <button
                                 onClick={() => handleLogin('DATABRICKS_WORKSPACE')}
+                                data-testid="databricks-login-button"
                                 className="p-5 rounded-2xl flex flex-col items-center gap-3 transition-all duration-500 border border-white/5 bg-white/5 hover:bg-white/10 group"
                             >
                                 <Database size={24} className="text-muted-foreground group-hover:text-red-400/70 transition-colors" />
@@ -246,6 +251,7 @@ const Login = () => {
                                             <div className="text-[9px] font-bold uppercase text-muted-foreground ml-1">Username / Email</div>
                                             <input
                                                 type="text"
+                                                data-testid="username-input"
                                                 className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary/50"
                                                 placeholder="user@organization.com"
                                                 value={credentials.username}
@@ -256,6 +262,7 @@ const Login = () => {
                                             <div className="text-[9px] font-bold uppercase text-muted-foreground ml-1">Password</div>
                                             <input
                                                 type="password"
+                                                data-testid="password-input"
                                                 className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary/50"
                                                 placeholder="••••••••"
                                                 value={credentials.password}
@@ -268,6 +275,7 @@ const Login = () => {
                                         <div className="text-[9px] font-bold uppercase text-muted-foreground ml-1">Personal Access Token</div>
                                         <input
                                             type="password"
+                                            data-testid="token-input"
                                             className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary/50 font-mono"
                                             placeholder="dapi..."
                                             value={credentials.token}
@@ -276,13 +284,21 @@ const Login = () => {
                                     </div>
                                 )}
 
-                                <Button
-                                    className="w-full rounded-xl py-6 font-bold uppercase tracking-widest text-xs mt-2"
-                                    onClick={handleCredentialSubmit}
-                                    disabled={loading}
-                                >
-                                    {loading ? <Loader2 className="animate-spin mr-2" size={16} /> : "Authenticate"}
-                                </Button>
+                                <div className="flex flex-col gap-3 pt-4">
+                                    <Button
+                                        className="w-full h-12 rounded-xl text-[11px] font-black uppercase tracking-widest shadow-xl shadow-primary/20"
+                                        onClick={() => handleLogin(activeProvider!)}
+                                        disabled={loading}
+                                        data-testid="login-submit-button"
+                                    >
+                                        {loading ? (
+                                            <>
+                                                <Loader2 size={16} className="animate-spin mr-2" />
+                                                Processing...
+                                            </>
+                                        ) : "Sign In to Console"}
+                                    </Button>
+                                </div>
                             </div>
                         </div>
                         <Button

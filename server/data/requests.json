@@ -1,50 +1,35 @@
 [
   {
-    "id": "req_1772573946542",
-    "status": "APPROVED",
-    "timestamp": "2026-03-03T21:39:06.542Z",
-    "expirationTime": "2026-03-03T22:39:06.542Z",
-    "approvalData": [
-      {
-        "approverId": "group_governance",
-        "message": "Approved via Dashboard",
-        "decision": "APPROVE",
-        "timestamp": "2026-03-03T21:39:30.253Z",
-        "isSimulation": false
-      }
-    ],
-    "approvalState": {
-      "group_governance": "APPROVED"
-    },
-    "requiredApprovers": [
-      "group_governance"
-    ],
-    "requestedObjects": [
+    "id": "1772823253757",
+    "objects": [
       {
         "id": "tbl_transactions",
         "name": "transactions",
         "type": "TABLE",
-        "fullPath": "main_catalog.finance.transactions"
+        "parentId": "sch_finance",
+        "owners": [
+          "group_finance_admins",
+          "user_cfo"
+        ]
       }
     ],
     "principals": [
-      {
-        "id": "user_standard",
-        "name": "Alex Analyst",
-        "email": "alex@company.com",
-        "type": "USER"
-      }
+      "user_standard"
     ],
     "permissions": [
       "SELECT"
     ],
+    "justification": "Testing - Functionality",
+    "status": "PENDING",
+    "createdAt": "2026-03-06T18:54:13.757Z",
     "timeConstraint": {
       "type": "DURATION",
       "value": 1,
       "start": "",
       "end": ""
     },
-    "justification": "Test",
-    "requesterId": "Jane Security"
+    "timestamp": 1772823253757,
+    "approvals": [],
+    "comments": []
   }
 ]
