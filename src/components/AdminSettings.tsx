@@ -68,10 +68,10 @@ const AdminSettings = () => {
                         <TabsTrigger value="IDENTITY" className="px-4 whitespace-nowrap">Identity</TabsTrigger>
                         <TabsTrigger value="SECRETS" className="px-4 whitespace-nowrap">Secrets</TabsTrigger>
                         <TabsTrigger value="UNITY_CATALOG" className="px-4 whitespace-nowrap">Unity Catalog</TabsTrigger>
-                        <TabsTrigger value="HEALTH" className="px-4 whitespace-nowrap flex gap-2 items-center">
+                        <TabsTrigger data-testid="settings-tab-health" value="HEALTH" className="px-4 whitespace-nowrap flex gap-2 items-center">
                             <Activity size={14} /> Health
                         </TabsTrigger>
-                        <TabsTrigger value="AUDIT" className="px-4 whitespace-nowrap flex gap-2 items-center">
+                        <TabsTrigger data-testid="settings-tab-audit" value="AUDIT" className="px-4 whitespace-nowrap flex gap-2 items-center">
                             <FileText size={14} /> Audit
                         </TabsTrigger>
                         {import.meta.env.DEV && (

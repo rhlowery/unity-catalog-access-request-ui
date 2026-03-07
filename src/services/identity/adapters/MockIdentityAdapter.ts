@@ -35,8 +35,9 @@ export const MockIdentityAdapter: IIdentityAdapter = {
         if (credentials?.id) {
             const user = MOCK_USERS.find(u => u.id === credentials.id);
             if (user) {
-                localStorage.setItem('mock_current_user', JSON.stringify(user));
-                return user;
+                const adaptedUser = { ...user, provider: 'mock' };
+                localStorage.setItem('mock_current_user', JSON.stringify(adaptedUser));
+                return adaptedUser;
             }
         }
 
@@ -86,11 +87,13 @@ export const selectMockUser = async (userId: string): Promise<IdentityUser> => {
         throw new Error(`User ${userId} not found in mock users`);
     }
 
-    // Store the selected user
-    localStorage.setItem('mock_current_user', JSON.stringify(user));
+    const adaptedUser = { ...user, provider: 'mock' };
 
-    console.log(`[MockIdentity] Selected user: ${user.name} (${user.role})`);
-    return user;
+    // Store the selected user
+    localStorage.setItem('mock_current_user', JSON.stringify(adaptedUser));
+
+    console.log(`[MockIdentity] Selected user: ${adaptedUser.name} (${adaptedUser.role})`);
+    return adaptedUser;
 };
 
 /**

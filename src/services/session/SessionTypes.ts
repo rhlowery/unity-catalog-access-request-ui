@@ -8,7 +8,7 @@ export interface SessionInfo {
   expiresAt: number;
   lastActivity: number;
   refreshToken?: string;
-  accessToken: string;
+  accessToken?: string;
   ipAddress?: string;
   userAgent?: string;
   isActive: boolean;

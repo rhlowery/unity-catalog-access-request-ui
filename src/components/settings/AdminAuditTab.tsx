@@ -112,10 +112,10 @@ const AdminAuditTab = () => {
 
     const getTypeBadge = (type: string) => {
         switch (type) {
-            case 'SECURITY': return <Badge variant="destructive" className="bg-red-500/20 text-red-400 border-red-500/30">SECURITY</Badge>;
-            case 'ACCESS': return <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30">ACCESS</Badge>;
-            case 'SYSTEM': return <Badge className="bg-purple-500/20 text-purple-400 border-purple-500/30">SYSTEM</Badge>;
-            default: return <Badge variant="secondary" className="opacity-70">{type}</Badge>;
+            case 'SECURITY': return <Badge data-testid="audit-type-badge" variant="destructive" className="bg-red-500/20 text-red-400 border-red-500/30">SECURITY</Badge>;
+            case 'ACCESS': return <Badge data-testid="audit-type-badge" className="bg-blue-500/20 text-blue-400 border-blue-500/30">ACCESS</Badge>;
+            case 'SYSTEM': return <Badge data-testid="audit-type-badge" className="bg-purple-500/20 text-purple-400 border-purple-500/30">SYSTEM</Badge>;
+            default: return <Badge data-testid="audit-type-badge" variant="secondary" className="opacity-70">{type}</Badge>;
         }
     };
 
@@ -126,6 +126,7 @@ const AdminAuditTab = () => {
                     <div className="relative flex-1 max-w-sm">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
                         <Input
+                            data-testid="audit-search-input"
                             placeholder="Search by actor, action, or target..."
                             value={searchQuery}
                             onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
@@ -141,15 +142,15 @@ const AdminAuditTab = () => {
                         )}
                     </div>
                     <Select value={filterType} onValueChange={(val) => { setFilterType(val); setCurrentPage(1); }}>
-                        <SelectTrigger className="w-[150px] bg-background/50 border-white/10">
+                        <SelectTrigger data-testid="audit-type-filter" className="w-[150px] bg-background/50 border-white/10">
                             <Filter size={14} className="mr-2 text-muted-foreground" />
                             <SelectValue placeholder="Type" />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="ALL">All Types</SelectItem>
-                            <SelectItem value="SECURITY">Security</SelectItem>
-                            <SelectItem value="ACCESS">Access</SelectItem>
-                            <SelectItem value="SYSTEM">System</SelectItem>
+                            <SelectItem data-testid="filter-option-all" value="ALL">All Types</SelectItem>
+                            <SelectItem data-testid="filter-option-security" value="SECURITY">Security</SelectItem>
+                            <SelectItem data-testid="filter-option-access" value="ACCESS">Access</SelectItem>
+                            <SelectItem data-testid="filter-option-system" value="SYSTEM">System</SelectItem>
                         </SelectContent>
                     </Select>
                 </div>
@@ -158,7 +159,7 @@ const AdminAuditTab = () => {
                     <Button variant="outline" size="sm" onClick={fetchLogs} disabled={loading} className="gap-2">
                         <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Refresh
                     </Button>
-                    <Button variant="outline" size="sm" onClick={handleDownload} className="gap-2">
+                    <Button data-testid="audit-export-button" variant="outline" size="sm" onClick={handleDownload} className="gap-2">
                         <Download size={14} /> Export
                     </Button>
                 </div>
@@ -181,7 +182,7 @@ const AdminAuditTab = () => {
                         <tbody className="divide-y divide-border/30">
                             {loading ? (
                                 Array(5).fill(0).map((_, i) => (
-                                    <tr key={i} className="animate-pulse">
+                                    <tr key={i} data-testid="audit-log-loading-row" className="animate-pulse">
                                         {Array(7).fill(0).map((_, j) => (
                                             <td key={j} className="p-4"><div className="h-4 bg-muted rounded w-3/4"></div></td>
                                         ))}
@@ -189,7 +190,7 @@ const AdminAuditTab = () => {
                                 ))
                             ) : paginatedLogs.length > 0 ? (
                                 paginatedLogs.map((log) => (
-                                    <tr key={log.id} className="hover:bg-muted/10 transition-colors group">
+                                    <tr key={log.id} data-testid="audit-log-row" className="hover:bg-muted/10 transition-colors group">
                                         <td className="p-4 whitespace-nowrap">
                                             <div className="flex items-center gap-2 text-xs text-foreground/70">
                                                 <Clock size={12} className="text-muted-foreground" />
@@ -221,6 +222,7 @@ const AdminAuditTab = () => {
                                         </td>
                                         <td className="p-4 text-right">
                                             <Button
+                                                data-testid="view-audit-details-button"
                                                 variant="ghost"
                                                 size="icon"
                                                 className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
@@ -232,7 +234,7 @@ const AdminAuditTab = () => {
                                     </tr>
                                 ))
                             ) : (
-                                <tr>
+                                <tr data-testid="audit-log-empty-row">
                                     <td colSpan={7} className="p-12 text-center text-muted-foreground">
                                         <div className="flex flex-col items-center gap-3">
                                             <Activity size={32} className="opacity-20" />
@@ -245,38 +247,40 @@ const AdminAuditTab = () => {
                     </table>
                 </div>
 
-                {totalPages > 1 && (
+                {filteredLogs.length > 0 && (
                     <div className="p-4 border-t border-border/50 flex items-center justify-between bg-muted/20">
                         <div className="text-xs text-muted-foreground">
                             Showing <span className="text-foreground font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="text-foreground font-medium">{Math.min(currentPage * itemsPerPage, filteredLogs.length)}</span> of <span className="text-foreground font-medium">{filteredLogs.length}</span> entries
                         </div>
-                        <div className="flex items-center gap-2">
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                                disabled={currentPage === 1}
-                                className="h-8 w-8 p-0"
-                            >
-                                <ChevronLeft size={16} />
-                            </Button>
-                            <span className="text-xs font-medium px-2">Page {currentPage} of {totalPages}</span>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                                disabled={currentPage === totalPages}
-                                className="h-8 w-8 p-0"
-                            >
-                                <ChevronRight size={16} />
-                            </Button>
-                        </div>
+                        {totalPages > 1 && (
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                    disabled={currentPage === 1}
+                                    className="h-8 w-8 p-0"
+                                >
+                                    <ChevronLeft size={16} />
+                                </Button>
+                                <span className="text-xs font-medium px-2">Page {currentPage} of {totalPages}</span>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                    disabled={currentPage === totalPages}
+                                    className="h-8 w-8 p-0"
+                                >
+                                    <ChevronRight size={16} />
+                                </Button>
+                            </div>
+                        )}
                     </div>
                 )}
             </Card>
 
             <Dialog open={!!selectedLog} onOpenChange={() => setSelectedLog(null)}>
-                <DialogContent className="max-w-2xl bg-background/95 backdrop-blur-xl">
+                <DialogContent data-testid="audit-details-dialog" className="max-w-2xl bg-background/95 backdrop-blur-xl">
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2">
                             <FileText size={18} /> Audit Entry Details

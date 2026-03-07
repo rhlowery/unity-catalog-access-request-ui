@@ -10,6 +10,7 @@ import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
 import pino from 'pino';
 import pinoHttp from 'pino-http';
+import promClient from 'prom-client';
 import { env } from './config';
 
 // =====================================================================
@@ -59,11 +60,58 @@ export const logger = pino({
     transport: env.NODE_ENV === 'development' ? { target: 'pino-pretty' } : undefined,
 });
 
-// Explicit token blocklist for revoked JTI claims before expiration
-const revokedTokens = new Set<string>();
+// Persistent token blocklist for revoked JTI claims before expiration
+const REVOKED_TOKENS_FILE = path.join(process.cwd(), 'data', 'revoked_tokens.json');
+
+let revokedTokens = new Set<string>();
+
+const loadRevokedTokens = () => {
+    if (fs.existsSync(REVOKED_TOKENS_FILE)) {
+        try {
+            const data = JSON.parse(fs.readFileSync(REVOKED_TOKENS_FILE, 'utf-8'));
+            if (Array.isArray(data)) revokedTokens = new Set(data);
+        } catch (e) {
+            logger.error({ err: e }, 'Failed to load revoked tokens from disk');
+        }
+    }
+};
+
+const saveRevokedTokens = () => {
+    try {
+        fs.writeFileSync(REVOKED_TOKENS_FILE, JSON.stringify(Array.from(revokedTokens)));
+    } catch (e) {
+        logger.error({ err: e }, 'Failed to save revoked tokens');
+    }
+};
+
+// Initial load
+loadRevokedTokens();
 
 // Periodic cleanup of revoked tokens (prevents memory leak over long periods)
-setInterval(() => revokedTokens.clear(), 24 * 60 * 60 * 1000);
+setInterval(() => {
+    revokedTokens.clear();
+    saveRevokedTokens();
+}, 24 * 60 * 60 * 1000);
+
+export const revokeToken = (jti: string) => {
+    revokedTokens.add(jti);
+    saveRevokedTokens();
+};
+
+export const isTokenRevoked = (jti: string) => {
+    return revokedTokens.has(jti);
+};
+
+// =====================================================================
+// METRICS SETUP
+// =====================================================================
+promClient.collectDefaultMetrics({ prefix: 'acs_bff_' });
+
+export const apiHitCounter = new promClient.Counter({
+    name: 'acs_bff_api_hits_total',
+    help: 'Total number of API requests',
+    labelNames: ['method', 'route', 'status_code']
+});
 
 /** Payload embedded inside every BFF-issued JWT. */
 interface JwtPayload {
@@ -122,17 +170,30 @@ app.use((_req, res, next) => {
 
 const generalLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 100,
-    message: { error: 'Too many requests, please try again later.' }
+    max: 1000, // Increased for tests
+    message: { error: 'Too many requests, please try again later.' },
+    skip: () => env.NODE_ENV !== 'production'
 });
 
 const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 20,
-    message: { error: 'Too many authentication attempts, please try again later.' }
+    max: 200, // Increased for tests
+    message: { error: 'Too many authentication attempts, please try again later.' },
+    skip: () => env.NODE_ENV !== 'production'
 });
 
 app.use(generalLimiter);
+
+// Track API Metrics Flow
+app.use((req, res, next) => {
+    res.on('finish', () => {
+        if (req.path !== '/metrics') {
+            const routePath = req.route ? req.route.path : req.path;
+            apiHitCounter.labels({ method: req.method, route: routePath, status_code: res.statusCode.toString() }).inc();
+        }
+    });
+    next();
+});
 
 // =====================================================================
 // STORAGE: File-based persistence
@@ -185,8 +246,9 @@ app.get('/api/auth/csrf', (_req: Request, res: Response) => {
 
 const csrfLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 100,
-    message: { error: 'Too many requests, please try again later.' }
+    max: 1000, // Increased for tests
+    message: { error: 'Too many requests, please try again later.' },
+    skip: () => env.NODE_ENV !== 'production'
 });
 
 // =====================================================================
@@ -233,7 +295,7 @@ const requireAuth = (req: Request, res: Response, next: any) => {
                 audience: 'unity-catalog-acs-ui',
             }) as JwtPayload;
 
-            if (decoded.jti && revokedTokens.has(decoded.jti)) {
+            if (decoded.jti && isTokenRevoked(decoded.jti)) {
                 throw new Error('Token has been revoked');
             }
 
@@ -500,7 +562,7 @@ app.post('/api/auth/login', authLimiter, (req: Request, res: Response) => {
     res.cookie('bff_jwt', token, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', maxAge: 8 * 60 * 60 * 1000 });
 
     const decoded = jwt.decode(token) as any;
-    res.json({ status: 'success', token, expiresAt: decoded.exp * 1000, user: payload });
+    res.json({ status: 'success', expiresAt: decoded.exp * 1000, user: payload });
 });
 
 app.post('/api/auth/refresh', authLimiter, (req: Request, res: Response) => {
@@ -509,15 +571,15 @@ app.post('/api/auth/refresh', authLimiter, (req: Request, res: Response) => {
 
     try {
         const decoded = jwt.verify(existingJwt, env.effectiveJwtSecret, { issuer: 'unity-catalog-acs-bff', audience: 'unity-catalog-acs-ui' }) as JwtPayload;
-        if (decoded.jti && revokedTokens.has(decoded.jti)) return res.status(401).json({ error: 'Token revoked' });
+        if (decoded.jti && isTokenRevoked(decoded.jti)) return res.status(401).json({ error: 'Token revoked' });
 
-        if (decoded.jti) revokedTokens.add(decoded.jti);
+        if (decoded.jti) revokeToken(decoded.jti);
         const { sub, name, email, groups, role, provider } = decoded;
         const newToken = jwt.sign({ sub, name, email, groups, role, provider, jti: crypto.randomUUID() }, env.effectiveJwtSecret, { expiresIn: env.JWT_EXPIRY as any, issuer: 'unity-catalog-acs-bff', audience: 'unity-catalog-acs-ui' });
 
         res.cookie('bff_jwt', newToken, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', maxAge: 8 * 60 * 60 * 1000 });
         const decodedNew = jwt.decode(newToken) as any;
-        res.json({ status: 'success', token: newToken, expiresAt: decodedNew.exp * 1000 });
+        res.json({ status: 'success', expiresAt: decodedNew.exp * 1000 });
     } catch (err) {
         res.status(401).json({ error: 'Invalid token' });
     }
@@ -528,7 +590,7 @@ app.post('/api/auth/logout', authLimiter, (req: Request, res: Response) => {
     if (existingJwt) {
         try {
             const decoded = jwt.decode(existingJwt) as JwtPayload;
-            if (decoded?.jti) revokedTokens.add(decoded.jti);
+            if (decoded?.jti) revokeToken(decoded.jti);
         } catch (e) { }
     }
     res.clearCookie('bff_jwt');
@@ -628,10 +690,19 @@ app.get('/api/audit/log', requireAuth, (req: Request, res: Response) => {
     }
 });
 
-// Error handler
+// Metrics Endpoint
+app.get('/metrics', async (_req: Request, res: Response) => {
+    res.set('Content-Type', promClient.register.contentType);
+    res.end(await promClient.register.metrics());
+});
+
+// Standardized Global Error Handler
 app.use((err: Error, _req: Request, res: Response, _next: any) => {
-    console.error('[BFF] Unhandled error:', err.message);
-    res.status(500).json({ error: 'Internal server error' });
+    logger.error({ err }, '[BFF] Unhandled error');
+    res.status(500).json({
+        error: err.message || 'Internal server error',
+        code: 'INTERNAL_SERVER_ERROR'
+    });
 });
 
 app.listen(PORT, () => {

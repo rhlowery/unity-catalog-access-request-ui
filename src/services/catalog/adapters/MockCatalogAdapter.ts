@@ -32,5 +32,35 @@ export const MockCatalogAdapter: ICatalogAdapter = {
 
     async getLiveGrants(object: any, config: any): Promise<any[]> {
         return [];
+    },
+
+    async searchCatalog(workspaceUrl: string, query: string): Promise<any[]> {
+        const results: any[] = [];
+        const lowerQuery = query.toLowerCase();
+
+        const searchNodes = (nodes: any[], catalogName?: string, schemaName?: string) => {
+            for (const node of nodes) {
+                const currentCatalog = node.type === 'CATALOG' ? node.name : catalogName;
+                const currentSchema = node.type === 'SCHEMA' ? node.name : schemaName;
+
+                if (node.type !== 'CATALOG' && node.type !== 'SCHEMA') {
+                    if (node.name.toLowerCase().includes(lowerQuery)) {
+                        results.push({
+                            name: node.name,
+                            table_type: node.type,
+                            catalog_name: currentCatalog,
+                            schema_name: currentSchema
+                        });
+                    }
+                }
+
+                if (node.children) {
+                    searchNodes(node.children, currentCatalog, currentSchema);
+                }
+            }
+        };
+
+        searchNodes(MOCK_CATALOGS);
+        return results;
     }
 };

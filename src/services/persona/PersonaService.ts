@@ -37,6 +37,10 @@ export const PERSONA_GROUP_MAP: Record<string, Persona> = {
     group_auditors: 'ACCESS_AUDITOR',
     group_audit_admins: 'ACCESS_AUDITOR',
     group_compliance_team: 'ACCESS_AUDITOR',
+
+    // Approvers (Default Demo Assignment)
+    group_finance_admins: 'APPROVER',
+    group_hr_admins: 'APPROVER',
 };
 
 const PERSONA_RANK: Record<Persona, number> = {

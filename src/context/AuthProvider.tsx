@@ -140,11 +140,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
                 console.warn('[AuthProvider] Could not reach BFF for JWT issuance:', jwtErr);
             }
 
-            // 3. Create frontend session (tokens object carries the JWT for SessionManager)
+            // 3. Create frontend session (cookies manage the actual secrets)
             const tokens = {
-                accessToken: bffToken || `token_${Date.now()}`,
-                refreshToken: `refresh_${Date.now()}`,
                 expiresAt: bffExpiresAt,
+                // We no longer store tokens in localStorage for security
             };
 
             const session = await SessionManager.createSession(currentUser, provider, tokens);

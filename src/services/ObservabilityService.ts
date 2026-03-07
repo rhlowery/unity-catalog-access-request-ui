@@ -1,5 +1,5 @@
 import { EventBus } from './EventBus';
-import { AuditIntegrityManager } from './audit/AuditIntegrityManager2';
+import { AuditIntegrityManager } from './audit/AuditIntegrityManager';
 import { SecureAuditStorage } from './audit/SecureAuditStorage';
 import type { AuditEntry } from './audit/AuditTypes';
 
@@ -165,12 +165,12 @@ const logAuditEvent = async (type: string, actor: string, action: string, target
         };
 
         // Add integrity features
-        const signedEntry = auditIntegrityManager.getSignedEntry(auditEntry);
+        const signedEntry = await auditIntegrityManager.getSignedEntry(auditEntry);
 
         // Chain with previous entry
         const previousEntries = await auditStorage.getEntries(1);
         const previousEntry = previousEntries.length > 0 ? previousEntries[0] : null;
-        auditIntegrityManager.chainEntries(previousEntry, signedEntry);
+        await auditIntegrityManager.chainEntries(previousEntry, signedEntry);
 
         // Store the signed entry
         await auditStorage.storeEntry(signedEntry);

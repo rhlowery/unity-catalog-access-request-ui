@@ -130,6 +130,9 @@ const UserControls = React.memo(({ user, logout, persona }: UserControlsProps) =
       <div data-testid="persona-label" className="text-[10px] text-muted-foreground uppercase tracking-widest leading-tight">
         {persona ? PERSONA_LABELS[persona as keyof typeof PERSONA_LABELS] ?? user?.provider : user?.provider}
       </div>
+      {user?.provider === 'mock' && (
+        <div className="text-[9px] font-bold text-amber-500 uppercase tracking-[0.2em] mt-0.5">Simulation Mode</div>
+      )}
     </div>
     <TooltipProvider>
       <Tooltip>

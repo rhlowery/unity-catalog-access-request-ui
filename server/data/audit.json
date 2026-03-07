@@ -1,1 +1,52 @@
-[]
+[
+    {
+        "id": "audit_1",
+        "timestamp": 1709749200000,
+        "type": "SECURITY",
+        "actor": "Pat Platform",
+        "action": "PERSONA_SWITCH",
+        "target": "user_standard",
+        "signature": "valid",
+        "serverTimestamp": 1709749200001
+    },
+    {
+        "id": "audit_2",
+        "timestamp": 1709749300000,
+        "type": "ACCESS",
+        "actor": "Pat Platform",
+        "action": "CATALOG_ACCESS_REQUEST",
+        "target": "main.sales.orders",
+        "signature": "valid",
+        "serverTimestamp": 1709749300001
+    },
+    {
+        "id": "audit_3",
+        "timestamp": 1709749400000,
+        "type": "SYSTEM",
+        "actor": "SYSTEM",
+        "action": "CONFIG_UPDATE",
+        "target": "uc_endpoint_v2",
+        "signature": null,
+        "serverTimestamp": 1709749400001
+    },
+    {
+        "id": "audit_4",
+        "timestamp": 1709749500000,
+        "type": "SECURITY",
+        "actor": "Admin Alice",
+        "action": "PASSWORD_RESET",
+        "target": "Bob Buyer",
+        "signature": "valid",
+        "serverTimestamp": 1709749500001
+    },
+    {
+        "id": "audit_5",
+        "timestamp": 1709749600000,
+        "type": "SECURITY",
+        "actor": "Security Sam",
+        "action": "PERSONA_SWITCH",
+        "target": "approver_finance",
+        "signature": null,
+        "serverTimestamp": 1709749600001
+    }
+]

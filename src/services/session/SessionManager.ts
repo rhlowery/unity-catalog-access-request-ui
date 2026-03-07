@@ -50,7 +50,7 @@ export class SessionManagerService implements ISessionManager {
       createdAt: now,
       expiresAt: now + (this.config.timeoutMinutes * 60 * 1000),
       lastActivity: now,
-      accessToken: tokens.accessToken || tokens.token,
+      accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken,
       ipAddress: await this.getClientIP(),
       userAgent: navigator.userAgent,
@@ -145,7 +145,7 @@ export class SessionManagerService implements ISessionManager {
           ...session,
           expiresAt: data.expiresAt || (Date.now() + (this.config.timeoutMinutes * 60 * 1000)),
           lastActivity: Date.now(),
-          accessToken: data.token || `renewed_${Date.now()}`,
+          // Token is managed via HttpOnly cookie by BFF during refresh call
         };
 
         await this.storage.updateSession(sessionId, renewedSession);

@@ -64,10 +64,10 @@ export class SecureSessionStorage implements SessionStorage {
       const encrypted = await this.encryptSession(session);
       localStorage.setItem(CURRENT_SESSION_KEY, encrypted);
 
-      // Update sessions list (we still use JSON.stringify for the list as it's not the primary sensitive store, but we could encrypt each)
+      // Update sessions list
       const sessions = await this.getAllSessions();
       sessions.push(session);
-      localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(sessions));
+      await this.saveAllSessions(sessions);
 
       console.log(`[SecureSessionStorage] Created session ${session.id} for user ${session.userId}`);
     } catch (error) {
@@ -82,7 +82,7 @@ export class SecureSessionStorage implements SessionStorage {
 
       if (sessionIndex >= 0) {
         sessions[sessionIndex] = { ...sessions[sessionIndex], ...updates };
-        localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(sessions));
+        await this.saveAllSessions(sessions);
 
         // Update current session if it's the one being modified
         const encrypted = localStorage.getItem(CURRENT_SESSION_KEY);
@@ -104,7 +104,7 @@ export class SecureSessionStorage implements SessionStorage {
     try {
       // Remove from sessions list
       const sessions = (await this.getAllSessions()).filter(s => s.id !== sessionId);
-      localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(sessions));
+      await this.saveAllSessions(sessions);
 
       // Remove current session if it matches (check directly to prevent infinite recursion loop)
       const encrypted = localStorage.getItem(CURRENT_SESSION_KEY);
@@ -137,7 +137,7 @@ export class SecureSessionStorage implements SessionStorage {
     try {
       const sessions = await this.getAllSessions();
       const activeSessions = sessions.filter(s => this.validateSessionData(s));
-      localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(activeSessions));
+      await this.saveAllSessions(activeSessions);
 
       // Clean up current session if expired
       const encrypted = localStorage.getItem(CURRENT_SESSION_KEY);
@@ -177,10 +177,24 @@ export class SecureSessionStorage implements SessionStorage {
   private async getAllSessions(): Promise<SessionInfo[]> {
     try {
       const stored = localStorage.getItem(SESSION_STORAGE_KEY);
-      return stored ? JSON.parse(stored) : [];
+      if (!stored) return [];
+
+      const decrypted = await WebCrypto.decrypt(stored);
+      return JSON.parse(decrypted);
     } catch (error) {
-      console.error('[SecureSessionStorage] Failed to get all sessions:', error);
+      // If decryption fails, start fresh (could be key rotation or corrupted)
+      localStorage.removeItem(SESSION_STORAGE_KEY);
       return [];
+    }
+  }
+
+  private async saveAllSessions(sessions: SessionInfo[]): Promise<void> {
+    try {
+      const data = JSON.stringify(sessions);
+      const encrypted = await WebCrypto.encrypt(data);
+      localStorage.setItem(SESSION_STORAGE_KEY, encrypted);
+    } catch (error) {
+      console.error('[SecureSessionStorage] Failed to save all sessions:', error);
     }
   }
 }

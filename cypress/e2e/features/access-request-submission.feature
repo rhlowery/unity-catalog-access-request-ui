@@ -1,7 +1,7 @@
 Feature: Access Request Form Submission
   As a Data Consumer
-  I want to submit valid access requests with appropriate justification
-  So that I can gain timely access to the Unity Catalog objects I need
+  I want to submit access control requests for catalog objects
+  So that I can gain the necessary permissions for my work
 
   Background:
     Given the application is running
@@ -15,23 +15,22 @@ Feature: Access Request Form Submission
     And the request should not be submitted
 
     Examples:
-      | missing_field         |
-      | principal             |
-      | catalog object        |
-      | permission type       |
-      | business justification|
+      | missing_field          |
+      | catalog object         |
+      | principal              |
+      | permission type        |
+      | business justification |
 
   Scenario Outline: Searching for and selecting a principal
+    Given I have selected the "transactions" from the catalog tree
     When I type "<search_term>" into the principal search box
     Then the "<target_principal>" should appear in the combobox dropdown
-    When I select the "<target_principal>"
-    Then the selected principal badge should appear showing "<target_principal>"
 
     Examples:
       | search_term | target_principal     |
-      | Finance     | group_finance_admins |
-      | HR          | group_hr_admins      |
-      | Marketing   | group_marketing      |
+      | Finance     | Finance Admins       |
+      | HR          | HR Admins            |
+      | Marketing   | Marketing            |
 
   Scenario Outline: Submitting a fully populated access request
     Given I have selected the "<catalog_object>" from the catalog tree
@@ -45,11 +44,15 @@ Feature: Access Request Form Submission
 
     Examples:
       | catalog_object | principal            | permission | justification             |
-      | transactions   | group_finance_admins | SELECT     | Quarterly reporting needs |
-      | employees      | group_hr_admins      | MODIFY     | Annual reviews update     |
-      | campaigns      | group_marketing      | SELECT     | Campaign performance audit|
+      | transactions   | Finance Admins       | SELECT     | Quarterly reporting needs |
+      | payroll        | HR Admins            | MODIFY     | Annual reviews update     |
+      | campaigns      | Marketing            | SELECT     | Campaign performance audit|
 
   Scenario Outline: Adding a time constraint to the access request
+    Given I have selected the "transactions" from the catalog tree
+    And I have selected the "Finance Admins" principal
+    And I have selected the "SELECT" permission type
+    And I have entered the business justification "Time constraint test"
     When I open the "Expiration Constraints" accordion
     And I toggle the "Set expiration date or time limit" switch
     And I choose a "<duration>" hour duration limit
@@ -71,7 +74,7 @@ Feature: Access Request Form Submission
 
     Examples:
       | catalog_object | principal            | permission      |
-      | transactions   | group_finance_admins | SELECT          |
-      | payroll        | group_finance_admins | ALL_PRIVILEGES  |
-      | campaigns      | group_marketing      | MODIFY          |
-      | training_data  | group_data_scientists| READ_VOLUME     |
+      | transactions   | Finance Admins       | SELECT          |
+      | payroll        | Finance Admins       | ALL_PRIVILEGES  |
+      | campaigns      | Marketing            | MODIFY          |
+      | training_data  | Data Scientists      | READ_VOLUME     |

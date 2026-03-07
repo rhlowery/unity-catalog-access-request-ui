@@ -78,16 +78,9 @@ export class SecureAuditStorage implements ISecureAuditStorage {
         }
       }
 
-      // Check for missing signatures (if enabled)
-      const entriesWithSignatures = entries.filter(e => e.signature);
-      if (entriesWithSignatures.length > 0) {
-        // In a real implementation, would verify each signature
-        console.log(`[SecureAuditStorage] Found ${entriesWithSignatures.length} signed entries`);
-      }
-
       // Check storage integrity
       const storedHash = localStorage.getItem(this.integrityKey);
-      const calculatedHash = this.calculateStorageHash(entries);
+      const calculatedHash = await this.calculateStorageHash(entries);
 
       if (storedHash && storedHash !== calculatedHash) {
         issues.push('Storage integrity compromised - hash mismatch');
@@ -144,7 +137,7 @@ export class SecureAuditStorage implements ISecureAuditStorage {
     }
   }
 
-  private calculateStorageHash(entries: AuditEntry[]): string {
+  private async calculateStorageHash(entries: AuditEntry[]): Promise<string> {
     const data = JSON.stringify(entries.map(e => ({
       id: e.id,
       timestamp: e.timestamp,
@@ -153,26 +146,11 @@ export class SecureAuditStorage implements ISecureAuditStorage {
     })));
 
     try {
-      const encoder = new TextEncoder();
-      const dataBuffer = encoder.encode(data);
-
-      const hashBuffer = crypto.subtle.digest('SHA-256', dataBuffer);
-      let hashResult = 0;
-
-      hashBuffer.then(buffer => {
-        const hashArray = Array.from(new Uint8Array(buffer));
-        hashResult = parseInt(hashArray.slice(0, 8).map(b => b.toString(16).padStart(2, '0')).join(''), 16);
-      }).catch(() => { });
-
-      let hash = 0;
-      for (let i = 0; i < data.length; i++) {
-        const char = data.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash = hash & hash;
-      }
-
-      return hash.toString(16);
-    } catch {
+      const { WebCrypto } = await import('../crypto/WebCryptoService');
+      return await WebCrypto.generateHash(data, 'SHA-256');
+    } catch (error) {
+      console.error('[SecureAuditStorage] Failed to calculate storage hash:', error);
+      // Fallback to a simple hash if WebCrypto fails (not ideal but avoids crash)
       let hash = 0;
       for (let i = 0; i < data.length; i++) {
         const char = data.charCodeAt(i);

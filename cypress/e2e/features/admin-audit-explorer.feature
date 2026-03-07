@@ -4,8 +4,7 @@ Feature: Admin Audit Explorer
   So that I can monitor system activity and verify security events
 
   Background:
-    Given the application is running
-    And I am logged in as an administrator
+    Given I am logged in as "PLATFORM_ADMIN"
     And I am on the Admin Settings page
     And I select the "Audit" tab
 

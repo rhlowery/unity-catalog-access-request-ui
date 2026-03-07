@@ -405,6 +405,7 @@ const MainLayout = () => {
             <Button
               variant="ghost"
               size="icon"
+              data-testid="settings-nav-item"
               className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-full transition-all"
               onClick={() => setShowSettings(true)}
               title="Settings"
