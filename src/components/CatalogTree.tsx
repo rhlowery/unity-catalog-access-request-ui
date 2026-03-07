@@ -144,6 +144,8 @@ const CatalogTree = ({
 
         return (
             <div
+                data-testid="catalog-node"
+                data-node-name={node.name}
                 className={`group flex items-center h-8 px-4 cursor-pointer transition-all duration-200 hover:bg-white/[0.03] ${isSelected ? 'bg-primary/20' : ''}`}
                 style={{ paddingLeft: `${(depth * 16) + 16}px` }}
                 onClick={handleRowClick}

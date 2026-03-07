@@ -106,7 +106,12 @@ Given('I am logged in as a standard user', () => {
       cy.get('[data-testid="mock-login-button"]').click();
     }
   });
+  // Intercept the backend auth login
+  cy.intercept('POST', '**/api/auth/login').as('loginReq');
   cy.get('[data-testid="mock-user-user_standard"]').click();
+
+  // Wait for login to complete on backend before asserting the UI is loaded
+  cy.wait('@loginReq', { timeout: 20000 });
   cy.get('main').should('be.visible');
 });
 
@@ -127,32 +132,39 @@ Given('I am logged in as {string}', (role: string) => {
     'APPROVER': 'user_finance_approver',
     'ACCESS_AUDITOR': 'user_auditor',
     'SECURITY_ADMIN': 'user_security_admin',
-    'PLATFORM_ADMIN': 'user_platform_admin'
+    'PLATFORM_ADMIN': 'user_platform_admin',
+    // Person names used by approval-flow feature
+    'ALICE': 'user_standard',
+    'BOB': 'user_standard',
   };
 
   const userId = roleToId[role.toUpperCase()] || 'user_standard';
 
-  // Intercept the backend auth exchange
-  cy.intercept('POST', '**/api/auth/exchange').as('loginExchange');
+  // Intercept the backend auth login
+  cy.intercept('POST', '**/api/auth/login').as('loginExchange');
   cy.get(`[data-testid="mock-user-${userId}"]`).should('be.visible').click();
 
   // Wait for login to complete on backend before asserting the UI is loaded
   cy.wait('@loginExchange', { timeout: 20000 });
 
-  // Wait for the main UI and ensure the persona label matches the chosen role
+  // Wait for the main UI
   cy.get('main', { timeout: 20000 }).should('be.visible');
 
-  // Convert role slug to label (e.g., PLATFORM_ADMIN -> Platform Admin)
-  const expectedLabel = role.split('_').map(word =>
-    word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
-  ).join(' ');
+  // Only verify persona label for known role slugs (not person names)
+  const knownRoles = ['USER', 'APPROVER', 'ACCESS_AUDITOR', 'SECURITY_ADMIN', 'PLATFORM_ADMIN'];
+  if (knownRoles.includes(role.toUpperCase())) {
+    const expectedLabel = role.split('_').map(word =>
+      word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+    ).join(' ');
 
-  cy.get('[data-testid="persona-label"]', { timeout: 25000 }).then(($label) => {
-    const text = $label.text();
-    cy.log(`Active Persona Label: "${text}"`);
-    // Case-insensitive check to be safe
-    cy.wrap(text.toLowerCase()).should('contain', expectedLabel.toLowerCase());
-  });
+    cy.get('[data-testid="persona-label"]', { timeout: 25000 }).then(($label) => {
+      const text = $label.text();
+      cy.log(`Active Persona Label: "${text}"`);
+      cy.wrap(text.toLowerCase()).should('contain', expectedLabel.toLowerCase());
+    });
+  } else {
+    cy.log(`Skipping persona label check for non-role login: ${role}`);
+  }
 });
 
 When('I click the sign out button', () => {

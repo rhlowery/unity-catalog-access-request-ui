@@ -37,6 +37,7 @@ export const PermissionSelector: React.FC<PermissionSelectorProps> = ({
                     {PERMISSIONS.map(perm => (
                         <div
                             key={perm}
+                            data-testid={`permission-toggle-${perm}`}
                             className={cn(
                                 "flex items-center justify-between p-3.5 rounded-xl border transition-all duration-300 cursor-pointer group relative overflow-hidden",
                                 selectedPermissions.includes(perm)

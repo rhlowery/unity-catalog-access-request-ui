@@ -28,7 +28,7 @@ export default defineConfig({
     requestTimeout: 10000,
     responseTimeout: 10000,
     retries: {
-      runMode: 2,
+      runMode: 0,
       openMode: 0,
     },
   },
