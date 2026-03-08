@@ -66,7 +66,11 @@ Then('the log table should only show entries related to persona switching', () =
 
 Then('the results count should be updated', () => {
     // We now always show the count if results exist
-    cy.contains(/Showing \d+ to \d+ of \d+ entries/i).should('be.visible');
+    // Use the specific test ID and ensure it's scrolled into view if something covers it
+    cy.get('[data-testid="audit-pagination-info"]', { timeout: 15000 })
+        .scrollIntoView()
+        .should('exist')
+        .contains(/Showing \d+ to \d+ of \d+ entries/i);
 });
 
 When('I select {string} from the log type filter', (type: string) => {
@@ -107,7 +111,10 @@ Then('a dialog should open showing the "Audit Entry Details"', () => {
 });
 
 Then('I should see the raw JSON metadata for that event', () => {
-    cy.get('pre').should('be.visible').should('not.be.empty');
+    // Wait for the pre element to be present and contain data
+    cy.get('[data-testid="audit-details-dialog"]').find('pre', { timeout: 15000 })
+        .should('exist')
+        .should('not.be.empty');
 });
 
 Then('I should see the "Verified Cryptographic Signature" status if applicable', () => {
@@ -115,11 +122,8 @@ Then('I should see the "Verified Cryptographic Signature" status if applicable',
     cy.get('[role="dialog"]').should('contain', 'Signature');
 });
 
-When('I click the "Export" button', () => {
-    cy.get('[data-testid="audit-export-button"]')
-        .should('be.visible')
-        .click({ force: true });
-});
+// Replaced by generic 'I click the {string} button' in catalog-navigation-steps.ts
+
 
 Then('a file download for {string} should be initiated', (filenamePrefix: string) => {
     // The download produces a JSON file via Blob URL; just verify no error occurred

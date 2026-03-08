@@ -12,36 +12,36 @@ const And = Then;
 // =====================================================================
 
 Given('I am logged in as a user with {string} or {string} persona', (_persona1: string, _persona2: string) => {
-    // Login is handled by auth-steps 'Given I am logged in as {string}'
-    // This step should be preceded by the application being logged in.
-    // The mock user for Security Admin or Platform Admin is already selected via the Background
-    cy.log('User logged in with elevated persona');
+    // Perform login as PLATFORM_ADMIN
+    cy.clearLocalStorage();
+    cy.clearCookies();
+    cy.window().then((win) => win.sessionStorage.clear());
+
+    cy.visit('/login');
+    cy.get('body').then(($body) => {
+        if ($body.find('[data-testid="mock-login-button"]').length > 0) {
+            cy.get('[data-testid="mock-login-button"]').click();
+        }
+    });
+
+    cy.intercept('POST', '**/api/auth/login').as('loginReq');
+    cy.get('[data-testid="mock-user-user_platform_admin"]').should('be.visible').click();
+    cy.wait('@loginReq', { timeout: 20000 });
+    cy.get('main', { timeout: 20000 }).should('be.visible');
 });
 
 // =====================================================================
 // NAVIGATION
 // =====================================================================
 
-When('I navigate to the {string} tab', (tabName: string) => {
-    cy.contains('button', tabName, { timeout: 10000 }).click({ force: true });
-    cy.wait(500);
-});
+
 
 // =====================================================================
 // Scenario: Viewing inherited data approvers on a child node
 // =====================================================================
 
-When('I select the {string} from the catalog tree', (objectName: string) => {
-    // Search and find the object in the sidebar
-    const leafName = objectName.split('.').pop() || objectName;
-    cy.get('input[placeholder*="Search catalog"]', { timeout: 10000 }).clear().type(leafName);
-    cy.wait(500);
-    cy.get('[data-testid="catalog-node"]', { timeout: 10000 })
-        .filter(`:contains("${leafName}")`)
-        .first()
-        .find('input[type="checkbox"]')
-        .click({ force: true });
-});
+// Replaced by common-steps.ts
+
 
 Then('I should see that it inherits approvers from its parent {string}', (parentNode: string) => {
     // Verify the parent's name appears in the approver context
@@ -88,17 +88,43 @@ And('access requests for {string} should route to {string}', (object: string, gr
 // Scenario: Resetting an override to restore inheritance
 // =====================================================================
 
-Given('the {string} currently has an explicit override set to {string}', (object: string, overrideGroup: string) => {
-    cy.window().then((win: any) => {
-        win.__testOverride = { object, overrideGroup };
+Given('the {string} currently has an explicit override set to {string}', (objectName: string, overrideGroup: string) => {
+    const objectToIds: Record<string, string[]> = {
+        'finance.transactions': ['tbl_transactions', 'main_catalog.finance.transactions'],
+        'marketing.campaigns': ['tbl_campaigns', 'main_catalog.marketing.campaigns'],
+    };
+    const objectIds = objectToIds[objectName] || [objectName];
+
+    const mockApprovers: Record<string, any> = {
+        'MOCK': {},
+        'DATABRICKS': {}
+    };
+
+    objectIds.forEach(id => {
+        mockApprovers['MOCK'][id] = [overrideGroup];
+        mockApprovers['DATABRICKS'][id] = [overrideGroup];
     });
+
+    // Intercept the API call for approvers
+    cy.intercept('GET', '**/api/storage/approvers', {
+        statusCode: 200,
+        body: mockApprovers
+    }).as('getApprovers');
+
+    // Also set in localStorage as fallback
+    const approversKey = 'uc_object_approvers_v1';
+    cy.window().then((win) => {
+        win.localStorage.setItem(approversKey, JSON.stringify(mockApprovers));
+    });
+
+    cy.log(`Intercepted approvers for ${objectName} (IDs: ${objectIds.join(', ')}) set to ${overrideGroup}`);
 });
 
-When('I select the {string}', (objectName: string) => {
+When('I select the object {string}', (objectName: string) => {
     const leafName = objectName.split('.').pop() || objectName;
     cy.get('input[placeholder*="Search catalog"]', { timeout: 10000 }).clear().type(leafName);
     cy.wait(500);
-    cy.get('[data-testid="catalog-node"]')
+    cy.get('[data-testid="catalog-node"]', { timeout: 10000 })
         .filter(`:contains("${leafName}")`)
         .first()
         .find('input[type="checkbox"]')

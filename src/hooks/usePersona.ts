@@ -23,6 +23,19 @@ interface UsePersonaResult extends PersonaCapabilities {
 export function usePersona(user: any): UsePersonaResult {
     const [approverGroups, setApproverGroups] = useState<string[]>([]);
     const [loading, setLoading] = useState(true);
+    const [simulationMode, setSimulationMode] = useState(() => {
+        const config = JSON.parse(localStorage.getItem('uc_config') || '{}');
+        return !!config.enableSimulationMode;
+    });
+
+    useEffect(() => {
+        const handleStorage = () => {
+            const config = JSON.parse(localStorage.getItem('uc_config') || '{}');
+            setSimulationMode(!!config.enableSimulationMode);
+        };
+        window.addEventListener('storage', handleStorage);
+        return () => window.removeEventListener('storage', handleStorage);
+    }, []);
 
     useEffect(() => {
         let cancelled = false;
@@ -75,13 +88,25 @@ export function usePersona(user: any): UsePersonaResult {
 
         const persona = computePersona(userGroups, approverGroups, isIndividualApprover);
 
-        // Pass isApprover so Security Admins / Access Auditors who are ALSO approvers
-        // still get the Approver tab
         const isApprover =
             userGroups.some(g => approverGroups.includes(g)) || isIndividualApprover;
 
-        return getCapabilities(persona, isApprover);
-    }, [user, approverGroups]);
+        const caps = getCapabilities(persona, isApprover);
+
+        // In Simulation Mode, all governance tabs are unlocked regardless of persona
+        if (simulationMode) {
+            return {
+                ...caps,
+                canViewApprover: true,
+                canViewAuditLog: true,
+                canViewDataApprovers: true,
+                canAccessSettings: true,
+                canViewUserGroupManagement: true,
+            };
+        }
+
+        return caps;
+    }, [user, approverGroups, simulationMode]);
 
     return { ...capabilities, loading };
 }

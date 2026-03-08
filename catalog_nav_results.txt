@@ -1,0 +1,22 @@
+
+DevTools listening on ws://127.0.0.1:59405/devtools/browser/52dc2ecc-f34c-4132-ac6b-123ce435df55
+
+====================================================================================================
+
+  (Run Starting)
+
+  ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ Cypress:        15.9.0                                                                         │
+  │ Browser:        Electron 138 (headless)                                                        │
+  │ Node Version:   v24.13.0 (/Users/loweryr/.nodebrew/node/v24.13.0/bin/node)                     │
+  │ Specs:          1 found (catalog-navigation.feature)                                           │
+  │ Searched:       cypress/e2e/features/catalog-navigation.feature                                │
+  └────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────
+                                                                                                    
+  Running:  catalog-navigation.feature                                                      (1 of 1)
+
+
+  Catalog Navigation and Selection

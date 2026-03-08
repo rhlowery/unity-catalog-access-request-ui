@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { useAuth } from '../../context/AuthProvider';
+import { MOCK_USERS } from '../../services/mockData';
 
 interface DebugSettingsTabProps {
     config: any;
@@ -14,6 +16,7 @@ interface DebugSettingsTabProps {
 }
 
 const DebugSettingsTab: React.FC<DebugSettingsTabProps> = ({ config, setConfig }) => {
+    const { login } = useAuth();
     const [recentErrors, setRecentErrors] = useState(ObservabilityService.getRecentErrors());
 
     const clearErrors = () => {
@@ -37,20 +40,53 @@ const DebugSettingsTab: React.FC<DebugSettingsTabProps> = ({ config, setConfig }
                 description="Simulate different access control scenarios for testing purposes."
                 icon={<ShieldCheck size={18} />}
             >
-                <div className="flex items-center justify-between p-4 rounded-lg bg-muted/30 border border-border/40">
-                    <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                            <Label className="text-sm font-medium">Enable Persona Simulation</Label>
-                            {config.enableSimulationMode && (
-                                <Badge variant="secondary" className="h-4 text-[10px] px-1 bg-primary/20 text-primary border-primary/20">Active</Badge>
-                            )}
+                <div className="space-y-4 p-4 rounded-lg bg-muted/30 border border-border/40">
+                    <div className="flex items-center justify-between">
+                        <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                                <Label className="text-sm font-medium">Enable Persona Simulation</Label>
+                                {config.enableSimulationMode && (
+                                    <Badge variant="secondary" className="h-4 text-[10px] px-1 bg-primary/20 text-primary border-primary/20">Active</Badge>
+                                )}
+                            </div>
+                            <p className="text-xs text-muted-foreground">Allows switching between Platform Admin, Security Admin, etc., for demos.</p>
                         </div>
-                        <p className="text-xs text-muted-foreground">Allows switching between Platform Admin, Security Admin, etc., for demos.</p>
+                        <Switch
+                            checked={config.enableSimulationMode}
+                            onCheckedChange={checked => setConfig({ ...config, enableSimulationMode: checked })}
+                        />
                     </div>
-                    <Switch
-                        checked={config.enableSimulationMode}
-                        onCheckedChange={checked => setConfig({ ...config, enableSimulationMode: checked })}
-                    />
+
+                    {config.enableSimulationMode && (
+                        <div className="pt-4 border-t border-border/40 space-y-3">
+                            <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Quick Switch Persona</Label>
+                            <div className="grid grid-cols-2 gap-2">
+                                {[
+                                    { id: 'user_platform_admin', name: 'Platform Admin', group: 'group_platform_admins' },
+                                    { id: 'user_security_admin', name: 'Security Admin', group: 'group_security' },
+                                    { id: 'user_finance_approver', name: 'Finance Approver', group: 'group_finance_admins' },
+                                    { id: 'user_standard', name: 'Standard User', group: 'group_finance_analysts' }
+                                ].map(persona => (
+                                    <Button
+                                        key={persona.id}
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-8 text-[10px] justify-start px-3 gap-2"
+                                        data-testid={`switch-to-${persona.group}`}
+                                        onClick={() => {
+                                            const user = MOCK_USERS.find(u => u.id === persona.id);
+                                            if (user) {
+                                                login('MOCK', { ...user, provider: 'mock' });
+                                            }
+                                        }}
+                                    >
+                                        <ShieldCheck size={12} className="text-primary" />
+                                        {persona.name}
+                                    </Button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                 </div>
             </Section>
 

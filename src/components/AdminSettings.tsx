@@ -74,8 +74,8 @@ const AdminSettings = () => {
                         <TabsTrigger data-testid="settings-tab-audit" value="AUDIT" className="px-4 whitespace-nowrap flex gap-2 items-center">
                             <FileText size={14} /> Audit
                         </TabsTrigger>
-                        {import.meta.env.DEV && (
-                            <TabsTrigger value="DEBUG" className="px-4 gap-2 whitespace-nowrap">
+                        {(import.meta.env.DEV || config.enableSimulationMode) && (
+                            <TabsTrigger data-testid="settings-tab-debug" value="DEBUG" className="px-4 gap-2 whitespace-nowrap">
                                 <Bug size={14} /> Debug
                             </TabsTrigger>
                         )}
@@ -102,7 +102,7 @@ const AdminSettings = () => {
                         <TabsContent value="AUDIT" className="mt-0">
                             <AdminAuditTab />
                         </TabsContent>
-                        {import.meta.env.DEV && (
+                        {(import.meta.env.DEV || config.enableSimulationMode) && (
                             <TabsContent value="DEBUG" className="mt-0">
                                 <DebugSettingsTab config={config} setConfig={setConfig} />
                             </TabsContent>

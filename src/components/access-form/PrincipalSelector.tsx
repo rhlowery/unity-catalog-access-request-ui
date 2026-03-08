@@ -42,7 +42,11 @@ export const PrincipalSelector: React.FC<PrincipalSelectorProps> = ({
             <CardContent className="p-0">
                 <div className="space-y-0.5 max-h-[380px] overflow-y-auto custom-scrollbar p-2">
                     {identities
-                        .filter(p => !searchTerm || p.name.toLowerCase().includes(searchTerm.toLowerCase()) || p.id.toLowerCase().includes(searchTerm.toLowerCase()))
+                        .filter(p => !searchTerm ||
+                            p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                            p.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                            (p.email && p.email.toLowerCase().includes(searchTerm.toLowerCase()))
+                        )
                         .map(principal => (
                             <div
                                 key={principal.id}
@@ -70,8 +74,15 @@ export const PrincipalSelector: React.FC<PrincipalSelectorProps> = ({
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <div className="text-[13px] font-bold text-foreground/90 tracking-tight truncate">{principal.name}</div>
-                                    <div className="text-[9px] text-muted-foreground font-black uppercase tracking-[0.1em] opacity-40 leading-none mt-1">
-                                        {principal.type.replace('_', ' ')}
+                                    <div className="flex items-center justify-between mt-1">
+                                        <div className="text-[9px] text-muted-foreground font-black uppercase tracking-[0.1em] opacity-40 leading-none">
+                                            {principal.type.replace('_', ' ')}
+                                        </div>
+                                        {principal.email && (
+                                            <div className="text-[10px] text-muted-foreground/60 truncate ml-2">
+                                                {principal.email}
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                                 <Checkbox

@@ -12,6 +12,11 @@ Given('the mock catalog data is loaded in the sidebar', () => {
     cy.get('[data-testid="catalog-node"]', { timeout: 15000 }).should('have.length.at.least', 1);
 });
 
+function ensureOnAccessRequestTab() {
+    cy.contains('button', 'Access Request', { timeout: 10000 }).click({ force: true });
+    cy.wait(500);
+}
+
 // =====================================================================
 // EXPANDING CATALOG NODES
 // =====================================================================
@@ -55,18 +60,22 @@ And('the tree items should be correctly indented to show the hierarchy', () => {
 // TABLE/OBJECT SELECTION
 // =====================================================================
 
-When('I select the {string} table', (name: string) => {
-    cy.get(`[data-node-name="${name}"]`, { timeout: 10000 })
+When('I select the {string} table checkbox', (name: string) => {
+    const leafName = name.split('.').pop() || name;
+    cy.get(`[data-node-name="${leafName}"]`, { timeout: 15000 })
+        .should('be.visible')
         .first()
         .find('input[type="checkbox"]')
         .click({ force: true });
 });
 
 Then('the {string} should appear in the selection tags area', (name: string) => {
+    ensureOnAccessRequestTab();
     cy.get('body').should('contain.text', name);
 });
 
 And('the selected object count badge should show {string}', (count: string) => {
+    ensureOnAccessRequestTab();
     cy.get('body').should('contain.text', count);
 });
 
@@ -94,12 +103,9 @@ When('I hold the meta key and select the {string} from the {string} schema', (ob
 });
 
 Then('both {string} and {string} should appear in the selection tags area', (obj1: string, obj2: string) => {
+    ensureOnAccessRequestTab();
     cy.get('body').should('contain.text', obj1);
     cy.get('body').should('contain.text', obj2);
-});
-
-And('the selected count badge should show {string}', (count: string) => {
-    cy.get('body').should('contain.text', count);
 });
 
 And('both objects should be passed to the active content view', () => {
@@ -151,6 +157,9 @@ Given('I have multiple catalog objects selected', () => {
 });
 
 When('I click the {string} button', (buttonText: string) => {
+    if (buttonText === 'Clear Selection' || buttonText === 'Submit Request') {
+        ensureOnAccessRequestTab();
+    }
     cy.contains('button', buttonText, { timeout: 10000 }).click({ force: true });
 });
 
@@ -162,6 +171,7 @@ And('the selection tags area should be empty', () => {
     cy.log('Selection tags cleared');
 });
 
-And('the selected count badge should show {string}', (count: string) => {
+And('the selection count badge should show {string}', (count: string) => {
+    ensureOnAccessRequestTab();
     cy.get('body').should('contain.text', count);
 });

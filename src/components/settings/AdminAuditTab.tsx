@@ -249,7 +249,7 @@ const AdminAuditTab = () => {
 
                 {filteredLogs.length > 0 && (
                     <div className="p-4 border-t border-border/50 flex items-center justify-between bg-muted/20">
-                        <div className="text-xs text-muted-foreground">
+                        <div data-testid="audit-pagination-info" className="text-xs text-muted-foreground">
                             Showing <span className="text-foreground font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="text-foreground font-medium">{Math.min(currentPage * itemsPerPage, filteredLogs.length)}</span> of <span className="text-foreground font-medium">{filteredLogs.length}</span> entries
                         </div>
                         {totalPages > 1 && (

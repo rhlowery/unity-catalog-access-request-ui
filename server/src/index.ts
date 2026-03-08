@@ -603,6 +603,23 @@ app.get('/api/session/validate', requireAuth, (_req: Request, res: Response) => 
 // =====================================================================
 // STORAGE BROKER
 // =====================================================================
+let sseClients: Response[] = [];
+
+app.get('/api/storage/requests/stream', requireAuth, (req: Request, res: Response) => {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+
+    // Send initial connection heartbeat
+    res.write('data: {"type": "CONNECTED"}\n\n');
+
+    sseClients.push(res);
+
+    req.on('close', () => {
+        sseClients = sseClients.filter(client => client !== res);
+    });
+});
+
 app.get('/api/storage/requests', requireAuth, (req: Request, res: Response) => {
     try {
         const data = fs.readFileSync(REQUESTS_FILE, 'utf8');
@@ -623,6 +640,12 @@ app.post('/api/storage/requests', requireAuth, (req: Request, res: Response) => 
         const validation = validateInput(storageRequestSchema, req.body);
         if (!validation.success) return res.status(400).json({ error: validation.error });
         fs.writeFileSync(REQUESTS_FILE, JSON.stringify(validation.data, null, 2));
+
+        // Notify all connected SSE clients
+        sseClients.forEach(client => {
+            client.write('data: {"type": "UPDATE"}\n\n');
+        });
+
         res.json({ status: 'success' });
     } catch (err) {
         res.status(500).json({ error: 'Failed to save requests' });

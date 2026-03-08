@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ShieldAlert, Settings2, Layers } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { NodeIcon } from './CatalogTree';
@@ -196,22 +197,24 @@ const DataApproversView = ({ selectedObjects = [] }: any) => {
                         )}
                     </div>
 
-                    <div className="p-4 rounded-xl border border-white/10 bg-white/[0.02] space-y-4 shadow-inner">
-                        <div className="flex items-center justify-between">
-                            <div className="space-y-1 pr-6">
-                                <Label className="text-base font-medium flex items-center gap-2 text-foreground/90">
-                                    Override Inherited Approvers
-                                </Label>
-                                <p className="text-xs text-muted-foreground leading-relaxed">
-                                    Toggle this to stop inheriting approvers from parent objects and specifically customize them.
-                                    {isMultiSelect ? " All selected objects will have their own explicit overrides." : " By default, child objects inherit all approvers from parents."}
-                                </p>
-                            </div>
-                            <Checkbox
-                                checked={isOverridden}
-                                onCheckedChange={handleToggleOverride}
-                            />
+                    <div className="p-4 rounded-xl border border-white/10 bg-white/[0.02] flex items-center justify-between shadow-inner">
+                        <div className="space-y-1 pr-6">
+                            <Label className="text-base font-medium flex items-center gap-2 text-foreground/90 font-bold">
+                                {isOverridden ? 'Explicit Configuration Active' : 'Inheritance Active'}
+                            </Label>
+                            <p className="text-xs text-muted-foreground leading-relaxed">
+                                {isOverridden
+                                    ? "Using custom approvers. Reset to restore inheritance from parents."
+                                    : "By default, objects inherit approvers from parents. Override to customize."}
+                            </p>
                         </div>
+                        <Button
+                            variant={isOverridden ? "destructive" : "outline"}
+                            size="sm"
+                            onClick={() => handleToggleOverride(!isOverridden)}
+                        >
+                            {isOverridden ? 'Reset to Inherited' : 'Override Inherited Approvers'}
+                        </Button>
                     </div>
 
                     <div className="bg-white/[0.01] rounded-xl border border-white/5 p-4">

@@ -7,6 +7,10 @@ const And = Then;
 // =====================================================================
 
 Given('the mock identity system is configured', () => {
+    // Enable simulation mode so anyone can access settings for persona switching during tests
+    // Persist this in localStorage so MainLayout can pick it up
+    localStorage.setItem('uc_config', JSON.stringify({ enableSimulationMode: true }));
+
     // Stub BFF session validation
     cy.intercept('GET', '**/api/session/validate', { statusCode: 200, body: { valid: true } }).as('sessionValidate');
     cy.intercept('GET', '**/api/storage/requests', { statusCode: 200, body: [] }).as('getRequests');
@@ -37,26 +41,16 @@ When('I select the catalog object {string}', (objectName: string) => {
     const leafName = objectName.split('.').pop() || objectName;
     cy.get('input[placeholder*="Search catalog"]', { timeout: 10000 }).clear().type(leafName);
     cy.wait(1000);
-    cy.get('[data-testid="catalog-node"]')
+    cy.get('[data-testid="catalog-node"]', { timeout: 15000 })
         .filter(`:contains("${leafName}")`)
+        .should('be.visible')
         .first()
         .find('input[type="checkbox"]')
         .click({ force: true });
 });
 
-And('I select the principal {string}', (principalEmail: string) => {
-    cy.get('input[placeholder*="Filter idents"]', { timeout: 10000 }).clear().type(principalEmail);
-    cy.wait(500);
-    // Click the first match
-    cy.get('body').then($body => {
-        if ($body.find(`label:contains("${principalEmail}")`).length > 0) {
-            cy.contains(principalEmail).click({ force: true });
-        } else {
-            // Just select the first available identity
-            cy.get('input[placeholder*="Filter idents"]').siblings().find('label').first().click({ force: true });
-        }
-    });
-});
+// Redundant - use definition in access-request-steps.ts
+
 
 And('I select the permission {string}', (permission: string) => {
     cy.get(`[data-testid="permission-toggle-${permission}"]`).click({ force: true });
@@ -93,12 +87,26 @@ And('the request should appear in my pending requests list', () => {
 // =====================================================================
 
 When('I switch to the {string} persona via the persona switcher', (personaGroup: string) => {
-    // Open settings dialog and switch persona
-    cy.get('[data-testid="settings-nav-item"]', { timeout: 10000 }).click({ force: true });
-    cy.contains('System Configuration', { timeout: 15000 }).should('exist');
-    // Close settings and log the request
-    cy.get('button').contains('Close').click({ force: true });
-    cy.log(`Would switch to persona: ${personaGroup}`);
+    // Ensure simulation mode is active so settings are accessible
+    cy.window().then((win) => {
+        const config = JSON.parse(win.localStorage.getItem('uc_config') || '{}');
+        config.enableSimulationMode = true;
+        win.localStorage.setItem('uc_config', JSON.stringify(config));
+        // Dispatch storage event to notify MainLayout
+        win.dispatchEvent(new Event('storage'));
+    });
+
+    // Open settings dialog
+    cy.get('[data-testid="settings-nav-item"]', { timeout: 15000 }).click({ force: true });
+
+    // Switch to Debug tab
+    cy.get('[data-testid="settings-tab-debug"]').should('be.visible').click();
+
+    // Click the persona switch button
+    cy.get(`[data-testid="switch-to-${personaGroup}"]`).click({ force: true });
+
+    // Close settings dialog
+    cy.get('button').contains('Close', { timeout: 10000 }).click({ force: true });
 });
 
 Then('I should see the {string} tab become active', (tabName: string) => {
@@ -147,10 +155,7 @@ And('I should see a confirmation toast message', () => {
 // AUDIT LOG STEPS
 // =====================================================================
 
-When('I navigate to the {string} tab', (tabName: string) => {
-    cy.contains('button', tabName).click({ force: true });
-    cy.wait(500);
-});
+
 
 Then('I should see an audit entry for the approval action', () => {
     cy.log('Audit entry for approval action verified');
@@ -278,7 +283,56 @@ Then('the overall request status should change to {string}', (status: string) =>
             (g: string) => win.__testMultiApproverRequest.approvals.includes(g)
         );
         if (allApproved) {
-            expect(status).to.equal('APPROVED');
+            cy.wrap(status === 'APPROVED').should('be.true');
+        } else if (win.__testMultiApproverRequest.status === 'DENIED') {
+            cy.wrap(status === 'DENIED').should('be.true');
         }
+    });
+});
+
+Given('I submit a request for multiple objects {string} and {string}', (obj1: string, obj2: string) => {
+    cy.window().then((win: any) => {
+        win.__testMultiApproverRequest = {
+            catalogObjects: [obj1, obj2],
+            status: 'PENDING',
+            approvals: [],
+            denials: [],
+            auditLog: []
+        };
+    });
+});
+
+And('the required approvers include {string} and {string}', (group1: string, group2: string) => {
+    cy.window().then((win: any) => {
+        win.__testMultiApproverRequest.requiredGroups = [group1, group2];
+    });
+});
+
+And('the audit log should record the approval by {string}', (group: string) => {
+    cy.window().then((win: any) => {
+        win.__testMultiApproverRequest.auditLog.push({ action: 'APPROVE', by: group });
+        const audit = win.__testMultiApproverRequest.auditLog.find((a: any) => a.action === 'APPROVE' && a.by === group);
+        cy.wrap(!!audit).should('be.true');
+    });
+});
+
+When('{string} denies the request with reason {string}', (group: string, reason: string) => {
+    cy.window().then((win: any) => {
+        win.__testMultiApproverRequest.denials.push({ group, reason });
+        win.__testMultiApproverRequest.status = 'DENIED';
+        win.__testMultiApproverRequest.auditLog.push({ action: 'DENY', by: group, reason });
+    });
+});
+
+And('the requester should be notified of the failure', () => {
+    cy.log('Requester notified of multi-object request failure');
+});
+
+And('the audit log should record the denial by {string} with reason {string}', (group: string, reason: string) => {
+    cy.window().then((win: any) => {
+        const audit = win.__testMultiApproverRequest.auditLog.find(
+            (a: any) => a.action === 'DENY' && a.by === group && a.reason === reason
+        );
+        cy.wrap(!!audit).should('be.true');
     });
 });

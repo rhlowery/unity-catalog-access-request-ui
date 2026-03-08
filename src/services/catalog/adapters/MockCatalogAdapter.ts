@@ -31,6 +31,23 @@ export const MockCatalogAdapter: ICatalogAdapter = {
     },
 
     async getLiveGrants(object: any, config: any): Promise<any[]> {
+        const objectId = object?.id || object?.name || String(object);
+
+        // Return mock live grants based on the object ID/name
+        if (objectId.includes('transactions')) {
+            return [
+                { principal: 'group_finance_admins', permissions: ['ALL_PRIVILEGES'], inherited_from: 'catalog' }
+            ];
+        } else if (objectId.includes('employees')) {
+            return [
+                { principal: 'group_hr_admins', permissions: ['SELECT', 'MODIFY'], inherited_from: 'schema' }
+            ];
+        } else if (objectId.includes('credit_scores')) {
+            return [
+                { principal: 'group_risk_analysts', permissions: ['SELECT'], inherited_from: 'table' }
+            ];
+        }
+
         return [];
     },
 
@@ -62,5 +79,16 @@ export const MockCatalogAdapter: ICatalogAdapter = {
 
         searchNodes(MOCK_CATALOGS);
         return results;
+    },
+
+    async fetchSchemas(workspaceUrl: string, catalogName: string): Promise<{ items: CatalogNode[] }> {
+        const catalog = MOCK_CATALOGS.find(c => c.name === catalogName);
+        return { items: catalog?.children || [] };
+    },
+
+    async fetchTables(workspaceUrl: string, catalogName: string, schemaName: string): Promise<{ items: CatalogNode[] }> {
+        const catalog = MOCK_CATALOGS.find(c => c.name === catalogName);
+        const schema = catalog?.children?.find(s => s.name === schemaName);
+        return { items: (schema as any)?.children || [] };
     }
 };

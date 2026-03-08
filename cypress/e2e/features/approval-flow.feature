@@ -62,3 +62,19 @@ Feature: Access Request Approval Flow
       | catalog_object | approver_group_1     | approver_group_2 |
       | transactions   | group_finance_admins | group_governance |
       | employees      | group_hr_admins      | group_governance |
+
+  Scenario Outline: Multi-object request requires all approvers and fails if any deny
+    Given I submit a request for multiple objects "<object_1>" and "<object_2>"
+    And the required approvers include "<approver_1>" and "<approver_2>"
+    When "<approver_1>" approves the request
+    Then the overall request status should remain "PENDING"
+    And the audit log should record the approval by "<approver_1>"
+    When "<approver_2>" denies the request with reason "<denial_reason>"
+    Then the overall request status should change to "DENIED"
+    And the requester should be notified of the failure
+    And the audit log should record the denial by "<approver_2>" with reason "<denial_reason>"
+
+    Examples:
+      | object_1     | object_2 | approver_1           | approver_2      | denial_reason                 |
+      | transactions | leads    | group_finance_admins | group_marketing | Marketing data is restricted  |
+

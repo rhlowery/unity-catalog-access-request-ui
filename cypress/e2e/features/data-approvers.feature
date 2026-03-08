@@ -40,7 +40,7 @@ Feature: Data Approvers Management
   Scenario Outline: Resetting an override to restore inheritance
     Given the "<target_object>" currently has an explicit override set to "<override_group>"
     When I navigate to the "Data Approvers" tab
-    And I select the "<target_object>"
+    And I select the object "<target_object>"
     And I click "Reset to Inherited"
     Then the override should be removed
     And the inherited approver badge should reappear showing "<parent_approver>"

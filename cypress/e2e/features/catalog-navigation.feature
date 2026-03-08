@@ -23,7 +23,7 @@ Feature: Catalog Navigation and Selection
   Scenario Outline: Selecting a single table to request access
     When I expand the "<catalog>" catalog
     And I expand the "<schema>" schema
-    And I select the "<table>" table
+    And I select the "<table>" table checkbox
     Then the "<table>" should appear in the selection tags area
     And the selected object count badge should show "1"
 
@@ -37,7 +37,7 @@ Feature: Catalog Navigation and Selection
     When I select the "<object1>" from the "<schema1>" schema
     And I hold the meta key and select the "<object2>" from the "<schema2>" schema
     Then both "<object1>" and "<object2>" should appear in the selection tags area
-    And the selected count badge should show "2"
+    And the selection count badge should show "2"
     And both objects should be passed to the active content view
 
     Examples:
@@ -58,7 +58,7 @@ Feature: Catalog Navigation and Selection
 
   Scenario: Clearing all selections
     Given I have multiple catalog objects selected
-    When I click the "Clear Items" button
+    When I click the "Clear Selection" button
     Then all checkboxes in the tree should become deselected
     And the selection tags area should be empty
-    And the selected count badge should show "0"
+    And the selection count badge should show "0"

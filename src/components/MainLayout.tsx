@@ -8,6 +8,7 @@ import { StorageService } from '../services/storage/StorageService';
 import { ConfigService } from '../services/config/ConfigService';
 import { useQuery } from '@tanstack/react-query';
 import { ViewModeTabs, UserControls, ContentView, ComponentLoader } from './OptimizedComponents';
+import { EventBus } from '../services/EventBus';
 import { usePersona } from '../hooks/usePersona';
 import { lazy } from 'react';
 const AdminSettings = lazy(() => import('./AdminSettings'));
@@ -123,6 +124,21 @@ const MainLayout = () => {
 
   // Resolve the user's effective persona and tab capabilities
   const persona = usePersona(user);
+  const [config, setConfig] = useState(() => ConfigService.getConfig());
+
+  useEffect(() => {
+    const handler = (data: any) => setConfig(data.config);
+    const storageHandler = () => setConfig(ConfigService.getConfig());
+
+    EventBus.on('SETTINGS_UPDATED', handler);
+    window.addEventListener('storage', storageHandler);
+
+    return () => {
+      EventBus.remove('SETTINGS_UPDATED', handler);
+      window.removeEventListener('storage', storageHandler);
+    };
+  }, []);
+
   const [showSettings, setShowSettings] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(300);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -400,8 +416,8 @@ const MainLayout = () => {
           </div>
         </div>
         <div className="flex items-center gap-6">
-          {/* Settings only accessible to Platform Admins */}
-          {persona.canAccessSettings && (
+          {/* Settings only accessible to Platform Admins, or anyone if Simulation Mode is enabled */}
+          {(persona.canAccessSettings || ConfigService.getConfig().enableSimulationMode) && (
             <Button
               variant="ghost"
               size="icon"

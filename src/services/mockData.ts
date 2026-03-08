@@ -39,6 +39,33 @@ export const MOCK_CATALOGS = [
                     { id: 'vol_training_data', name: 'training_data_images', type: 'VOLUME', parentId: 'sch_ai_governance', owners: ['group_data_scientists', 'group_legal_compliance'] },
                     { id: 'model_genai', name: 'llama_3_finetuned', type: 'MODEL', parentId: 'sch_ai_governance', owners: ['group_data_scientists'] }
                 ]
+            },
+            {
+                id: 'sch_hr',
+                name: 'hr',
+                type: 'SCHEMA',
+                parentId: 'cat_main',
+                children: [
+                    { id: 'tbl_employees', name: 'employees', type: 'TABLE', parentId: 'sch_hr', owners: ['group_hr_admins'] },
+                    { id: 'tbl_compensation', name: 'compensation', type: 'TABLE', parentId: 'sch_hr', owners: ['group_hr_admins', 'user_cfo'] },
+                    { id: 'tbl_org_chart', name: 'org_chart', type: 'TABLE', parentId: 'sch_hr', owners: ['group_hr_admins'] },
+                ]
+            }
+        ],
+    },
+    {
+        id: 'cat_sales',
+        name: 'sales',
+        type: 'CATALOG',
+        children: [
+            {
+                id: 'sch_transactions_sales',
+                name: 'transactions',
+                type: 'SCHEMA',
+                parentId: 'cat_sales',
+                children: [
+                    { id: 'tbl_summary_table', name: 'summary_table', type: 'TABLE', parentId: 'sch_transactions_sales', owners: ['group_finance_admins'] },
+                ]
             }
         ],
     },
@@ -367,6 +394,26 @@ export const MOCK_USERS = [
         role: 'PLATFORM_ADMIN',
         groups: ['group_all_users', 'group_platform_admins'],
         description: 'Platform Admin — full access to all tabs and Settings dialog'
+    },
+    {
+        id: 'user_alice',
+        name: 'Alice',
+        email: 'alice@example.com',
+        type: 'USER',
+        initials: 'A',
+        role: 'STANDARD_USER',
+        groups: ['group_all_users'],
+        description: 'Standard user Alice'
+    },
+    {
+        id: 'user_bob',
+        name: 'Bob',
+        email: 'bob@example.com',
+        type: 'USER',
+        initials: 'B',
+        role: 'STANDARD_USER',
+        groups: ['group_all_users'],
+        description: 'Standard user Bob'
     }
 ];
 
@@ -378,6 +425,8 @@ export const MOCK_IDENTITIES = {
         { id: 'user_auditor', name: 'Chris Auditor', email: 'chris.a@company.com', type: 'USER' },
         { id: 'user_security_admin', name: 'Jane Security', email: 'jane.s@company.com', type: 'USER' },
         { id: 'user_platform_admin', name: 'Pat Platform', email: 'pat.p@company.com', type: 'USER' },
+        { id: 'user_alice', name: 'Alice', email: 'alice@example.com', type: 'USER' },
+        { id: 'user_bob', name: 'Bob', email: 'bob@example.com', type: 'USER' },
     ],
     groups: [
         { id: 'group_all_users', name: 'All Users', type: 'GROUP' },

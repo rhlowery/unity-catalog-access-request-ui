@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AccessForm } from '../components/AccessForm';
@@ -32,8 +32,8 @@ const mockSelectedObjects = [
 ];
 
 describe('AccessForm', () => {
-    let onSubmitMock: ReturnType<typeof vi.fn>;
-    let onClearSelectionMock: ReturnType<typeof vi.fn>;
+    let onSubmitMock: Mock<(request: any) => void>;
+    let onClearSelectionMock: Mock<() => void>;
 
     beforeEach(() => {
         vi.resetAllMocks();
@@ -43,7 +43,7 @@ describe('AccessForm', () => {
         vi.mocked(IdentityService.fetchIdentities).mockResolvedValue(mockIdentities);
     });
 
-    it('should render an empty state when no objects are selected', () => {
+    it('should render an empty state when no objects are selected', async () => {
         render(
             <AccessForm
                 selectedObjects={[]}
@@ -53,6 +53,11 @@ describe('AccessForm', () => {
         );
         expect(screen.getByText(/Secure Access Bridge/i)).toBeInTheDocument();
         expect(onSubmitMock).not.toHaveBeenCalled();
+
+        // Wait for the async identity fetch to complete to avoid act() warnings
+        await waitFor(() => {
+            expect(IdentityService.fetchIdentities).toHaveBeenCalled();
+        });
     });
 
     it('should show the form when objects are selected', async () => {

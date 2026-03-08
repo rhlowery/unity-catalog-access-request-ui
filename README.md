@@ -59,9 +59,11 @@ Rel(bff, uc, "Manages Grants", "REST API")
 - **Unity Catalog Browser**: Browse and select Catalogs, Schemas, Tables, Models, Volumes, and Compute resources.
 - **Access Requests**: Submit requests for Users, Groups, or Service Principals with specific permissions.
 - **Multi-Stage Approval**:
-    - Supports multiple asset owners.
+    - Supports multiple asset owners spanning across single or multiple data objects.
+    - **All Approvers Required**: If a request encompasses multiple objects with varying owners, ALL relevant approvers must approve before it can be fulfilled.
+    - **Single-Denial Failure**: If a request is denied by any single approver, the entire request fails immediately and the requester is notified.
     - **Mandatory Governance**: A governance group must check every request.
-    - **Unanimous Consent**: All owners + governance must approve.
+    - **Audit & Justification**: Each approver must provide a "reason" when denying a request, and every individual approval or denial is immutably tracked in the audit record.
 - **Audit Logging**: Full audit trail of all requests and decisions.
 - **Enterprise Authentication**:
     - **Databricks Login**: Secure direct authentication via Personal Access Token (PAT) or Username/Password.
@@ -137,8 +139,8 @@ npm run preview
     - Then approve as `Carol CFO` (Owner).
 5.  **Audit**: Check the **Audit Log** tab to see the full history.
 
-## Technology S
+## Technology Stack
 - **Framework**: React + Vite
-- **Styling**: Vanilla CSS (CSS Variables, Glassmor
+- **Styling**: Vanilla CSS (CSS Variables, Glassmorphism)
 - **Icons**: Lucide React
 - **Persistence**: [Localized & Pluggable Backend](BACKEND.md) (LocalStorage, RDBMS, Unity Catalog, GitOps)

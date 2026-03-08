@@ -134,8 +134,8 @@ Given('I am logged in as {string}', (role: string) => {
     'SECURITY_ADMIN': 'user_security_admin',
     'PLATFORM_ADMIN': 'user_platform_admin',
     // Person names used by approval-flow feature
-    'ALICE': 'user_standard',
-    'BOB': 'user_standard',
+    'ALICE': 'user_alice',
+    'BOB': 'user_bob',
   };
 
   const userId = roleToId[role.toUpperCase()] || 'user_standard';

@@ -12,8 +12,22 @@ const And = Then;
 // =====================================================================
 
 Given('I am logged in as a user with at least {string} or {string} persona', (_persona1: string, _persona2: string) => {
-    // Already handled by auth-steps 'I am logged in as {string}'
-    cy.log('User logged in with elevated persona');
+    // Perform login as PLATFORM_ADMIN
+    cy.clearLocalStorage();
+    cy.clearCookies();
+    cy.window().then((win) => win.sessionStorage.clear());
+
+    cy.visit('/login');
+    cy.get('body').then(($body) => {
+        if ($body.find('[data-testid="mock-login-button"]').length > 0) {
+            cy.get('[data-testid="mock-login-button"]').click();
+        }
+    });
+
+    cy.intercept('POST', '**/api/auth/login').as('loginReq');
+    cy.get('[data-testid="mock-user-user_platform_admin"]').should('be.visible').click();
+    cy.wait('@loginReq', { timeout: 20000 });
+    cy.get('main', { timeout: 20000 }).should('be.visible');
 });
 
 Given('the mock data service is connected', () => {
@@ -25,20 +39,10 @@ Given('the mock data service is connected', () => {
 // Scenario: Viewing active grants on a selected object
 // =====================================================================
 
-When('I select the {string} from the catalog tree', (objectName: string) => {
-    const leafName = objectName.split('.').pop() || objectName;
-    cy.get('input[placeholder*="Search catalog"]', { timeout: 10000 }).clear().type(leafName);
-    cy.wait(500);
-    cy.get('[data-testid="catalog-node"]', { timeout: 10000 })
-        .filter(`:contains("${leafName}")`)
-        .first()
-        .click({ force: true });
-});
+// Replaced by common-steps.ts
 
-And('I navigate to the {string} tab', (tabName: string) => {
-    cy.contains('button', tabName, { timeout: 10000 }).click({ force: true });
-    cy.wait(500);
-});
+
+
 
 Then('I should see the principal {string} listed in the grants table', (principal: string) => {
     cy.get('body', { timeout: 10000 }).should('contain.text', principal);
