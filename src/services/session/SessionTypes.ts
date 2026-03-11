@@ -2,6 +2,8 @@ export interface SessionInfo {
   id: string;
   userId: string;
   userName: string;
+  userEmail?: string;
+  userRole?: string;
   userGroups: string[];
   provider: string;
   createdAt: number;

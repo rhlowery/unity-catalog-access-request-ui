@@ -26,16 +26,9 @@ export const BFFStorageAdapter: IStorageAdapter = {
     },
 
     async upsertRequest(request: AccessRequest, config: StorageConfig): Promise<boolean> {
-        const requests = await this.load(config);
-        const index = requests.findIndex(r => r.id === request.id);
-
-        if (index !== -1) {
-            requests[index] = request;
-        } else {
-            requests.push(request);
-        }
-
-        return await this.save(requests, config);
+        // Recommendation 1: Only send the request being updated to the BFF.
+        // The BFF handles merging and validating ownership of this specific request.
+        return await this.save([request], config);
     },
 
     async getGrants(object: any, config: StorageConfig): Promise<Grant[]> {

@@ -18,31 +18,80 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     useEffect(() => {
         const initAuth = async () => {
             try {
-                console.log('[AuthProvider] Initializing auth with session management...');
+                console.log('[AuthProvider] Initializing auth via Zero-Trust verify...');
 
-                // Check for existing valid session
+                // 1. Try to get verified identity from the BFF session cookie directly
+                const BFF_URL = import.meta.env.VITE_BFF_URL || 'http://localhost:3001';
+                try {
+                    const response = await fetch(`${BFF_URL}/api/auth/me`, {
+                        credentials: 'include'
+                    });
+
+                    if (response.ok) {
+                        const verifiedUser = await response.json();
+                        console.log('[AuthProvider] Found verified BFF session:', verifiedUser);
+
+                        const contextUser = {
+                            ...verifiedUser,
+                            initials: verifiedUser.name.split(' ').map((n: string) => n[0]).join(''),
+                            type: 'USER'
+                        };
+
+                        setUser(contextUser);
+                        setLoading(false);
+
+                        // Check local session for expiry tracking
+                        const activeSession = await SessionManager.getActiveSession();
+                        if (activeSession) {
+                            await SessionManager.checkSessionExpiration(activeSession.id);
+                        }
+                        return;
+                    }
+                } catch (e) {
+                    console.warn('[AuthProvider] BFF offline, falling back to local session lookup');
+                }
+
+                // 2. Fallback to existing persistent session (useful for offline/mock)
                 const activeSession = await SessionManager.getActiveSession();
                 if (activeSession) {
-                    console.log('[AuthProvider] Found active session:', activeSession);
+                    console.log('[AuthProvider] Found active local session, synchronizing with BFF:', activeSession);
+
                     const userFromSession = {
                         id: activeSession.userId,
                         name: activeSession.userName,
-                        email: `${activeSession.userName.toLowerCase().replace(/\s+/g, '.')}@example.com`,
-                        groups: activeSession.userGroups,
+                        email: activeSession.userEmail || `${activeSession.userId}@local`,
+                        groups: activeSession.userGroups || [],
+                        role: activeSession.userRole || 'STANDARD_USER',
                         provider: activeSession.provider,
                         initials: activeSession.userName.split(' ').map(n => n[0]).join(''),
                         type: 'USER'
                     };
 
+                    // Proactively attempt to establish BFF session for this local user
+                    try {
+                        await fetch(`${BFF_URL}/api/auth/login`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            credentials: 'include',
+                            body: JSON.stringify({
+                                userId: userFromSession.id,
+                                userName: userFromSession.name,
+                                email: userFromSession.email,
+                                groups: userFromSession.groups,
+                                role: userFromSession.role,
+                                provider: activeSession.provider || 'MOCK'
+                            })
+                        });
+                    } catch (err) {
+                        console.warn('[AuthProvider] Failed to sync local session to BFF:', err);
+                    }
+
                     setUser(userFromSession);
                     setLoading(false);
-
-                    // Start session monitoring
-                    await SessionManager.checkSessionExpiration(activeSession.id);
                     return;
                 }
 
-                // No valid session - try identity service
+                // 3. No valid session - try identity service
                 const adapter = IdentityService.getAdapter();
                 console.log('[AuthProvider] Using adapter:', adapter.name);
 

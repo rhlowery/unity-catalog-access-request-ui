@@ -45,6 +45,8 @@ export class SessionManagerService implements ISessionManager {
       id: sessionId,
       userId: user.id,
       userName: user.name,
+      userEmail: user.email,
+      userRole: user.role,
       userGroups: user.groups || [],
       provider,
       createdAt: now,

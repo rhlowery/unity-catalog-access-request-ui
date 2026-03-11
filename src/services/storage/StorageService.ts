@@ -1,4 +1,5 @@
 import { LocalStorageAdapter } from './adapters/LocalStorageAdapter';
+import { SecureLocalStorageAdapter } from './adapters/SecureLocalStorageAdapter';
 import { RDBMSAdapter } from './adapters/RDBMSAdapter';
 import { GitAdapter } from './adapters/GitAdapter';
 import { VolatileAdapter } from './adapters/VolatileAdapter';
@@ -12,7 +13,7 @@ export const getAdapter = (config: any): IStorageAdapter => {
   const type = config?.storageType || config?.type || 'BFF'; // Default to BFF
 
   if (type === 'LOCAL') {
-    console.warn('[Security] Using LOCAL storage bounds. Consider BFF, UNITY_CATALOG or GIT for production.');
+    console.warn('[Security] Using LOCAL storage bounds. Consider SECURE_LOCAL, BFF, UNITY_CATALOG or GIT for production.');
   }
 
   switch (type) {
@@ -20,6 +21,8 @@ export const getAdapter = (config: any): IStorageAdapter => {
       return BFFStorageAdapter;
     case 'LOCAL':
       return LocalStorageAdapter;
+    case 'SECURE_LOCAL':
+      return SecureLocalStorageAdapter;
     case 'RDBMS':
       return RDBMSAdapter;
     case 'GIT':

@@ -236,7 +236,7 @@ app.get('/health', (_req: Request, res: Response) => {
 app.get('/api/auth/csrf', (_req: Request, res: Response) => {
     const csrfToken = generateCsrfToken();
     res.cookie('csrf_token', csrfToken, {
-        httpOnly: true,
+        httpOnly: false, // Must be readable by client JS to be sent as header
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
         maxAge: 3600000
@@ -273,6 +273,12 @@ const requireAuth = (req: Request, res: Response, next: any) => {
     // 1. Try the BFF-issued JWT (preferred)
     let bffJwt = req.cookies['bff_jwt'];
 
+    // Debug: Log incoming cookies
+    logger.debug({
+        cookieNames: Object.keys(req.cookies),
+        hasBffJwt: !!bffJwt
+    }, '[BFF] Incoming authentication attempt');
+
     // 2. Fall back to Authorization header (e.g., API clients)
     if (!bffJwt) {
         const authHeader = req.headers['authorization'] as string;
@@ -285,6 +291,11 @@ const requireAuth = (req: Request, res: Response, next: any) => {
     const hasLegacyCookie = !!req.cookies['access_token'];
 
     if (!bffJwt && !hasLegacyCookie) {
+        logger.warn({
+            hasBffJwt: !!bffJwt,
+            hasLegacyCookie,
+            cookies: Object.keys(req.cookies)
+        }, '[BFF] Authorization failed: No tokens found in cookies');
         return res.status(401).json({ error: 'Unauthorized: No valid session token found' });
     }
 
@@ -341,7 +352,11 @@ const validateCsrf = (req: Request, res: Response, next: () => void): void => {
             return;
         }
     } else if (csrfEnabled && csrfToken !== cookieToken) {
-        console.warn('[BFF] CSRF validation failed: token mismatch');
+        logger.warn({
+            headerTokenLength: csrfToken?.length || 0,
+            cookieTokenLength: cookieToken?.length || 0,
+            match: csrfToken === cookieToken
+        }, '[BFF] CSRF validation failed: token mismatch');
         res.status(403).json({ error: 'CSRF validation failed' });
         return;
     }
@@ -600,6 +615,35 @@ app.post('/api/auth/logout', authLimiter, (req: Request, res: Response) => {
 
 app.get('/api/session/validate', requireAuth, (_req: Request, res: Response) => res.json({ valid: true }));
 
+app.get('/api/auth/me', requireAuth, (req: Request, res: Response) => {
+    const userId = (req as any).userId;
+    const jwtPayload = (req as any).jwtPayload;
+
+    if (!jwtPayload) {
+        return res.status(401).json({ error: 'No active session' });
+    }
+
+    const user = {
+        id: jwtPayload.sub,
+        name: jwtPayload.name,
+        email: jwtPayload.email,
+        groups: jwtPayload.groups,
+        role: jwtPayload.role,
+        provider: jwtPayload.provider
+    };
+
+    // Ensure a CSRF token is present for the session
+    const csrfToken = generateCsrfToken();
+    res.cookie('csrf_token', csrfToken, {
+        httpOnly: false,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 3600000
+    });
+
+    res.json({ user, csrfToken });
+});
+
 // =====================================================================
 // STORAGE BROKER
 // =====================================================================
@@ -639,15 +683,55 @@ app.post('/api/storage/requests', requireAuth, (req: Request, res: Response) => 
     try {
         const validation = validateInput(storageRequestSchema, req.body);
         if (!validation.success) return res.status(400).json({ error: validation.error });
-        fs.writeFileSync(REQUESTS_FILE, JSON.stringify(validation.data, null, 2));
+
+        const incomingRequests = validation.data!;
+        const userId = (req as any).userId;
+        const userGroups = (req as any).userGroups;
+        const isAdmin = userGroups.includes('admins') || userGroups.includes('admin');
+
+        // Load existing requests to perform a merge
+        const existingData = fs.readFileSync(REQUESTS_FILE, 'utf8');
+        const existingRequests: any[] = JSON.parse(existingData);
+        const existingMap = new Map(existingRequests.map(r => [r.id, r]));
+
+        for (const storageReq of incomingRequests) {
+            const existing = existingMap.get(storageReq.id);
+
+            if (!existing) {
+                // New request: Force the requesterId to be the authenticated user
+                storageReq.requesterId = userId;
+                storageReq.status = 'PENDING';
+                storageReq.createdAt = storageReq.createdAt || Date.now();
+                existingMap.set(storageReq.id, storageReq);
+            } else {
+                // Existing request: Validate permission to update
+                const isOwner = existing.requesterId === userId || existing.userId === userId;
+
+                if (!isOwner && !isAdmin) {
+                    return res.status(403).json({ error: `Forbidden: You do not have permission to update request ${storageReq.id}` });
+                }
+
+                // If not admin, they cannot change the status or other's requesterId
+                if (!isAdmin) {
+                    storageReq.status = existing.status;
+                    storageReq.requesterId = existing.requesterId;
+                }
+
+                existingMap.set(storageReq.id, { ...existing, ...storageReq, updatedAt: Date.now() });
+            }
+        }
+
+        const mergedRequests = Array.from(existingMap.values());
+        fs.writeFileSync(REQUESTS_FILE, JSON.stringify(mergedRequests, null, 2));
 
         // Notify all connected SSE clients
         sseClients.forEach(client => {
             client.write('data: {"type": "UPDATE"}\n\n');
         });
 
-        res.json({ status: 'success' });
+        res.json({ status: 'success', count: incomingRequests.length });
     } catch (err) {
+        logger.error({ err }, '[BFF] Storage Write Error');
         res.status(500).json({ error: 'Failed to save requests' });
     }
 });
@@ -674,7 +758,7 @@ app.post('/api/storage/approvers', requireAuth, (req: Request, res: Response) =>
 });
 
 // =====================================================================
-// AUDIT LOGGING
+// AUDIT LOGGING: Server-Signed Entries
 // =====================================================================
 app.post('/api/audit/log', requireAuth, (req: Request, res: Response) => {
     try {
@@ -683,14 +767,35 @@ app.post('/api/audit/log', requireAuth, (req: Request, res: Response) => {
             return res.status(400).json({ error: 'Invalid audit entry' });
         }
 
+        const userId = (req as any).userId;
+        const serverTimestamp = Date.now();
+
+        // Recommendation 4: Server-side signing for tamper-proof logs
+        const auditPayload = JSON.stringify({
+            ...entry,
+            userId,
+            serverTimestamp
+        });
+
+        // Use the effective JWT secret to sign the audit entry
+        const signature = crypto
+            .createHmac('sha256', env.effectiveJwtSecret)
+            .update(auditPayload)
+            .digest('hex');
+
+        const signedEntry = {
+            ...entry,
+            userId,
+            serverTimestamp,
+            signature,
+            signer: 'unity-catalog-acs-bff'
+        };
+
         const data = fs.readFileSync(AUDIT_FILE, 'utf8');
         const auditLogs = JSON.parse(data);
 
         // Add entry to the beginning (most recent first)
-        auditLogs.unshift({
-            ...entry,
-            serverTimestamp: Date.now()
-        });
+        auditLogs.unshift(signedEntry);
 
         // Limit to last 5000 entries
         const limitedLogs = auditLogs.slice(0, 5000);

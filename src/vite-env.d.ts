@@ -8,6 +8,8 @@ interface ImportMetaEnv {
   readonly SSR: boolean;
   readonly VITE_DATABRICKS_HOST?: string;
   readonly VITE_DATABRICKS_TOKEN?: string;
+  readonly VITE_BFF_URL?: string;
+  readonly VITE_FRONTEND_URL?: string;
 }
 
 interface ImportMeta {

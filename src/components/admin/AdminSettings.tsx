@@ -3,7 +3,6 @@ import { Bug, Save, Lock, CheckCircle, Info, Activity, FileText } from 'lucide-r
 import { ConfigService } from '../services/config/ConfigService';
 import { EventBus } from '../services/EventBus';
 import { clearTokenCache } from '../services/UCIdentityService';
-import { toast } from 'sonner';
 
 import {
     Tabs,
@@ -151,7 +150,7 @@ const AdminSettings = () => {
                                 localStorage.setItem('acs_mock_vault_secrets_v1', mockVaultJson);
                                 setIsMockVaultModalOpen(false);
                             } catch {
-                                toast.error("Invalid JSON format. Please correct it.");
+                                alert("Invalid JSON format. Please correct it.");
                             }
                         }}>Save Mock Secrets</Button>
                     </DialogFooter>

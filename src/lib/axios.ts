@@ -32,6 +32,8 @@ apiClient.interceptors.request.use(async (config) => {
             ?.split('=')[1];
         if (csrfToken) {
             config.headers['X-CSRF-Token'] = csrfToken;
+        } else {
+            console.warn('[apiClient] CSRF token not found in cookies for state-changing request');
         }
     }
 
