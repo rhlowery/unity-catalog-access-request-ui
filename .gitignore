@@ -16,8 +16,6 @@ dist-ssr
 etc/*
 
 # Mock Data
-mockData.js
-
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

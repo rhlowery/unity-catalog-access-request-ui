@@ -1,23 +1,54 @@
 import React, { useState } from 'react';
-import { X, Bug, Globe, Shield, Save, Lock, CheckCircle } from 'lucide-react';
-import { StorageService } from '../services/storage/StorageService';
+import { Bug, Save, Lock, CheckCircle, Info, Activity, FileText } from 'lucide-react';
+import { ConfigService } from '../services/config/ConfigService';
 import { EventBus } from '../services/EventBus';
-import { ObservabilityService } from '../services/ObservabilityService';
 import { clearTokenCache } from '../services/UCIdentityService';
-import ErrorTestPanel from './ErrorTestPanel';
-import './AdminSettings.css';
+import { toast } from 'sonner';
+
+import {
+    Tabs,
+    TabsContent,
+    TabsList,
+    TabsTrigger
+} from '@/components/ui/tabs';
+import {
+    Card,
+    CardContent,
+    CardHeader,
+    CardTitle,
+    CardDescription,
+    CardFooter
+} from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+    DialogFooter
+} from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+
+import StorageSettingsTab from './settings/StorageSettingsTab';
+import IdentitySettingsTab from './settings/IdentitySettingsTab';
+import SecretsSettingsTab from './settings/SecretsSettingsTab';
+import UnityCatalogSettingsTab from './settings/UnityCatalogSettingsTab';
+import DebugSettingsTab from './settings/DebugSettingsTab';
+import AdminHealthTab from './settings/AdminHealthTab';
+import AdminAuditTab from './settings/AdminAuditTab';
 
 const AdminSettings = () => {
-    const [config, setConfig] = useState(StorageService.getConfig());
+    const [config, setConfig] = useState(ConfigService.getConfig());
     const [saved, setSaved] = useState(false);
-    const [activeTab, setActiveTab] = useState('STORAGE'); // STORAGE, IDENTITY, UNITY_CATALOG, SECRETS
+    const [activeTab, setActiveTab] = useState('STORAGE');
     const [isMockVaultModalOpen, setIsMockVaultModalOpen] = useState(false);
     const [mockVaultJson, setMockVaultJson] = useState(() => {
         return localStorage.getItem('acs_mock_vault_secrets_v1') || '{}';
     });
 
     const handleSave = () => {
-        StorageService.saveConfig(config);
+        ConfigService.updateConfig(config);
         clearTokenCache();
         setSaved(true);
         EventBus.dispatch('SETTINGS_UPDATED', { config });
@@ -25,793 +56,107 @@ const AdminSettings = () => {
     };
 
     return (
-        <div className="admin-settings animate-fade-in">
-            <p className="text-secondary mb-4">Manage storage backends, identity providers, and catalog connections.</p>
-
-            <div className="settings-tabs">
-                <button
-                    className={`tab-btn ${activeTab === 'STORAGE' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('STORAGE')}
-                >
-                    Storage Backend
-                </button>
-                <button
-                    className={`tab-btn ${activeTab === 'IDENTITY' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('IDENTITY')}
-                >
-                    Identity Provider
-                </button>
-                <button
-                    className={`tab-btn ${activeTab === 'SECRETS' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('SECRETS')}
-                >
-                    Secrets Management
-                </button>
-                <button
-                    className={`tab-btn ${activeTab === 'UNITY_CATALOG' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('UNITY_CATALOG')}
-                >
-                    Unity Catalog
-                </button>
-                {import.meta.env.DEV && (
-                    <button
-                        className={`tab-btn ${activeTab === 'DEBUG' ? 'active' : ''}`}
-                        onClick={() => setActiveTab('DEBUG')}
-                    >
-                        <Bug size={16} style={{ marginRight: '4px' }} />
-                        Debug
-                    </button>
-                )}
+        <div className="space-y-6 animate-in fade-in duration-500">
+            <div className="flex items-start gap-3 p-4 rounded-lg bg-muted/50 border border-border/50 text-muted-foreground text-sm">
+                <Info size={18} className="mt-0.5 text-primary" />
+                <p>Manage secondary storage backends, identity provider synchronization, and catalog connection credentials. Changes will take effect immediately upon saving.</p>
             </div>
 
-            <div className="glass-panel settings-card">
-
-                {/* SECRETS TAB */}
-                {activeTab === 'SECRETS' && (
-                    <div className="animate-fade-in">
-                        <h4><Lock size={18} style={{ display: 'inline', marginRight: 8 }} /> Secrets Management Configuration</h4>
-                        <p className="text-secondary text-sm mb-4">Choose how sensitive information (like Client Secrets) is retrieved.</p>
-
-                        <div className="form-group">
-                            <label>Secret Provider</label>
-                            <select
-                                value={config.globalSecretProvider}
-                                onChange={e => setConfig({ ...config, globalSecretProvider: e.target.value })}
-                            >
-                                <option value="PLAIN">Plain Text (In-App Configuration)</option>
-                                <option value="VAULT">HashiCorp Vault (Production)</option>
-                                <option value="MOCK_VAULT">Mock Vault (Local Development)</option>
-                            </select>
-                        </div>
-
-                        {config.globalSecretProvider === 'VAULT' && (
-                            <div className="config-section animate-fade-in" style={{ borderTop: 'none', marginTop: 0, paddingTop: 0 }}>
-                                <h5>HashiCorp Vault Connection</h5>
-                                <div className="form-group">
-                                    <label>Vault Address</label>
-                                    <input
-                                        type="text"
-                                        value={config.vaultUrl}
-                                        placeholder="https://vault.mycompany.com:8200"
-                                        onChange={e => setConfig({ ...config, vaultUrl: e.target.value })}
-                                    />
-                                </div>
-                                <div className="form-group">
-                                    <label>Vault Token</label>
-                                    <input
-                                        type="password"
-                                        value={config.vaultToken}
-                                        placeholder="hvs.xxxxxxxx..."
-                                        onChange={e => setConfig({ ...config, vaultToken: e.target.value })}
-                                    />
-                                </div>
-                                <div className="form-group">
-                                    <label>Namespace (Optional)</label>
-                                    <input
-                                        type="text"
-                                        value={config.vaultNamespace}
-                                        placeholder="admin/my-namespace"
-                                        onChange={e => setConfig({ ...config, vaultNamespace: e.target.value })}
-                                    />
-                                </div>
-                                <div className="form-group">
-                                    <label>Secret Store Path</label>
-                                    <input
-                                        type="text"
-                                        value={config.vaultSecretPath}
-                                        placeholder="secret/data/uc-access-app"
-                                        onChange={e => setConfig({ ...config, vaultSecretPath: e.target.value })}
-                                    />
-                                </div>
-                            </div>
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                <div className="overflow-x-auto pb-1 -mx-1 px-1">
+                    <TabsList className="w-max min-w-full justify-start bg-background/50 border border-border h-12 p-1 mb-6 flex-nowrap">
+                        <TabsTrigger value="STORAGE" className="px-4 whitespace-nowrap">Storage</TabsTrigger>
+                        <TabsTrigger value="IDENTITY" className="px-4 whitespace-nowrap">Identity</TabsTrigger>
+                        <TabsTrigger value="SECRETS" className="px-4 whitespace-nowrap">Secrets</TabsTrigger>
+                        <TabsTrigger value="UNITY_CATALOG" className="px-4 whitespace-nowrap">Unity Catalog</TabsTrigger>
+                        <TabsTrigger data-testid="settings-tab-health" value="HEALTH" className="px-4 whitespace-nowrap flex gap-2 items-center">
+                            <Activity size={14} /> Health
+                        </TabsTrigger>
+                        <TabsTrigger data-testid="settings-tab-audit" value="AUDIT" className="px-4 whitespace-nowrap flex gap-2 items-center">
+                            <FileText size={14} /> Audit
+                        </TabsTrigger>
+                        {(import.meta.env.DEV || config.enableSimulationMode) && (
+                            <TabsTrigger data-testid="settings-tab-debug" value="DEBUG" className="px-4 gap-2 whitespace-nowrap">
+                                <Bug size={14} /> Debug
+                            </TabsTrigger>
                         )}
-
-                        {config.globalSecretProvider === 'MOCK_VAULT' && (
-                            <div className="config-section animate-fade-in" style={{ borderTop: 'none', marginTop: 0, paddingTop: 0 }}>
-                                <h5>Mock Vault Management</h5>
-                                <div className="form-group">
-                                    <label>Secret Store Path (Mock)</label>
-                                    <input
-                                        type="text"
-                                        value={config.vaultSecretPath}
-                                        placeholder="secret/data/uc-access-app"
-                                        onChange={e => setConfig({ ...config, vaultSecretPath: e.target.value })}
-                                    />
-                                </div>
-                                <p className="text-secondary text-sm mb-4">Manage mock secrets stored in your browser session for testing.</p>
-                                <button
-                                    className="btn btn-secondary btn-small"
-                                    onClick={() => setIsMockVaultModalOpen(true)}
-                                >
-                                    Manage Mock Vault Secrets
-                                </button>
-                            </div>
-                        )}
-
-                        {config.globalSecretProvider === 'PLAIN' && (
-                            <div className="p-4 rounded bg-white/5 border border-white/10 mt-4">
-                                <p className="text-sm text-secondary">
-                                    Secrets are entered directly in the connection settings. This is the least secure method and should only be used for POCs.
-                                </p>
-                            </div>
-                        )}
-                    </div>
-                )}
-
-                {/* STORAGE TAB */}
-                {activeTab === 'STORAGE' && (
-                    <div className="animate-fade-in">
-                        <div className="form-group">
-                            <label>Active Storage Backend</label>
-                            <select
-                                value={config.type}
-                                onChange={e => setConfig({ ...config, type: e.target.value })}
-                            >
-                                <option value="MOCK">Mock (Volatile)</option>
-                                <option value="LOCAL">Local Browser Storage</option>
-                                <option value="UNITY_CATALOG">Unity Catalog Table</option>
-                                <option value="RDBMS">Relational Database (SQL)</option>
-                                <option value="GIT">Git Repository (GitOps)</option>
-                            </select>
-                        </div>
-
-                        {/* UC Storage Config */}
-                        {config.type === 'UNITY_CATALOG' && (
-                            <div className="config-section animate-fade-in">
-                                <h4>Unity Catalog Table Config</h4>
-                                <div className="form-group"><label>Catalog</label><input type="text" value={config.ucCatalog} onChange={e => setConfig({ ...config, ucCatalog: e.target.value })} /></div>
-                                <div className="form-group"><label>Schema</label><input type="text" value={config.ucSchema} onChange={e => setConfig({ ...config, ucSchema: e.target.value })} /></div>
-                                <div className="form-group"><label>Table Name</label><input type="text" value={config.ucTable} onChange={e => setConfig({ ...config, ucTable: e.target.value })} /></div>
-                            </div>
-                        )}
-
-                        {/* RDBMS Config */}
-                        {config.type === 'RDBMS' && (
-                            <div className="config-section animate-fade-in">
-                                <h4>Database Connection</h4>
-                                <div className="form-group"><label>Connection String</label><input type="text" value={config.rdbmsConn} onChange={e => setConfig({ ...config, rdbmsConn: e.target.value })} /></div>
-                                <div className="form-group"><label>Username</label><input type="text" value={config.rdbmsUser} onChange={e => setConfig({ ...config, rdbmsUser: e.target.value })} /></div>
-
-                                <div className="form-group">
-                                    <label>Password</label>
-                                    <div style={{ marginBottom: '12px', display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                        <select
-                                            value={config.rdbmsPasswordSource}
-                                            onChange={e => setConfig({ ...config, rdbmsPasswordSource: e.target.value })}
-                                            style={{ width: 'auto' }}
-                                        >
-                                            <option value="PLAIN">Plain Text</option>
-                                            <option value="VAULTED">Vaulted (Configured Provider)</option>
-                                        </select>
-                                        <span className="text-xs text-secondary">Source Provider</span>
-                                    </div>
-
-                                    {config.rdbmsPasswordSource === 'VAULTED' ? (
-                                        <div className="pl-4 border-l-2 border-accent" style={{ borderLeft: '2px solid var(--accent-color)', paddingLeft: '1rem' }}>
-                                            <div className="form-group">
-                                                <label className="text-xs">Vault JSON Key</label>
-                                                <input
-                                                    type="text"
-                                                    value={config.rdbmsPasswordVaultKey}
-                                                    placeholder="database_password"
-                                                    onChange={e => setConfig({ ...config, rdbmsPasswordVaultKey: e.target.value })}
-                                                />
-                                                <small className="text-secondary" style={{ fontSize: '10px' }}>Resolving from: {config.vaultSecretPath}</small>
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <input
-                                            type="password"
-                                            value={config.rdbmsPassword}
-                                            placeholder="••••••••"
-                                            onChange={e => setConfig({ ...config, rdbmsPassword: e.target.value })}
-                                        />
-                                    )}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Git Config */}
-                        {config.type === 'GIT' && (
-                            <div className="config-section animate-fade-in">
-                                <h4>Git Repository Options</h4>
-                                <div className="form-group">
-                                    <label>Git Provider</label>
-                                    <select value={config.gitProvider} onChange={e => {
-                                        const p = e.target.value;
-                                        setConfig({ ...config, gitProvider: p, gitHost: p === 'GITHUB' ? 'github.com' : (p === 'GITLAB' ? 'gitlab.com' : '') });
-                                    }}>
-                                        <option value="GITHUB">GitHub</option>
-                                        <option value="GITLAB">GitLab Cloud</option>
-                                        <option value="GITLAB_SELF_HOSTED">GitLab Self-Hosted</option>
-                                    </select>
-                                </div>
-                                {config.gitProvider === 'GITLAB_SELF_HOSTED' && (
-                                    <div className="form-group"><label>Instance URL</label><input type="text" value={config.gitHost} onChange={e => setConfig({ ...config, gitHost: e.target.value })} /></div>
-                                )}
-                                <div className="form-group"><label>Project Path (owner/repo)</label><input type="text" value={config.gitRepo} onChange={e => setConfig({ ...config, gitRepo: e.target.value })} /></div>
-                                <div className="form-group"><label>Branch</label><input type="text" value={config.gitBranch} onChange={e => setConfig({ ...config, gitBranch: e.target.value })} /></div>
-
-                                <div className="form-group">
-                                    <label>Access Token</label>
-                                    <div style={{ marginBottom: '12px', display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                        <select
-                                            value={config.gitTokenSource}
-                                            onChange={e => setConfig({ ...config, gitTokenSource: e.target.value })}
-                                            style={{ width: 'auto' }}
-                                        >
-                                            <option value="PLAIN">Plain Text</option>
-                                            <option value="VAULTED">Vaulted (Configured Provider)</option>
-                                        </select>
-                                        <span className="text-xs text-secondary">Source Provider</span>
-                                    </div>
-
-                                    {config.gitTokenSource === 'VAULTED' ? (
-                                        <div className="pl-4 border-l-2 border-accent" style={{ borderLeft: '2px solid var(--accent-color)', paddingLeft: '1rem' }}>
-                                            <div className="form-group">
-                                                <label className="text-xs">Vault JSON Key</label>
-                                                <input
-                                                    type="text"
-                                                    value={config.gitTokenVaultKey}
-                                                    placeholder="git_token"
-                                                    onChange={e => setConfig({ ...config, gitTokenVaultKey: e.target.value })}
-                                                />
-                                                <small className="text-secondary" style={{ fontSize: '10px' }}>Resolving from: {config.vaultSecretPath}</small>
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <input
-                                            type="password"
-                                            value={config.gitToken}
-                                            placeholder="ghp_... / glpat_..."
-                                            onChange={e => setConfig({ ...config, gitToken: e.target.value })}
-                                        />
-                                    )}
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                )}
-
-                {/* IDENTITY TAB */}
-                {activeTab === 'IDENTITY' && (
-                    <div className="animate-fade-in">
-                        <div className="form-group">
-                            <label>Integration Type</label>
-                            <select
-                                value={config.identityType}
-                                onChange={e => setConfig({ ...config, identityType: e.target.value })}
-                            >
-                                <option value="MOCK">Mock (Development)</option>
-                                <option value="SCIM">SCIM 2.0 (User Sync)</option>
-                                <option value="OAUTH">Generic OAuth 2.0 (OIDC)</option>
-                                <option value="AZURE">Microsoft Azure Enterprise AD</option>
-                                <option value="SAML">SAML 2.0 (SSO)</option>
-                                <option value="DATABRICKS">Databricks / Unity Catalog</option>
-                            </select>
-                        </div>
-
-                        {config.identityType === 'DATABRICKS' && (
-                            <div className="config-section animate-fade-in" style={{ borderTop: 'none', marginTop: 0, paddingTop: 0 }}>
-                                <h4><Globe size={18} style={{ display: 'inline', marginRight: 8 }} /> Databricks Identity</h4>
-                                <p className="text-secondary text-sm mb-4">
-                                    Use the Users and Groups defined in the connected Unity Catalog workspace/account.
-                                    <br />
-                                    <span className="text-muted">Requires "Unity Catalog Connection" to be configured.</span>
-                                </p>
-                            </div>
-                        )}
-
-                        {config.identityType === 'SCIM' && (
-                            <div className="config-section animate-fade-in" style={{ borderTop: 'none', marginTop: 0, paddingTop: 0 }}>
-                                <h4><Shield size={18} style={{ display: 'inline', marginRight: 8 }} /> SCIM Configuration</h4>
-                                <p className="text-secondary text-sm mb-4">Configure SCIM 2.0 endpoint to sync Users and Groups.</p>
-                                <div className="form-group"><label>SCIM Endpoint URL</label><input type="text" value={config.scimUrl} onChange={e => setConfig({ ...config, scimUrl: e.target.value })} placeholder="https://api.my-idp.com/scim/v2" /></div>
-
-                                <div className="form-group">
-                                    <label>SCIM API Token</label>
-                                    <div style={{ marginBottom: '12px', display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                        <select
-                                            value={config.scimTokenSource}
-                                            onChange={e => setConfig({ ...config, scimTokenSource: e.target.value })}
-                                            style={{ width: 'auto' }}
-                                        >
-                                            <option value="PLAIN">Plain Text</option>
-                                            <option value="VAULTED">Vaulted (Configured Provider)</option>
-                                        </select>
-                                        <span className="text-xs text-secondary">Source Provider</span>
-                                    </div>
-
-                                    {config.scimTokenSource === 'VAULTED' ? (
-                                        <div className="pl-4 border-l-2 border-accent" style={{ borderLeft: '2px solid var(--accent-color)', paddingLeft: '1rem' }}>
-                                            <div className="form-group">
-                                                <label className="text-xs">Vault JSON Key</label>
-                                                <input
-                                                    type="text"
-                                                    value={config.scimTokenVaultKey}
-                                                    placeholder="scim_token"
-                                                    onChange={e => setConfig({ ...config, scimTokenVaultKey: e.target.value })}
-                                                />
-                                                <small className="text-secondary" style={{ fontSize: '10px' }}>Resolving from: {config.vaultSecretPath}</small>
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <input
-                                            type="password"
-                                            value={config.scimToken}
-                                            placeholder="Bearer Token..."
-                                            onChange={e => setConfig({ ...config, scimToken: e.target.value })}
-                                        />
-                                    )}
-                                </div>
-                            </div>
-                        )}
-
-                        {config.identityType === 'OAUTH' && (
-                            <div className="config-section animate-fade-in" style={{ borderTop: 'none', marginTop: 0, paddingTop: 0 }}>
-                                <h4><Lock size={18} style={{ display: 'inline', marginRight: 8 }} /> OAuth 2.0 (OIDC)</h4>
-                                <p className="text-secondary text-sm mb-4">Configure authentication provider metadata.</p>
-                                <div className="form-group"><label>Client ID</label><input type="text" value={config.oauthClientId} onChange={e => setConfig({ ...config, oauthClientId: e.target.value })} /></div>
-                                <div className="form-group">
-                                    <label>Client Secret</label>
-                                    <div style={{ marginBottom: '12px', display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                        <select
-                                            value={config.oauthClientSecretSource}
-                                            onChange={e => setConfig({ ...config, oauthClientSecretSource: e.target.value })}
-                                            style={{ width: 'auto' }}
-                                        >
-                                            <option value="PLAIN">Plain Text</option>
-                                            <option value="VAULTED">Vaulted (Configured Provider)</option>
-                                        </select>
-                                        <span className="text-xs text-secondary">Source Provider</span>
-                                    </div>
-
-                                    {config.oauthClientSecretSource === 'VAULTED' ? (
-                                        <div className="pl-4 border-l-2 border-accent" style={{ borderLeft: '2px solid var(--accent-color)', paddingLeft: '1rem' }}>
-                                            <div className="form-group">
-                                                <label className="text-xs">Vault JSON Key</label>
-                                                <input
-                                                    type="text"
-                                                    value={config.oauthClientSecretVaultKey}
-                                                    placeholder="identity_client_secret"
-                                                    onChange={e => setConfig({ ...config, oauthClientSecretVaultKey: e.target.value })}
-                                                />
-                                                <small className="text-secondary" style={{ fontSize: '10px' }}>Resolving from: {config.vaultSecretPath}</small>
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <input
-                                            type="password"
-                                            value={config.oauthClientSecret}
-                                            onChange={e => setConfig({ ...config, oauthClientSecret: e.target.value })}
-                                        />
-                                    )}
-                                </div>
-                                <div className="form-group"><label>Authorization URL</label><input type="text" value={config.oauthAuthUrl} onChange={e => setConfig({ ...config, oauthAuthUrl: e.target.value })} /></div>
-                                <div className="form-group"><label>Token URL</label><input type="text" value={config.oauthTokenUrl} onChange={e => setConfig({ ...config, oauthTokenUrl: e.target.value })} /></div>
-                            </div>
-                        )}
-
-                        {config.identityType === 'AZURE' && (
-                            <div className="config-section animate-fade-in" style={{ borderTop: 'none', marginTop: 0, paddingTop: 0 }}>
-                                <h4><Lock size={18} style={{ display: 'inline', marginRight: 8 }} /> Azure Enterprise AD</h4>
-                                <p className="text-secondary text-sm mb-4">Configure Azure AD for Enterprise SSO.</p>
-                                <div className="form-group"><label>Directory (Tenant) ID</label><input type="text" value={config.azureTenantId} onChange={e => setConfig({ ...config, azureTenantId: e.target.value })} placeholder="00000000-0000-0000-0000-000000000000" /></div>
-                                <div className="form-group"><label>Application (Client) ID</label><input type="text" value={config.oauthClientId} onChange={e => setConfig({ ...config, oauthClientId: e.target.value })} placeholder="00000000-0000-0000-0000-000000000000" /></div>
-                                <div className="form-group">
-                                    <label>Client Secret</label>
-                                    <div style={{ marginBottom: '12px', display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                        <select
-                                            value={config.oauthClientSecretSource}
-                                            onChange={e => setConfig({ ...config, oauthClientSecretSource: e.target.value })}
-                                            style={{ width: 'auto' }}
-                                        >
-                                            <option value="PLAIN">Plain Text</option>
-                                            <option value="VAULTED">Vaulted (Configured Provider)</option>
-                                        </select>
-                                        <span className="text-xs text-secondary">Source Provider</span>
-                                    </div>
-
-                                    {config.oauthClientSecretSource === 'VAULTED' ? (
-                                        <div className="pl-4 border-l-2 border-accent" style={{ borderLeft: '2px solid var(--accent-color)', paddingLeft: '1rem' }}>
-                                            <div className="form-group">
-                                                <label className="text-xs">Vault JSON Key</label>
-                                                <input
-                                                    type="text"
-                                                    value={config.oauthClientSecretVaultKey}
-                                                    placeholder="identity_client_secret"
-                                                    onChange={e => setConfig({ ...config, oauthClientSecretVaultKey: e.target.value })}
-                                                />
-                                                <small className="text-secondary" style={{ fontSize: '10px' }}>Resolving from: {config.vaultSecretPath}</small>
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <input
-                                            type="password"
-                                            value={config.oauthClientSecret}
-                                            onChange={e => setConfig({ ...config, oauthClientSecret: e.target.value })}
-                                            placeholder="Client Secret Value..."
-                                        />
-                                    )}
-                                </div>
-
-                                <div className="p-4 rounded bg-white/5 border border-white/10 mt-4">
-                                    <label className="text-xs text-secondary uppercase tracking-wider mb-2 block">Computed Endpoints</label>
-                                    <div className="text-xs font-mono text-muted mb-1">
-                                        AUTH: https://login.microsoftonline.com/{config.azureTenantId || '{tenant}'}/oauth2/v2.0/authorize
-                                    </div>
-                                    <div className="text-xs font-mono text-muted">
-                                        TOKEN: https://login.microsoftonline.com/{config.azureTenantId || '{tenant}'}/oauth2/v2.0/token
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
-                        {config.identityType === 'SAML' && (
-                            <div className="config-section animate-fade-in" style={{ borderTop: 'none', marginTop: 0, paddingTop: 0 }}>
-                                <h4><Shield size={18} style={{ display: 'inline', marginRight: 8 }} /> SAML 2.0 Configuration</h4>
-                                <p className="text-secondary text-sm mb-4">Configure SAML SSO with x.509 Certificate.</p>
-                                <div className="form-group"><label>Identity Provider SSO URL</label><input type="text" value={config.samlSsoUrl} onChange={e => setConfig({ ...config, samlSsoUrl: e.target.value })} placeholder="https://idp.example.com/saml/sso" /></div>
-
-                                <div className="form-group">
-                                    <label>x.509 Certificate (PEM)</label>
-                                    <div style={{ marginBottom: '12px', display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                        <select
-                                            value={config.samlCertSource}
-                                            onChange={e => setConfig({ ...config, samlCertSource: e.target.value })}
-                                            style={{ width: 'auto' }}
-                                        >
-                                            <option value="PLAIN">Plain Text</option>
-                                            <option value="VAULTED">Vaulted (Configured Provider)</option>
-                                        </select>
-                                        <span className="text-xs text-secondary">Source Provider</span>
-                                    </div>
-
-                                    {config.samlCertSource === 'VAULTED' ? (
-                                        <div className="pl-4 border-l-2 border-accent" style={{ borderLeft: '2px solid var(--accent-color)', paddingLeft: '1rem' }}>
-                                            <div className="form-group">
-                                                <label className="text-xs">Vault JSON Key</label>
-                                                <input
-                                                    type="text"
-                                                    value={config.samlCertVaultKey}
-                                                    placeholder="saml_cert"
-                                                    onChange={e => setConfig({ ...config, samlCertVaultKey: e.target.value })}
-                                                />
-                                                <small className="text-secondary" style={{ fontSize: '10px' }}>Resolving from: {config.vaultSecretPath}</small>
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <textarea
-                                            value={config.samlCert}
-                                            onChange={e => setConfig({ ...config, samlCert: e.target.value })}
-                                            placeholder="-----BEGIN CERTIFICATE-----&#10;...&#10;-----END CERTIFICATE-----"
-                                            style={{ fontFamily: 'monospace', height: '120px' }}
-                                        />
-                                    )}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* SCIM Configuration (Decoupled) - Hidden if using Databricks or Mock natively */}
-                        {!['DATABRICKS', 'MOCK'].includes(config.identityType) && (
-                            <div className="config-section" style={{ borderTop: '1px solid rgba(255,255,255,0.1)', marginTop: '2rem', paddingTop: '1.5rem' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
-                                    <div>
-                                        <h4 style={{ marginBottom: '4px' }}><Shield size={18} style={{ display: 'inline', marginRight: 8 }} /> User Synchronization (SCIM)</h4>
-                                        <p className="text-secondary text-sm" style={{ margin: 0 }}>Automatically sync users and groups from your IDP.</p>
-                                    </div>
-                                    <div className="checkbox-wrapper">
-                                        <label className="switch">
-                                            <input
-                                                type="checkbox"
-                                                checked={config.scimEnabled}
-                                                onChange={e => setConfig({ ...config, scimEnabled: e.target.checked })}
-                                            />
-                                            <span className="slider round"></span>
-                                        </label>
-                                    </div>
-                                </div>
-
-                                {config.scimEnabled && (
-                                    <div className="animate-fade-in">
-                                        <div className="form-group"><label>SCIM Endpoint URL</label><input type="text" value={config.scimUrl} onChange={e => setConfig({ ...config, scimUrl: e.target.value })} placeholder="https://api.my-idp.com/scim/v2" /></div>
-
-                                        <div className="form-group">
-                                            <label>SCIM API Token</label>
-                                            <div style={{ marginBottom: '12px', display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                                <select
-                                                    value={config.scimTokenSource}
-                                                    onChange={e => setConfig({ ...config, scimTokenSource: e.target.value })}
-                                                    style={{ width: 'auto' }}
-                                                >
-                                                    <option value="PLAIN">Plain Text</option>
-                                                    <option value="VAULTED">Vaulted (Configured Provider)</option>
-                                                </select>
-                                                <span className="text-xs text-secondary">Source Provider</span>
-                                            </div>
-
-                                            {config.scimTokenSource === 'VAULTED' ? (
-                                                <div className="pl-4 border-l-2 border-accent" style={{ borderLeft: '2px solid var(--accent-color)', paddingLeft: '1rem' }}>
-                                                    <div className="form-group">
-                                                        <label className="text-xs">Vault JSON Key</label>
-                                                        <input
-                                                            type="text"
-                                                            value={config.scimTokenVaultKey}
-                                                            placeholder="scim_token"
-                                                            onChange={e => setConfig({ ...config, scimTokenVaultKey: e.target.value })}
-                                                        />
-                                                        <small className="text-secondary" style={{ fontSize: '10px' }}>Resolving from: {config.vaultSecretPath}</small>
-                                                    </div>
-                                                </div>
-                                            ) : (
-                                                <input
-                                                    type="password"
-                                                    value={config.scimToken}
-                                                    placeholder="Bearer Token..."
-                                                    onChange={e => setConfig({ ...config, scimToken: e.target.value })}
-                                                />
-                                            )}
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-                    </div>
-                )}
-
-                {/* DEBUG TAB - Development Only */}
-                {import.meta.env.DEV && activeTab === 'DEBUG' && (
-                    <div className="animate-fade-in">
-                        <h4><Bug size={18} style={{ display: 'inline', marginRight: 8 }} /> Debug Tools</h4>
-                        <p className="text-secondary text-sm mb-4">Development tools for testing and debugging.</p>
-                        
-                        <ErrorTestPanel />
-                        
-                        <div className="glass-panel" style={{ padding: '1.5rem', margin: '1rem 0' }}>
-                            <h5>Error Log Viewer</h5>
-                            <p className="text-secondary text-sm mb-3">
-                                Recent errors caught by ErrorBoundaries (stored in localStorage)
-                            </p>
-                            
-                            <div style={{ marginBottom: '1rem' }}>
-                                <button 
-                                    className="btn btn-secondary"
-                                    onClick={() => {
-                                        const errors = ObservabilityService.getRecentErrors();
-                                        console.log('Recent errors:', errors);
-                                    }}
-                                >
-                                    Log Errors to Console
-                                </button>
-                                
-                                <button 
-                                    className="btn btn-secondary"
-                                    style={{ marginLeft: '0.5rem' }}
-                                    onClick={() => {
-                                        ObservabilityService.clearErrorLog();
-                                        alert('Error log cleared');
-                                    }}
-                                >
-                                    Clear Error Log
-                                </button>
-                            </div>
-                            
-                            <div style={{
-                                background: 'rgba(0,0,0,0.3)',
-                                padding: '1rem',
-                                borderRadius: '8px',
-                                maxHeight: '300px',
-                                overflowY: 'auto',
-                                fontFamily: 'monospace',
-                                fontSize: '0.8rem'
-                            }}>
-                                {ObservabilityService.getRecentErrors().length === 0 ? (
-                                    <div style={{ color: 'var(--text-secondary)' }}>No recent errors</div>
-                                ) : (
-                                    ObservabilityService.getRecentErrors().map((error: any) => (
-                                        <div key={error.id} style={{
-                                            marginBottom: '1rem',
-                                            padding: '0.5rem',
-                                            background: 'rgba(255,0,0,0.1)',
-                                            borderRadius: '4px',
-                                            border: '1px solid rgba(255,0,0,0.3)'
-                                        }}>
-                                            <div><strong>ID:</strong> {error.id}</div>
-                                            <div><strong>Time:</strong> {new Date(error.timestamp).toLocaleString()}</div>
-                                            <div><strong>Error:</strong> {error.error?.message || 'Unknown error'}</div>
-                                            <div><strong>URL:</strong> {error.url}</div>
-                                        </div>
-                                    ))
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                )}
-
-                {/* UNITY CATALOG TAB */}
-                {activeTab === 'UNITY_CATALOG' && (
-                    <div className="animate-fade-in">
-                        <h4><Globe size={18} style={{ display: 'inline', marginRight: 8 }} /> Unity Catalog Schema Connection</h4>
-                        <p className="text-secondary text-sm mb-4">Global settings for connecting to Databricks Workspace.</p>
-
-                        <div className="form-group">
-                            <label>Connection Type</label>
-                            <select
-                                value={config.ucAuthType}
-                                onChange={e => {
-                                    const val = e.target.value;
-                                    setConfig({
-                                        ...config,
-                                        ucAuthType: val,
-                                        ucHost: val === 'ACCOUNT' ? 'accounts.cloud.databricks.com' : ''
-                                    });
-                                }}
-                            >
-                                <option value="MOCK">Mock (Development)</option>
-                                <option value="WORKSPACE">Databricks Single Workspace</option>
-                                <option value="UC_OSS">Unity Catalog OSS</option>
-                                <option value="ACCOUNT">Databricks Account (Unified Login)</option>
-                            </select>
-                        </div>
-
-                        {/* Hide real connection fields if MOCK */}
-                        {config.ucAuthType !== 'MOCK' && (
-                            <>
-                                <div className="form-group"><label>Catalog Name</label><input type="text" value={config.ucCatalog} onChange={e => setConfig({ ...config, ucCatalog: e.target.value })} placeholder="default" /></div>
-                                <div className="form-group"><label>Schema Name</label><input type="text" value={config.ucSchema} onChange={e => setConfig({ ...config, ucSchema: e.target.value })} placeholder="acs" /></div>
-                                <div className="form-group mb-4">
-                                    <label>Additional Tables (comma-separated)</label>
-                                    <input
-                                        type="text"
-                                        value={config.ucTables || ''}
-                                        onChange={e => setConfig({ ...config, ucTables: e.target.value })}
-                                        placeholder="requests,approvals,audit_log"
-                                        style={{ fontFamily: 'monospace' }}
-                                    />
-                                    <p className="text-secondary text-xs">
-                                        Enter table names to be created in the schema. Multiple tables support different services.
-                                        <br />Example: <code>requests,approvals,audit_log</code>
-                                    </p>
-                                </div>
-
-                                {config.ucAuthType === 'ACCOUNT' && (
-                                    <div className="form-group"><label>Databricks Account ID</label><input type="text" value={config.ucAccountId} onChange={e => setConfig({ ...config, ucAccountId: e.target.value })} placeholder="00000000-0000-0000-0000-000000000000" /></div>
-                                )}
-
-                                <div className="form-group">
-                                    <label>Host URL {config.ucAuthType === 'ACCOUNT' ? '(Account Console)' : '(Workspace)'}</label>
-                                    <input
-                                        type="text"
-                                        value={config.ucHost}
-                                        placeholder={config.ucAuthType === 'ACCOUNT' ? "accounts.cloud.databricks.com" : "https://<workspace-id>.cloud.databricks.com"}
-                                        onChange={e => setConfig({ ...config, ucHost: e.target.value })}
-                                    />
-                                </div>
-
-                                <div className="form-group"><label>Service Principal Client ID</label><input type="text" value={config.ucClientId} onChange={e => setConfig({ ...config, ucClientId: e.target.value })} placeholder="UUID..." /></div>
-
-                                <div className="form-group">
-                                    <label>Service Principal Client Secret</label>
-                                    <div style={{ marginBottom: '12px', display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                        <select
-                                            value={config.ucClientSecretSource}
-                                            onChange={e => setConfig({ ...config, ucClientSecretSource: e.target.value })}
-                                            style={{ width: 'auto' }}
-                                        >
-                                            <option value="PLAIN">Plain Text</option>
-                                            <option value="VAULTED">Vaulted (Configured Provider)</option>
-                                        </select>
-                                        <span className="text-xs text-secondary">Source Provider</span>
-                                    </div>
-
-                                    {config.ucClientSecretSource === 'VAULTED' ? (
-                                        <div className="pl-4 border-l-2 border-accent" style={{ borderLeft: '2px solid var(--accent-color)', paddingLeft: '1rem' }}>
-                                            <div className="form-group">
-                                                <label className="text-xs">Vault JSON Key</label>
-                                                <input
-                                                    type="text"
-                                                    value={config.ucClientSecretVaultKey}
-                                                    placeholder="client_secret"
-                                                    onChange={e => setConfig({ ...config, ucClientSecretVaultKey: e.target.value })}
-                                                />
-                                                <small className="text-secondary" style={{ fontSize: '10px' }}>Resolving from: {config.vaultSecretPath}</small>
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <input
-                                            type="password"
-                                            value={config.ucClientSecret}
-                                            placeholder="Secret..."
-                                            onChange={e => setConfig({ ...config, ucClientSecret: e.target.value })}
-                                        />
-                                    )}
-                                </div>
-
-                                <div className="mt-6">
-                                    <div className="text-xs text-secondary">
-                                        * Uses OAuth 2.0 Client Credentials flow (M2M) to fetch a short-lived access token.
-                                        <br />
-                                        * <strong className="text-danger">WARNING:</strong> Configuration stored locally in this demo. Use Vault for production secrets.
-                                    </div>
-                                </div>
-                            </>
-                        )}
-                    </div>
-                )}
-
-                 <div className="form-actions mt-6">
-                    <button className="btn btn-primary btn-large" onClick={handleSave}>
-                        {saved ? <><CheckCircle size={20} /> Configuration Saved</> : <><Save size={20} /> Save Configuration</>}
-                    </button>
+                    </TabsList>
                 </div>
-            </div>
 
-            {/* MOCK VAULT SECRETS MODAL */}
-            {isMockVaultModalOpen && (
-                <div className="modal-overlay">
-                    <div className="glass-panel modal-content animate-fade-in" style={{ maxWidth: '600px', width: '90%' }}>
-                        <div className="modal-header">
-                            <h3><Lock size={18} /> Manage Mock Vault Secrets</h3>
-                            <button className="btn-icon" onClick={() => setIsMockVaultModalOpen(false)}>
-                                <X size={20} />
-                            </button>
-                        </div>
-                        <div className="modal-body">
-                            <p className="text-secondary text-sm mb-3">
-                                Edit the mock secrets in JSON format. The keys represent paths, and values are objects with key-value pairs.
-                            </p>
-                            <textarea
-                                value={mockVaultJson}
-                                onChange={e => setMockVaultJson(e.target.value)}
-                                style={{
-                                    width: '100%',
-                                    height: '300px',
-                                    fontFamily: 'monospace',
-                                    fontSize: '13px',
-                                    padding: '12px',
-                                    background: 'rgba(0,0,0,0.3)',
-                                    color: '#fff',
-                                    border: '1px solid var(--glass-border)',
-                                    borderRadius: '4px'
-                                }}
-                                placeholder='{ "secret/path": { "key": "value" } }'
-                            />
-                        </div>
-                        <div className="modal-footer mt-4" style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-                            <button className="btn btn-secondary" onClick={() => setIsMockVaultModalOpen(false)}>Cancel</button>
-                            <button className="btn btn-primary" onClick={() => {
-                                try {
-                                    JSON.parse(mockVaultJson); // Validate JSON
-                                    localStorage.setItem('acs_mock_vault_secrets_v1', mockVaultJson);
-                                    setIsMockVaultModalOpen(false);
-                                } catch {
-                                    alert("Invalid JSON format. Please correct it.");
-                                }
-                            }}>Save Mock Secrets</button>
-                        </div>
+                <Card className="border-border/50 bg-card/30 backdrop-blur-sm min-h-[400px]">
+                    <CardContent className="pt-6">
+                        <TabsContent value="STORAGE" className="mt-0">
+                            <StorageSettingsTab config={config} setConfig={setConfig} />
+                        </TabsContent>
+                        <TabsContent value="IDENTITY" className="mt-0">
+                            <IdentitySettingsTab config={config} setConfig={setConfig} />
+                        </TabsContent>
+                        <TabsContent value="SECRETS" className="mt-0">
+                            <SecretsSettingsTab config={config} setConfig={setConfig} setIsMockVaultModalOpen={setIsMockVaultModalOpen} />
+                        </TabsContent>
+                        <TabsContent value="UNITY_CATALOG" className="mt-0">
+                            <UnityCatalogSettingsTab config={config} setConfig={setConfig} />
+                        </TabsContent>
+                        <TabsContent value="HEALTH" className="mt-0">
+                            <AdminHealthTab />
+                        </TabsContent>
+                        <TabsContent value="AUDIT" className="mt-0">
+                            <AdminAuditTab />
+                        </TabsContent>
+                        {(import.meta.env.DEV || config.enableSimulationMode) && (
+                            <TabsContent value="DEBUG" className="mt-0">
+                                <DebugSettingsTab config={config} setConfig={setConfig} />
+                            </TabsContent>
+                        )}
+                    </CardContent>
+                    <CardFooter className="border-t border-border/50 bg-muted/20 px-6 py-4 flex justify-end">
+                        <Button
+                            size="lg"
+                            onClick={handleSave}
+                            className={`min-w-[200px] transition-all ${saved ? 'bg-green-600 hover:bg-green-700' : ''}`}
+                        >
+                            {saved ? (
+                                <><CheckCircle size={18} className="mr-2" /> Configuration Saved</>
+                            ) : (
+                                <><Save size={18} className="mr-2" /> Save Configuration</>
+                            )}
+                        </Button>
+                    </CardFooter>
+                </Card>
+            </Tabs>
+
+            <Dialog open={isMockVaultModalOpen} onOpenChange={setIsMockVaultModalOpen}>
+                <DialogContent className="max-w-xl">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <Lock size={18} /> Manage Mock Vault Secrets
+                        </DialogTitle>
+                        <DialogDescription>
+                            Edit the mock secrets in JSON format. The keys represent paths, and values are objects with key-value pairs.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4">
+                        <Textarea
+                            value={mockVaultJson}
+                            onChange={e => setMockVaultJson(e.target.value)}
+                            className="min-h-[300px] font-mono text-xs bg-muted/50"
+                            placeholder='{ "secret/path": { "key": "value" } }'
+                        />
                     </div>
-                </div>
-            )}
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsMockVaultModalOpen(false)}>Cancel</Button>
+                        <Button onClick={() => {
+                            try {
+                                JSON.parse(mockVaultJson);
+                                localStorage.setItem('acs_mock_vault_secrets_v1', mockVaultJson);
+                                setIsMockVaultModalOpen(false);
+                            } catch {
+                                toast.error("Invalid JSON format. Please correct it.");
+                            }
+                        }}>Save Mock Secrets</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 };

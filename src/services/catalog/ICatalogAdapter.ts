@@ -14,12 +14,24 @@ export interface ICatalogAdapter {
     fetchWorkspaces(config: any): Promise<Workspace[]>;
 
     /**
-     * Fetches catalog tree for a specific workspace.
-     * @param workspaceUrl - The URL of workspace.
-     * @param config - The global app configuration.
-     * @returns Hierarchical catalog tree.
+     * Fetches top-level catalogs.
      */
-    fetchCatalogs(workspaceUrl: string, config: any): Promise<CatalogNode[]>;
+    fetchCatalogs(workspaceUrl: string): Promise<CatalogNode[]>;
+
+    /**
+     * Fetches schemas for a catalog.
+     */
+    fetchSchemas?(workspaceUrl: string, catalogName: string): Promise<{ items: CatalogNode[], nextPageToken?: string }>;
+
+    /**
+     * Fetches tables for a schema.
+     */
+    fetchTables?(workspaceUrl: string, catalogName: string, schemaName: string): Promise<{ items: CatalogNode[], nextPageToken?: string }>;
+
+    /**
+     * Searches for objects.
+     */
+    searchCatalog?(workspaceUrl: string, query: string): Promise<any[]>;
 
     /**
      * Fetches live grants for an object directly from catalog.

@@ -6,7 +6,12 @@
     "moduleResolution": "bundler",
     "allowSyntheticDefaultImports": true,
     "strict": true,
-    "types": ["node"]
+    "allowJs": true,
+    "types": [
+      "node"
+    ]
   },
-  "include": ["vite.config.js"]
+  "include": [
+    "vite.config.js"
+  ]
 }

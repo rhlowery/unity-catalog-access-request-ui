@@ -29,5 +29,15 @@ export const RDBMSAdapter: IStorageAdapter = {
     async getGrants(object: any, config: StorageConfig): Promise<Grant[]> {
         console.log(`[RDBMS Adapter] Querying grants for ${object.id} (Simulated)`);
         return [];
+    },
+
+    async getApprovers(config: StorageConfig): Promise<Record<string, string[]>> {
+        console.log(`[RDBMS Adapter] Querying approvers using ${config.rdbmsConn} (Simulated)`);
+        return {};
+    },
+
+    async saveApprovers(approvers: Record<string, string[]>, config: StorageConfig): Promise<boolean> {
+        console.log(`[RDBMS Adapter] Saving approvers to database (Simulated)`);
+        return true;
     }
 };

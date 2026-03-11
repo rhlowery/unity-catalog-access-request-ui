@@ -1,0 +1,119 @@
+[
+  {
+    "id": "audit_1773001300667_vedja",
+    "timestamp": 1773001300667,
+    "type": "PERSONA_SWITCH",
+    "actor": "current_user",
+    "action": "SWITCH",
+    "target": "group_marketing",
+    "details": {
+      "from": "group_governance",
+      "to": "group_marketing",
+      "isSimulation": true
+    },
+    "hash": "8gIy31bZCicy49SkXnGuXVE0Kl0zjqNp2qe1xpU/0ZQ=",
+    "signature": "4h/NfIkLntgF4iBWIqPMfVeokdR2IAmVKg4T3KCdo3jc/jX4+5S8tRJW5UlDS+CV1KSivhDVS7pMBpPFl7PIFHp9S2yDrQOZAgqVexvk5Lcos88wZBihx91P+CEwV1+82hcFH49IOHfztVZBTrU8qF+/8QGA9BAH3NfSTUjqcbRzhBkbjsQt1ibwCBuYsG9Ic1X0t1Z6xcqHcFektdtv/OaDxq5+OZcgPOfgMHirUCd1ggb3BedLWWVMulhW",
+    "previousHash": "hAP72QxXDOd9KfGY0qL9GC5qj6eu11EjDWrSQ08DY40=",
+    "serverTimestamp": 1773001300709
+  },
+  {
+    "id": "audit_1773001294986_q6hzd",
+    "timestamp": 1773001294986,
+    "type": "PERSONA_SWITCH",
+    "actor": "current_user",
+    "action": "SWITCH",
+    "target": "group_finance_admins",
+    "details": {
+      "from": "group_governance",
+      "to": "group_finance_admins",
+      "isSimulation": true
+    },
+    "hash": "hAP72QxXDOd9KfGY0qL9GC5qj6eu11EjDWrSQ08DY40=",
+    "signature": "y4uZSuDPmu4kwEv91s2paoP5eQQYirA0N73SI3jNXQjK34O3HLYi/CQg8iRkizO0CmzpZOL0CZDeQ2En5tq2gpV0cb715crIVkrzjL89+inxN2sxXrAbnSg/SvUis5UdzWfoezuNtiYT0U9BsiWA7H+XIx3PhBLflyyE/7xxegmfaYUhDzoB59+VaNePK0W4yoF1JbT3hjJ9lOte2Rd212IOj+GfC+t39w6wWWRNzujmYblbgowO8stidz3hEeZ5Wc4ZxZ0GMQ==",
+    "previousHash": "r/siGLuh4eiRxebjncqskkJBG2E508b6C7VcLlNQCGM=",
+    "serverTimestamp": 1773001295028
+  },
+  {
+    "id": "audit_1772904014427_r1bod",
+    "timestamp": 1772904014427,
+    "type": "PERSONA_SWITCH",
+    "actor": "current_user",
+    "action": "SWITCH",
+    "target": "group_finance_admins",
+    "details": {
+      "from": "group_governance",
+      "to": "group_finance_admins",
+      "isSimulation": true
+    },
+    "hash": "r/siGLuh4eiRxebjncqskkJBG2E508b6C7VcLlNQCGM=",
+    "signature": "7zowtY2/11XD4N/Y0pESiw8Ecn9twYR1kbfZXCTDkwakJGgACk7b75MTYXDq97liWovH+yWHnEPiJkKaFIZ2HYduMd/1Z5fXOTBIa7Oys0/ZkjGdUUrDiYn8al5zE6qUAE0yUmlozi7bEPOzhsm1tqXyc0Btw2UbE6n2KlRTm1VKkzz859vAS5qu3gM4u5NXz1Abwjjoq3yTM4ePaf8UqKOCen/xEUBMozlT4ukzvcUlb6RhbJSkttVX5ejH8jKijnC5UkJ8rQ==",
+    "previousHash": "mtBOnlWtvKWcQFogI0fff80IclQ9ZzBmEM76VeELgSM=",
+    "serverTimestamp": 1772904014471
+  },
+  {
+    "id": "audit_1772903998352_8w73s",
+    "timestamp": 1772903998352,
+    "type": "PERSONA_SWITCH",
+    "actor": "current_user",
+    "action": "SWITCH",
+    "target": "group_finance_admins",
+    "details": {
+      "from": "group_governance",
+      "to": "group_finance_admins",
+      "isSimulation": true
+    },
+    "hash": "mtBOnlWtvKWcQFogI0fff80IclQ9ZzBmEM76VeELgSM=",
+    "signature": "jCP7J7knte+RnEiGdRQ8ba1/3ckUvjKZ4r4k+soh4I2D/JXE1zcKpb4VDsqOP8iS18UwVD/yeHFkf8jCeZ0v+rvA7MHyaVPAlSdLiaE2XBMxv6mWfoeQ0JBNveWTytUoJjZla3hPzvWy6NAdLuc+jfAt0mShLrp+0booTuGLefl8fr9SL58ZNauU0xSTuuJf39b4lZFg275HRn9g773XmPrSaSQrnvDuqAJqS8WZYQ/yR+H2FPK2XbtNcNjKe2QnqfDwLCytVw==",
+    "serverTimestamp": 1772903998401
+  },
+  {
+    "id": "audit_1",
+    "timestamp": 1709749200000,
+    "type": "SECURITY",
+    "actor": "Pat Platform",
+    "action": "PERSONA_SWITCH",
+    "target": "user_standard",
+    "signature": "valid",
+    "serverTimestamp": 1709749200001
+  },
+  {
+    "id": "audit_2",
+    "timestamp": 1709749300000,
+    "type": "ACCESS",
+    "actor": "Pat Platform",
+    "action": "CATALOG_ACCESS_REQUEST",
+    "target": "main.sales.orders",
+    "signature": "valid",
+    "serverTimestamp": 1709749300001
+  },
+  {
+    "id": "audit_3",
+    "timestamp": 1709749400000,
+    "type": "SYSTEM",
+    "actor": "SYSTEM",
+    "action": "CONFIG_UPDATE",
+    "target": "uc_endpoint_v2",
+    "signature": null,
+    "serverTimestamp": 1709749400001
+  },
+  {
+    "id": "audit_4",
+    "timestamp": 1709749500000,
+    "type": "SECURITY",
+    "actor": "Admin Alice",
+    "action": "PASSWORD_RESET",
+    "target": "Bob Buyer",
+    "signature": "valid",
+    "serverTimestamp": 1709749500001
+  },
+  {
+    "id": "audit_5",
+    "timestamp": 1709749600000,
+    "type": "SECURITY",
+    "actor": "Security Sam",
+    "action": "PERSONA_SWITCH",
+    "target": "approver_finance",
+    "signature": null,
+    "serverTimestamp": 1709749600001
+  }
+]

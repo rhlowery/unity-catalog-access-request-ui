@@ -1,11 +1,12 @@
 import type { AuditEntry, AuditIntegrityConfig, AuditIntegrityService } from './AuditTypes';
+import { WebCrypto } from '../crypto/WebCryptoService';
 
 const DEFAULT_CONFIG: AuditIntegrityConfig = {
   enableDigitalSignatures: true,
   enableHashChaining: true,
-  signatureAlgorithm: 'SHA-256',
+  signatureAlgorithm: 'AES-GCM', // Using authenticated encryption as a signature surrogate
   hashAlgorithm: 'SHA-256',
-  integrityKey: 'ACS_AUDIT_INTEGRITY_KEY_2024'
+  integrityKey: import.meta.env.VITE_AUDIT_INTEGRITY_KEY || 'ACS_DEFAULT_INTEGRITY_KEY'
 };
 
 export class AuditIntegrityManager implements AuditIntegrityService {
@@ -15,16 +16,16 @@ export class AuditIntegrityManager implements AuditIntegrityService {
     this.config = { ...DEFAULT_CONFIG, ...config };
   }
 
-  signEntry(entry: AuditEntry): string {
+  async signEntry(entry: AuditEntry): Promise<string> {
     if (!this.config.enableDigitalSignatures) {
       return '';
     }
 
     try {
       const signatureData = this.getSignatureData(entry);
-      // Simple HMAC-like signature for demo
-      const signature = btoa(signatureData + '|' + this.config.integrityKey);
-      return signature;
+      // We use WebCrypto.encrypt with the integrity key as a robust alternative to custom hashing.
+      // AES-GCM provides both confidentiality and integrity (authenticity).
+      return await WebCrypto.encrypt(signatureData, this.config.integrityKey);
     } catch (error) {
       console.error('[AuditIntegrity] Failed to sign entry:', error);
       return '';
@@ -33,72 +34,61 @@ export class AuditIntegrityManager implements AuditIntegrityService {
 
   async verifyEntry(entry: AuditEntry): Promise<boolean> {
     if (!this.config.enableDigitalSignatures || !entry.signature) {
-      return true; // Skip verification if not enabled
+      return true;
     }
 
     try {
-      const signatureData = this.getSignatureData(entry);
-      const expectedSignature = btoa(signatureData + '|' + this.config.integrityKey);
-      
-      return entry.signature === expectedSignature;
+      const decrypted = await WebCrypto.decrypt(entry.signature, this.config.integrityKey);
+      const expectedData = this.getSignatureData(entry);
+      return decrypted === expectedData;
     } catch (error) {
-      console.error('[AuditIntegrity] Failed to verify entry:', error);
+      console.warn('[AuditIntegrity] Signature verification failed (possibly tampered or key mismatch)');
       return false;
     }
   }
 
-  calculateHash(entry: AuditEntry): string {
+  async calculateHash(entry: AuditEntry): Promise<string> {
     if (!this.config.enableHashChaining) {
       return '';
     }
 
     try {
       const hashData = this.getHashData(entry);
-      // Simple hash implementation for chaining
-      let hash = 0;
-      for (let i = 0; i < hashData.length; i++) {
-        const char = hashData.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash = hash & hash;
-      }
-      return hash.toString(36);
+      return await WebCrypto.generateHash(hashData, this.config.hashAlgorithm);
     } catch (error) {
       console.error('[AuditIntegrity] Failed to calculate hash:', error);
       return '';
     }
   }
 
-  chainEntries(previousEntry: AuditEntry | null, currentEntry: AuditEntry): void {
+  async chainEntries(previousEntry: AuditEntry | null, currentEntry: AuditEntry): Promise<void> {
     if (!this.config.enableHashChaining) {
       return;
     }
 
-    // Add previous hash to current entry for chaining
     if (previousEntry) {
       currentEntry.previousHash = previousEntry.hash;
     }
 
-    // Calculate current entry's hash
-    currentEntry.hash = this.calculateHash(currentEntry);
+    currentEntry.hash = await this.calculateHash(currentEntry);
   }
 
-  detectTampering(entries: AuditEntry[]): { tampered: boolean; tamperedEntries: string[] } {
+  async detectTampering(entries: AuditEntry[]): Promise<{ tampered: boolean; tamperedEntries: string[] }> {
     const tamperedEntries: string[] = [];
 
     for (let i = 0; i < entries.length; i++) {
       const entry = entries[i];
 
-      // Verify signature if present
+      // Verify individual entry signature if present
       if (this.config.enableDigitalSignatures && entry.signature) {
-        // Note: In real async implementation, this would be awaited
-        this.verifyEntry(entry).then(isValid => {
-          if (!isValid) {
-            tamperedEntries.push(entry.id);
-          }
-        });
+        const isValid = await this.verifyEntry(entry);
+        if (!isValid) {
+          tamperedEntries.push(entry.id);
+          continue;
+        }
       }
 
-      // Verify hash chaining
+      // Verify hash chain
       if (this.config.enableHashChaining && i > 0) {
         const previousEntry = entries[i - 1];
         if (entry.previousHash !== previousEntry.hash) {
@@ -113,24 +103,21 @@ export class AuditIntegrityManager implements AuditIntegrityService {
     };
   }
 
-  getSignedEntry(entry: AuditEntry): AuditEntry {
+  async getSignedEntry(entry: AuditEntry): Promise<AuditEntry> {
     const signedEntry = { ...entry };
-    
-    // Add hash chaining if enabled
+
     if (this.config.enableHashChaining) {
-      signedEntry.hash = this.calculateHash(signedEntry);
+      signedEntry.hash = await this.calculateHash(signedEntry);
     }
 
-    // Add digital signature if enabled
     if (this.config.enableDigitalSignatures) {
-      signedEntry.signature = this.signEntry(signedEntry);
+      signedEntry.signature = await this.signEntry(signedEntry);
     }
 
     return signedEntry;
   }
 
   private getSignatureData(entry: AuditEntry): string {
-    // Create canonical representation for signing
     return [
       entry.id,
       entry.timestamp,
@@ -143,8 +130,7 @@ export class AuditIntegrityManager implements AuditIntegrityService {
   }
 
   private getHashData(entry: AuditEntry): string {
-    // Create canonical representation for hashing
-    const data = [
+    return [
       entry.id,
       entry.timestamp,
       entry.type,
@@ -154,10 +140,7 @@ export class AuditIntegrityManager implements AuditIntegrityService {
       JSON.stringify(entry.details || {}),
       entry.previousHash || ''
     ].join('|');
-    
-    return data;
   }
 }
 
-// Export type for other modules
 export type { AuditIntegrityService } from './AuditTypes';

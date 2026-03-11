@@ -1,7 +1,7 @@
 import type { AuditEntry } from './AuditTypes';
-import { AuditIntegrityManager } from './AuditIntegrityManager2';
+import { AuditIntegrityManager } from './AuditIntegrityManager';
 import { SecureAuditStorage } from './SecureAuditStorage';
-import { EventBus } from '../EventBus';
+import { WebCrypto } from '../crypto/WebCryptoService';
 
 export interface TamperDetectionConfig {
   enableRealTimeMonitoring: boolean;
@@ -44,7 +44,7 @@ class AuditTamperDetector {
 
     this.integrityManager = new AuditIntegrityManager();
     this.auditStorage = new SecureAuditStorage();
-    
+
     this.initializeMonitoring();
   }
 
@@ -72,9 +72,8 @@ class AuditTamperDetector {
   }
 
   private setupEventListeners(): void {
-    // Listen for audit events to verify integrity in real-time
-    window.addEventListener('auditEvent', (event: CustomEvent) => {
-      const auditEntry = event.detail;
+    window.addEventListener('auditEvent', (event: Event) => {
+      const auditEntry = (event as any).detail;
       this.verifyEntryIntegrity(auditEntry);
     });
 
@@ -99,8 +98,8 @@ class AuditTamperDetector {
           .slice(-5)
           .map(e => `${e.id}:${e.hash}:${e.signature}`)
           .join('|');
-        
-        this.lastKnownGoodHash = this.simpleHash(baselineData);
+
+        this.lastKnownGoodHash = await this.simpleHash(baselineData);
         console.log('[TamperDetector] Baseline established');
       }
     } catch (error) {
@@ -144,7 +143,7 @@ class AuditTamperDetector {
       }
 
       // Check storage integrity
-      const storageHash = this.calculateStorageHash(entries);
+      const storageHash = await this.calculateStorageHash(entries);
       if (this.lastKnownGoodHash && storageHash !== this.lastKnownGoodHash) {
         violations.push({
           type: 'STORAGE_MODIFIED',
@@ -185,7 +184,7 @@ class AuditTamperDetector {
     try {
       // Quick verification of single entry
       const isValid = await this.integrityManager.verifyEntry(entry);
-      
+
       if (!isValid && entry.signature) {
         const violation: TamperViolation = {
           type: 'SIGNATURE_INVALID',
@@ -266,19 +265,24 @@ class AuditTamperDetector {
     }
   }
 
-  private calculateStorageHash(entries: AuditEntry[]): string {
+  private async calculateStorageHash(entries: AuditEntry[]): Promise<string> {
     const data = entries.map(e => `${e.id}:${e.hash}:${e.signature}`).join('|');
-    return this.simpleHash(data);
+    return await this.simpleHash(data);
   }
 
-  private simpleHash(data: string): string {
-    let hash = 0;
-    for (let i = 0; i < data.length; i++) {
-      const char = data.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash;
+  private async simpleHash(data: string): Promise<string> {
+    try {
+      return await WebCrypto.generateHash(data, 'SHA-256');
+    } catch (error) {
+      // Fallback to a simple hash if WebCrypto fails
+      let hash = 0;
+      for (let i = 0; i < data.length; i++) {
+        const char = data.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash;
+      }
+      return hash.toString(36);
     }
-    return hash.toString(36);
   }
 
   // Public methods
@@ -300,10 +304,10 @@ class AuditTamperDetector {
       if (quarantineInfo && quarantineInfo.originalEntries) {
         localStorage.setItem('acs_audit_log', quarantineInfo.originalEntries);
         localStorage.removeItem('acs_audit_quarantined');
-        
+
         // Re-initialize baseline
         this.initializeBaseline();
-        
+
         console.log('[TamperDetector] Audit log restored from quarantine');
         return true;
       }

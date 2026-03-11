@@ -4,10 +4,10 @@
  * Workflow:
  * 1. New Request -> Create Branch 'req_<id>'
  * 2. Create 'CODEOWNERS' file based on approvers.
- * 3. Commit Request JSON.
+ * 3. Commit Request YAML in central path: /requests/<id>.yaml
  * 4. Open Merge Request.
  * 5. Approvals -> Update MR state.
- * 6. Fully Approved -> Merge MR.
+ * 6. Fully Approved -> Merge MR, update /data_objects/.../active.yaml.
  * 7. Denied -> Close MR.
  */
 
@@ -85,9 +85,8 @@ export const GitAdapter = {
             // NEW Request -> Initialize Branch & MR
             console.log(`[GitOps] Creating Branch: ${branchName}`);
 
-            // Generate CODEOWNERS content
             const owners = request.requiredApprovers.map((a: any) => `@${a}`).join(' ');
-            const codeownersContent = `/${request.id}.json ${owners}`;
+            const codeownersContent = `/requests/${request.id}.yaml ${owners}`;
             console.log(`[GitOps] Committing CODEOWNERS: "${codeownersContent}"`);
 
             // Construct MR Link based on Provider
@@ -103,7 +102,8 @@ export const GitAdapter = {
                 mrLink = `https://${host}/${repo}/pull/${mrId}`;
             }
 
-            console.log(`[GitOps] Committing ${request.id}.json`);
+
+            console.log(`[GitOps] Committing requests/${request.id}.yaml (Requester: ${request.requester?.name || 'Unknown'})`);
             console.log(`[GitOps] Opening Merge Request: ${branchName} -> ${config.gitBranch || 'main'}`);
 
             // Store metadata (simulating Git hosting response)
@@ -151,5 +151,15 @@ export const GitAdapter = {
                 }
             });
         return grants;
+    },
+
+    async getApprovers(config: any) {
+        console.log(`[GitAdapter] Fetching CODEOWNERS mapping from Git (Simulated)...`);
+        return {};
+    },
+
+    async saveApprovers(approvers: any, config: any) {
+        console.log(`[GitAdapter] Pushing CODEOWNERS mapping to Git (Simulated)...`);
+        return true;
     }
 };

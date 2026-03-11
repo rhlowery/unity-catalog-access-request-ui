@@ -21,12 +21,13 @@ export interface User {
     role: string;
     description: string;
   }>;
+  requiresCredentials?: boolean;
 }
 
 export interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: (provider: string) => Promise<User>;
+  login: (provider: string, credentials?: any) => Promise<User>;
   logout: () => void;
   sessionExpiring?: (data: { session: any; minutesUntilExpiry: number; message: string }) => void;
   sessionExpired?: (data: { session: any; message: string }) => void;

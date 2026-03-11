@@ -1,0 +1,101 @@
+
+DevTools listening on ws://127.0.0.1:59834/devtools/browser/aef11de6-b1fa-4187-9004-586cf95b032a
+
+====================================================================================================
+
+  (Run Starting)
+
+  ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ Cypress:        15.9.0                                                                         │
+  │ Browser:        Electron 138 (headless)                                                        │
+  │ Node Version:   v24.13.0 (/Users/loweryr/.nodebrew/node/v24.13.0/bin/node)                     │
+  │ Specs:          1 found (approval-flow.feature)                                                │
+  │ Searched:       cypress/e2e/features/approval-flow.feature                                     │
+  └────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────
+                                                                                                    
+  Running:  approval-flow.feature                                                           (1 of 1)
+
+
+  Access Request Approval Flow
+    1) Submitting and approving access requests end-to-end (example #1)
+    2) Submitting and approving access requests end-to-end (example #2)
+    ✓ Approver denies an access request with a reason (example #1) (851ms)
+    ✓ Approver denies an access request with a reason (example #2) (860ms)
+    ✓ Approval requires all approvers in the workflow (example #1) (99ms)
+    ✓ Approval requires all approvers in the workflow (example #2) (93ms)
+
+
+  4 passing (17s)
+  2 failing
+
+  1) Access Request Approval Flow
+       Submitting and approving access requests end-to-end (example #1):
+     AssertionError: Timed out retrying after 10000ms: Expected to find element: `[data-testid="catalog-node"]`, but never found it.
+      at Context.eval (http://localhost:5173/__cypress/tests?p=cypress/e2e/features/approval-flow.feature:18223:12)
+      at Registry.runStepDefinition (http://localhost:5173/__cypress/tests?p=cypress/e2e/features/approval-flow.feature:9470:48)
+      at Object.fn (http://localhost:5173/__cypress/tests?p=cypress/e2e/features/approval-flow.feature:15973:42)
+      at runStepWithLogGroup (http://localhost:5173/__cypress/tests?p=cypress/e2e/features/approval-flow.feature:14932:29)
+      at Context.eval (http://localhost:5173/__cypress/tests?p=cypress/e2e/features/approval-flow.feature:15966:60)
+      at getRet (http://localhost:5173/__cypress/runner/cypress_runner.js:122690:20)
+      at tryCatcher (http://localhost:5173/__cypress/runner/cypress_runner.js:1777:23)
+      at Promise.attempt.Promise.try (http://localhost:5173/__cypress/runner/cypress_runner.js:4285:29)
+      at Context.thenFn (http://localhost:5173/__cypress/runner/cypress_runner.js:122701:66)
+
+  2) Access Request Approval Flow
+       Submitting and approving access requests end-to-end (example #2):
+     Error: Multiple matching step definitions for: I select the principal "alice@example.com"
+ I select the principal {string}
+ I select the principal {string}
+      at Registry.resolveStepDefinition (http://localhost:5173/__cypress/tests?p=cypress/e2e/features/approval-flow.feature:9447:19)
+      at Registry.runStepDefinition (http://localhost:5173/__cypress/tests?p=cypress/e2e/features/approval-flow.feature:9462:39)
+      at Object.fn (http://localhost:5173/__cypress/tests?p=cypress/e2e/features/approval-flow.feature:15973:42)
+      at runStepWithLogGroup (http://localhost:5173/__cypress/tests?p=cypress/e2e/features/approval-flow.feature:14932:29)
+      at Context.eval (http://localhost:5173/__cypress/tests?p=cypress/e2e/features/approval-flow.feature:15966:60)
+      at getRet (http://localhost:5173/__cypress/runner/cypress_runner.js:122690:20)
+      at tryCatcher (http://localhost:5173/__cypress/runner/cypress_runner.js:1777:23)
+      at Promise.attempt.Promise.try (http://localhost:5173/__cypress/runner/cypress_runner.js:4285:29)
+      at Context.thenFn (http://localhost:5173/__cypress/runner/cypress_runner.js:122701:66)
+      at Context.then (http://localhost:5173/__cypress/runner/cypress_runner.js:122952:21)
+
+
+
+
+  (Results)
+
+  ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ Tests:        6                                                                                │
+  │ Passing:      4                                                                                │
+  │ Failing:      2                                                                                │
+  │ Pending:      0                                                                                │
+  │ Skipped:      0                                                                                │
+  │ Screenshots:  2                                                                                │
+  │ Video:        false                                                                            │
+  │ Duration:     17 seconds                                                                       │
+  │ Spec Ran:     approval-flow.feature                                                            │
+  └────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+  (Screenshots)
+
+  -  /Users/loweryr/git/github/rhlowery/unity-catalog-access-request-ui/cypress/scree    (2560x1440)
+     nshots/approval-flow.feature/Access Request Approval Flow -- Submitting and appr               
+     oving access requests end-to-end (example #1) (failed).png                                     
+  -  /Users/loweryr/git/github/rhlowery/unity-catalog-access-request-ui/cypress/scree    (2560x1440)
+     nshots/approval-flow.feature/Access Request Approval Flow -- Submitting and appr               
+     oving access requests end-to-end (example #2) (failed).png                                     
+
+
+====================================================================================================
+
+  (Run Finished)
+
+
+       Spec                                              Tests  Passing  Failing  Pending  Skipped  
+  ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ ✖  approval-flow.feature                    00:17        6        4        2        -        - │
+  └────────────────────────────────────────────────────────────────────────────────────────────────┘
+    ✖  1 of 1 failed (100%)                     00:17        6        4        2        -        -  
+

@@ -2,7 +2,8 @@
  * Mock (Volatile) Storage Adapter
  * Persists data only in memory for the current session.
  */
-let memoryStore = [];
+let memoryStore: any[] = [];
+let memoryApprovers: Record<string, Record<string, string[]>> = {};
 
 export const VolatileAdapter = {
     name: 'Mock (Volatile)',
@@ -46,5 +47,16 @@ export const VolatileAdapter = {
                 }
             });
         return grants;
+    },
+
+    async getApprovers(config: any) {
+        const identityType = config.identityType || 'MOCK';
+        return { ...(memoryApprovers[identityType] || {}) };
+    },
+
+    async saveApprovers(approvers: any, config: any) {
+        const identityType = config.identityType || 'MOCK';
+        memoryApprovers[identityType] = { ...approvers };
+        return true;
     }
 };

@@ -1,5 +1,5 @@
 import { EventBus } from './EventBus';
-import { AuditIntegrityManager } from './audit/AuditIntegrityManager2';
+import { AuditIntegrityManager } from './audit/AuditIntegrityManager';
 import { SecureAuditStorage } from './audit/SecureAuditStorage';
 import type { AuditEntry } from './audit/AuditTypes';
 
@@ -43,25 +43,25 @@ const initializeAuditIntegrity = () => {
             enableHashChaining: true,
             integrityKey: 'ACS_AUDIT_INTEGRITY_2024'
         });
-        
+
         auditStorage = new SecureAuditStorage();
-        
+
         // Verify existing audit integrity on startup
         verifyAuditIntegrity();
-        
+
         console.log('[Observability] Audit integrity initialized');
     }
 };
 
 const verifyAuditIntegrity = async () => {
     if (!auditStorage) return;
-    
+
     try {
         const integrity = await auditStorage.verifyIntegrity();
-        
+
         if (!integrity.valid) {
             console.error('[Observability] Audit integrity issues detected:', integrity.issues);
-            
+
             // Log integrity violations
             integrity.issues.forEach(issue => {
                 logIntegrityEvent('AUDIT_INTEGRITY_VIOLATION', {
@@ -70,7 +70,7 @@ const verifyAuditIntegrity = async () => {
                     severity: 'HIGH'
                 });
             });
-            
+
             // Dispatch event for UI notification
             const event = new CustomEvent('auditIntegrityViolation', {
                 detail: { issues: integrity.issues }
@@ -93,7 +93,7 @@ const LOG_LEVELS = { DEBUG: 0, INFO: 1, WARN: 2, ERROR: 3 };
 
 const log = (level, message, attributes = {}) => {
     if (!config.enabled) return;
-    
+
     if (LOG_LEVELS[level] < LOG_LEVELS[config.logLevel]) return;
 
     // Simplified logging without OpenTelemetry
@@ -114,7 +114,7 @@ const log = (level, message, attributes = {}) => {
 
     // Console logging with proper formatting
     const formattedMessage = `[${logEntry.timestamp}] ${level}: ${message}`;
-    
+
     switch (level) {
         case 'DEBUG':
             console.debug(formattedMessage, logEntry);
@@ -140,7 +140,7 @@ const log = (level, message, attributes = {}) => {
         const stored = localStorage.getItem('acs_observability_logs');
         const logs = stored ? JSON.parse(stored) : [];
         logs.push(logEntry);
-        
+
         // Keep only last 500 logs
         const recentLogs = logs.slice(-500);
         localStorage.setItem('acs_observability_logs', JSON.stringify(recentLogs));
@@ -165,30 +165,30 @@ const logAuditEvent = async (type: string, actor: string, action: string, target
         };
 
         // Add integrity features
-        const signedEntry = auditIntegrityManager.getSignedEntry(auditEntry);
-        
+        const signedEntry = await auditIntegrityManager.getSignedEntry(auditEntry);
+
         // Chain with previous entry
         const previousEntries = await auditStorage.getEntries(1);
         const previousEntry = previousEntries.length > 0 ? previousEntries[0] : null;
-        auditIntegrityManager.chainEntries(previousEntry, signedEntry);
-        
+        await auditIntegrityManager.chainEntries(previousEntry, signedEntry);
+
         // Store the signed entry
         await auditStorage.storeEntry(signedEntry);
-        
+
         // Add to metrics
         metrics.auditEvents.push({
             ...signedEntry,
             loggedAt: Date.now()
         });
-        
+
         console.log(`[Observability] Audit event logged: ${type} by ${actor}`);
-        
+
         // Dispatch audit event for other components
         const event = new CustomEvent('auditEvent', {
             detail: signedEntry
         });
         window.dispatchEvent(event);
-        
+
     } catch (error) {
         console.error('[Observability] Failed to log audit event:', error);
         log('ERROR', 'Audit logging failed', { type, actor, action, error: error.message });
@@ -201,7 +201,7 @@ const logIntegrityEvent = (type: string, details: any) => {
         timestamp: Date.now(),
         details
     });
-    
+
     log('WARN', `Integrity Event: ${type}`, details);
 };
 
@@ -238,15 +238,15 @@ export const ObservabilityService = {
     debug(message, attributes) {
         log('DEBUG', message, attributes);
     },
-    
+
     info(message, attributes) {
         log('INFO', message, attributes);
     },
-    
+
     warn(message, attributes) {
         log('WARN', message, attributes);
     },
-    
+
     error(message, errorInfo = {}) {
         log('ERROR', message, errorInfo);
     },
@@ -284,6 +284,14 @@ export const ObservabilityService = {
 
     async logSessionRenewed(sessionId, userId) {
         await logSessionEvent('RENEWED', sessionId, userId);
+    },
+
+    async logPersonaSwitch(actor, fromPersona, toPersona) {
+        await logAuditEvent('PERSONA_SWITCH', actor, 'SWITCH', toPersona, {
+            from: fromPersona,
+            to: toPersona,
+            isSimulation: true
+        });
     },
 
     // Audit integrity methods
@@ -324,7 +332,7 @@ export const ObservabilityService = {
         try {
             const integrity = auditStorage ? await auditStorage.verifyIntegrity() : { valid: true, issues: [] };
             const metricCount = Object.values(metrics).reduce((sum, arr) => sum + arr.length, 0);
-            
+
             return {
                 status: 'healthy',
                 timestamp: new Date().toISOString(),

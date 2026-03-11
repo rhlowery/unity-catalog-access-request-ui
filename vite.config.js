@@ -1,7 +1,11 @@
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react-swc'
 import { visualizer } from 'rollup-plugin-visualizer'
+import tailwindcss from '@tailwindcss/vite'
+import path from 'path'
+import { fileURLToPath } from 'url'
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 // https://vite.dev/config/
 /// <reference types="vitest" />
 export default defineConfig(({ mode }) => {
@@ -10,6 +14,7 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [
       react(),
+      tailwindcss(),
       mode === 'analyze' && visualizer({
         filename: 'dist/stats.html',
         open: true,
@@ -17,6 +22,11 @@ export default defineConfig(({ mode }) => {
         brotliSize: true,
       })
     ].filter(Boolean),
+    resolve: {
+      alias: {
+        '@': path.resolve(__dirname, './src'),
+      },
+    },
     build: {
       rollupOptions: {
         output: {
@@ -64,13 +74,9 @@ export default defineConfig(({ mode }) => {
     server: {
       proxy: {
         '/api': {
-          // Target should ideally be the configured host. Fallback to accounts.cloud.databricks.com
           target: env.VITE_DATABRICKS_HOST || 'https://accounts.cloud.databricks.com',
           changeOrigin: true,
-          secure: false,
-          headers: {
-            Authorization: `Bearer ${env.VITE_DATABRICKS_TOKEN}`
-          }
+          secure: process.env.NODE_ENV === 'production'
         }
       }
     },

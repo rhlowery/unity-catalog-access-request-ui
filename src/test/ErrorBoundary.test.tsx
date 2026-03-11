@@ -15,7 +15,7 @@ describe('ErrorBoundary', () => {
       </ErrorBoundary>
     )
 
-    expect(screen.getByText(/Something went wrong/i)).toBeInTheDocument()
+    expect(screen.getByText(/System Interrupted/i)).toBeInTheDocument()
   })
 
   it('provides recovery options', () => {
@@ -25,7 +25,7 @@ describe('ErrorBoundary', () => {
       </ErrorBoundary>
     )
 
-    expect(screen.getByRole('button', { name: /Try Again/i })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Go to Home/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Refresh State/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Return Home/i })).toBeInTheDocument()
   })
 })

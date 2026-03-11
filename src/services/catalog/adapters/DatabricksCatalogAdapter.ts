@@ -1,5 +1,5 @@
 import { ICatalogAdapter } from '../ICatalogAdapter';
-import { fetchWorkspaces, fetchCatalogs } from '../../UCIdentityService';
+import { fetchWorkspaces, fetchCatalogs, fetchSchemas, fetchTables, searchCatalog } from '../../UCIdentityService';
 import { UnityCatalogAdapter as StorageUCAdapter } from '../../storage/adapters/UnityCatalogAdapter';
 
 /**
@@ -21,14 +21,26 @@ export const DatabricksCatalogAdapter: ICatalogAdapter = {
         return await fetchWorkspaces();
     },
 
-    async fetchCatalogs(workspaceUrl, _config) {
-        return await fetchCatalogs(workspaceUrl); // This is the fetchCatalogs from UCIdentityService
+    async fetchCatalogs(workspaceUrl: string) {
+        return await fetchCatalogs(workspaceUrl);
     },
 
-    async getLiveGrants(_object, _config) {
+    async fetchSchemas(workspaceUrl: string, catalogName: string) {
+        return await fetchSchemas(workspaceUrl, catalogName);
+    },
+
+    async fetchTables(workspaceUrl: string, catalogName: string, schemaName: string) {
+        return await fetchTables(workspaceUrl, catalogName, schemaName);
+    },
+
+    async searchCatalog(workspaceUrl: string, query: string) {
+        return await searchCatalog(workspaceUrl, query);
+    },
+
+    async getLiveGrants(_object: any, _config: any) {
         // Reuse logic from storage adapter if it exists there
-        if (StorageUCAdapter && StorageUCAdapter.getLiveGrants) {
-            return await StorageUCAdapter.getLiveGrants(_object, _config);
+        if (StorageUCAdapter && (StorageUCAdapter as any).getLiveGrants) {
+            return await (StorageUCAdapter as any).getLiveGrants(_object, _config);
         }
         return [];
     }

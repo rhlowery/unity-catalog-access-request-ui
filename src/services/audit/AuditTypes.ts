@@ -20,22 +20,15 @@ export interface AuditIntegrityConfig {
 }
 
 export interface AuditIntegrityService {
-  signEntry(entry: AuditEntry): string;
+  signEntry(entry: AuditEntry): Promise<string>;
   verifyEntry(entry: AuditEntry): Promise<boolean>;
-  calculateHash(entry: AuditEntry): string;
-  chainEntries(previousEntry: AuditEntry, currentEntry: AuditEntry): void;
-  detectTampering(entries: AuditEntry[]): { tampered: boolean; tamperedEntries: string[] };
-  getSignedEntry(entry: AuditEntry): AuditEntry;
+  calculateHash(entry: AuditEntry): Promise<string>;
+  chainEntries(previousEntry: AuditEntry | null, currentEntry: AuditEntry): Promise<void>;
+  detectTampering(entries: AuditEntry[]): Promise<{ tampered: boolean; tamperedEntries: string[] }>;
+  getSignedEntry(entry: AuditEntry): Promise<AuditEntry>;
 }
 
-export interface AuditIntegrityService {
-  signEntry(entry: AuditEntry): string;
-  verifyEntry(entry: AuditEntry): Promise<boolean>;
-  calculateHash(entry: AuditEntry): string;
-  chainEntries(previousEntry: AuditEntry, currentEntry: AuditEntry): void;
-  detectTampering(entries: AuditEntry[]): { tampered: boolean; tamperedEntries: string[] };
-  getSignedEntry(entry: AuditEntry): AuditEntry;
-}
+
 
 export interface SecureAuditStorage {
   storeEntry(entry: AuditEntry): Promise<void>;

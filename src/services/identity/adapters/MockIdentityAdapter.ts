@@ -28,10 +28,20 @@ export const MockIdentityAdapter: IIdentityAdapter = {
         return null;
     },
 
-    async login(provider: string, _config: any) {
-        console.log(`[MockIdentity] Login with ${provider}`);
-        
-        // For MOCK provider, show user selection
+    async login(provider: string, _config: any, credentials?: any) {
+        console.log(`[MockIdentity] Login with ${provider}`, credentials);
+
+        // If credentials contains a specific user ID, authenticate as that user
+        if (credentials?.id) {
+            const user = MOCK_USERS.find(u => u.id === credentials.id);
+            if (user) {
+                const adaptedUser = { ...user, provider: 'mock' };
+                localStorage.setItem('mock_current_user', JSON.stringify(adaptedUser));
+                return adaptedUser;
+            }
+        }
+
+        // For MOCK provider, show user selection placeholder
         if (provider === 'MOCK') {
             console.log(`[MockIdentity] Available users:`, MOCK_USERS);
             return {
@@ -46,7 +56,7 @@ export const MockIdentityAdapter: IIdentityAdapter = {
                 availableUsers: MOCK_USERS
             };
         }
-        
+
         // For OAuth/SAML providers, return a mock user with provider info
         const mockUser = {
             id: `user_${provider.toLowerCase()}`,
@@ -57,7 +67,7 @@ export const MockIdentityAdapter: IIdentityAdapter = {
             provider: provider.toLowerCase(),
             groups: ['group_all_users', 'group_standard_users']
         };
-        
+
         console.log(`[MockIdentity] Returning mock user for ${provider}:`, mockUser);
         return mockUser;
     },
@@ -76,12 +86,14 @@ export const selectMockUser = async (userId: string): Promise<IdentityUser> => {
     if (!user) {
         throw new Error(`User ${userId} not found in mock users`);
     }
-    
+
+    const adaptedUser = { ...user, provider: 'mock' };
+
     // Store the selected user
-    localStorage.setItem('mock_current_user', JSON.stringify(user));
-    
-    console.log(`[MockIdentity] Selected user: ${user.name} (${user.role})`);
-    return user;
+    localStorage.setItem('mock_current_user', JSON.stringify(adaptedUser));
+
+    console.log(`[MockIdentity] Selected user: ${adaptedUser.name} (${adaptedUser.role})`);
+    return adaptedUser;
 };
 
 /**

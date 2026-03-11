@@ -39,6 +39,33 @@ export const MOCK_CATALOGS = [
                     { id: 'vol_training_data', name: 'training_data_images', type: 'VOLUME', parentId: 'sch_ai_governance', owners: ['group_data_scientists', 'group_legal_compliance'] },
                     { id: 'model_genai', name: 'llama_3_finetuned', type: 'MODEL', parentId: 'sch_ai_governance', owners: ['group_data_scientists'] }
                 ]
+            },
+            {
+                id: 'sch_hr',
+                name: 'hr',
+                type: 'SCHEMA',
+                parentId: 'cat_main',
+                children: [
+                    { id: 'tbl_employees', name: 'employees', type: 'TABLE', parentId: 'sch_hr', owners: ['group_hr_admins'] },
+                    { id: 'tbl_compensation', name: 'compensation', type: 'TABLE', parentId: 'sch_hr', owners: ['group_hr_admins', 'user_cfo'] },
+                    { id: 'tbl_org_chart', name: 'org_chart', type: 'TABLE', parentId: 'sch_hr', owners: ['group_hr_admins'] },
+                ]
+            }
+        ],
+    },
+    {
+        id: 'cat_sales',
+        name: 'sales',
+        type: 'CATALOG',
+        children: [
+            {
+                id: 'sch_transactions_sales',
+                name: 'transactions',
+                type: 'SCHEMA',
+                parentId: 'cat_sales',
+                children: [
+                    { id: 'tbl_summary_table', name: 'summary_table', type: 'TABLE', parentId: 'sch_transactions_sales', owners: ['group_finance_admins'] },
+                ]
             }
         ],
     },
@@ -54,7 +81,7 @@ export const MOCK_CATALOGS = [
                 parentId: 'cat_dev',
                 children: [
                     { id: 'tbl_test_data', name: 'test_data', type: 'TABLE', parentId: 'sch_sandbox', owners: ['user_dev'] },
-                    ]
+                ]
             }
         ]
     },
@@ -314,9 +341,9 @@ export const MOCK_USERS = [
         email: 'alex@company.com',
         type: 'USER',
         initials: 'AA',
-        role: 'STANDARD_USER',
+        role: 'USER',
         groups: ['group_all_users', 'group_finance_analysts'],
-        description: 'Standard user with basic access to finance data'
+        description: 'Standard user — can browse catalog and submit access requests'
     },
     {
         id: 'user_finance_approver',
@@ -324,19 +351,29 @@ export const MOCK_USERS = [
         email: 'sarah.f@company.com',
         type: 'USER',
         initials: 'SF',
-        role: 'FINANCE_APPROVER',
-        groups: ['group_all_users', 'group_finance_admins', 'group_finance_analysts'],
-        description: 'Finance approver with elevated permissions for financial data'
+        role: 'APPROVER',
+        groups: ['group_all_users', 'group_finance_admins'],
+        description: 'Approver persona — group_finance_admins is assigned as approver of finance objects'
     },
     {
-        id: 'user_marketing_approver',
-        name: 'Mike Marketing',
-        email: 'mike.m@company.com',
+        id: 'user_hr_approver',
+        name: 'Dana HR',
+        email: 'dana.hr@company.com',
         type: 'USER',
-        initials: 'MM',
-        role: 'MARKETING_APPROVER',
-        groups: ['group_all_users', 'group_marketing_admins', 'group_marketing_analysts'],
-        description: 'Marketing approver with permissions for marketing data and campaigns'
+        initials: 'DH',
+        role: 'APPROVER',
+        groups: ['group_all_users', 'group_hr_admins'],
+        description: 'Approver persona — group_hr_admins is assigned as approver of HR objects'
+    },
+    {
+        id: 'user_auditor',
+        name: 'Chris Auditor',
+        email: 'chris.a@company.com',
+        type: 'USER',
+        initials: 'CA',
+        role: 'ACCESS_AUDITOR',
+        groups: ['group_all_users', 'group_auditors'],
+        description: 'Access Auditor persona — can view the Audit Log'
     },
     {
         id: 'user_security_admin',
@@ -345,8 +382,38 @@ export const MOCK_USERS = [
         type: 'USER',
         initials: 'JS',
         role: 'SECURITY_ADMIN',
-        groups: ['group_all_users', 'group_security', 'group_platform_admins', 'group_audit_admins'],
-        description: 'Security admin with full system access and audit capabilities'
+        groups: ['group_all_users', 'group_security'],
+        description: 'Security Admin persona — can view Audit Log and Data Approvers tabs'
+    },
+    {
+        id: 'user_platform_admin',
+        name: 'Pat Platform',
+        email: 'pat.p@company.com',
+        type: 'USER',
+        initials: 'PP',
+        role: 'PLATFORM_ADMIN',
+        groups: ['group_all_users', 'group_platform_admins'],
+        description: 'Platform Admin — full access to all tabs and Settings dialog'
+    },
+    {
+        id: 'user_alice',
+        name: 'Alice',
+        email: 'alice@example.com',
+        type: 'USER',
+        initials: 'A',
+        role: 'STANDARD_USER',
+        groups: ['group_all_users'],
+        description: 'Standard user Alice'
+    },
+    {
+        id: 'user_bob',
+        name: 'Bob',
+        email: 'bob@example.com',
+        type: 'USER',
+        initials: 'B',
+        role: 'STANDARD_USER',
+        groups: ['group_all_users'],
+        description: 'Standard user Bob'
     }
 ];
 
@@ -354,19 +421,30 @@ export const MOCK_IDENTITIES = {
     users: [
         { id: 'user_standard', name: 'Alex Analyst', email: 'alex@company.com', type: 'USER' },
         { id: 'user_finance_approver', name: 'Sarah Finance', email: 'sarah.f@company.com', type: 'USER' },
-        { id: 'user_marketing_approver', name: 'Mike Marketing', email: 'mike.m@company.com', type: 'USER' },
+        { id: 'user_hr_approver', name: 'Dana HR', email: 'dana.hr@company.com', type: 'USER' },
+        { id: 'user_auditor', name: 'Chris Auditor', email: 'chris.a@company.com', type: 'USER' },
         { id: 'user_security_admin', name: 'Jane Security', email: 'jane.s@company.com', type: 'USER' },
+        { id: 'user_platform_admin', name: 'Pat Platform', email: 'pat.p@company.com', type: 'USER' },
+        { id: 'user_alice', name: 'Alice', email: 'alice@example.com', type: 'USER' },
+        { id: 'user_bob', name: 'Bob', email: 'bob@example.com', type: 'USER' },
     ],
     groups: [
         { id: 'group_all_users', name: 'All Users', type: 'GROUP' },
         { id: 'group_finance_analysts', name: 'Finance Analysts', type: 'GROUP' },
         { id: 'group_finance_admins', name: 'Finance Admins', type: 'GROUP' },
-        { id: 'group_marketing_analysts', name: 'Marketing Analysts', type: 'GROUP' },
+        { id: 'group_hr_admins', name: 'HR Admins', type: 'GROUP' },
+        { id: 'group_marketing', name: 'Marketing', type: 'GROUP' },
         { id: 'group_marketing_admins', name: 'Marketing Admins', type: 'GROUP' },
-        { id: 'group_security', name: 'Security Team', type: 'GROUP' },
-        { id: 'group_platform_admins', name: 'Platform Admins', type: 'GROUP' },
+        // Persona-granting groups
+        { id: 'group_auditors', name: 'Access Auditors', type: 'GROUP' },
         { id: 'group_audit_admins', name: 'Audit Admins', type: 'GROUP' },
+        { id: 'group_security', name: 'Security Admins', type: 'GROUP' },
+        { id: 'group_platform_admins', name: 'Platform Admins', type: 'GROUP' },
+        // Other functional groups
+        { id: 'group_compliance_team', name: 'Compliance Team', type: 'GROUP' },
+        { id: 'group_risk_analysts', name: 'Risk Analysts', type: 'GROUP' },
         { id: 'group_data_scientists', name: 'Data Scientists', type: 'GROUP' },
+        { id: 'group_governance', name: 'Governance Team', type: 'GROUP' },
     ],
     servicePrincipals: [
         { id: 'sp_etl_job', name: 'ETL Job Runner', type: 'SERVICE_PRINCIPAL' },
@@ -374,12 +452,14 @@ export const MOCK_IDENTITIES = {
     ],
 };
 
+
 export const PERMISSIONS = [
     'SELECT', 'MODIFY', 'USE_SCHEMA', 'USE_CATALOG', 'ALL_PRIVILEGES',
     'EXECUTE', 'READ_VOLUME', 'WRITE_VOLUME', 'CREATE_MODEL', 'USE_COMPUTE', 'ACCESS_STORAGE'
 ];
 
 import { StorageService } from './storage/StorageService';
+import { ConfigService } from './config/ConfigService';
 
 // Storage Helper
 const _loadRequests = async () => {
@@ -416,7 +496,7 @@ const MOCK_WORKSPACE_CATALOGS = [
 ];
 
 export const getCatalogs = async () => {
-    const config = StorageService.getConfig();
+    const config = ConfigService.getConfig();
 
     // Simulate Network Delay
     await new Promise(resolve => setTimeout(resolve, 600));
@@ -434,7 +514,7 @@ export const getCatalogs = async () => {
 import { fetchUCIdentities } from './UCIdentityService';
 
 export const getIdentities = async () => {
-    const config = StorageService.getConfig();
+    const config = ConfigService.getConfig();
     let shouldUseUC = false;
 
     // Only try to fetch Real UC data if Identity Type is NOT MOCK
@@ -466,15 +546,53 @@ export const getIdentities = async () => {
     ]);
 };
 
-// Helper to get all owners for a list of objects
-const getRequiredApprovers = (objects) => {
-    const approvers = new Set();
-    // 1. Add asset owners
-    objects.forEach(obj => {
-        if (obj.owners) {
-            obj.owners.forEach(owner => approvers.add(owner));
+// Helper to find node objects for ancestry path
+const getNodeAncestry = (targetId: string, nodes: any[], currentPath: any[] = []): any[] | null => {
+    for (const node of nodes) {
+        const newPath = [...currentPath, node];
+        if (node.id === targetId) return newPath;
+        if (node.children) {
+            const found = getNodeAncestry(targetId, node.children, newPath);
+            if (found) return found;
         }
+    }
+    return null;
+};
+
+// Helper to get all owners for a list of objects considering hierarchical overrides
+const getRequiredApprovers = async (objects: any[], activeCatalogs: any[]) => {
+    const approvers = new Set<string>();
+    const objectApprovers = await StorageService.getApprovers() || {};
+
+    objects.forEach(obj => {
+        const ancestry = getNodeAncestry(obj.id, activeCatalogs);
+        if (!ancestry) {
+            // Fallback to literal object owners if ancestry lookup fails
+            if (obj.owners) {
+                obj.owners.forEach((o: string) => approvers.add(o));
+            }
+            return;
+        }
+
+        let effectiveGroups: string[] = [];
+
+        // Traverse top-down to find the most specific override or accumulate defaults
+        for (const ancestor of ancestry) {
+            if (objectApprovers[ancestor.id] !== undefined) {
+                // An explicit override replaces all inherited groups up to this point
+                // Note: it makes a copy to avoid mutating the config
+                effectiveGroups = [...objectApprovers[ancestor.id]];
+            } else if (ancestor.owners) {
+                // If no override, merge default owners
+                ancestor.owners.forEach((o: string) => {
+                    if (!effectiveGroups.includes(o)) effectiveGroups.push(o);
+                });
+            }
+        }
+
+        effectiveGroups.forEach(grp => approvers.add(grp));
     });
+
     // 2. Add Mandatory Governance Group
     approvers.add('group_governance');
 
@@ -489,7 +607,7 @@ const getInitialApprovalState = (approvers) => {
     return state;
 };
 
- // Helper to find object path
+// Helper to find object path
 const findObjectPath = (id: string, catalogs: any = MOCK_CATALOGS, currentPath: string[] = []): string | null => {
     for (const node of catalogs) {
         const newPath = [...currentPath, node.name];
@@ -532,13 +650,15 @@ const checkExpirations = (requests) => {
 };
 
 export const submitRequest = async (request) => {
+    const activeCatalogs = await getCatalogs();
+
     // Enrich requested objects with full path
     const enrichedObjects = request.requestedObjects.map(obj => ({
         ...obj,
-        fullPath: findObjectPath(obj.id) || obj.name
+        fullPath: findObjectPath(obj.id, activeCatalogs) || obj.name
     }));
 
-    const requiredApprovers = getRequiredApprovers(enrichedObjects);
+    const requiredApprovers = await getRequiredApprovers(enrichedObjects, activeCatalogs);
 
     // Calculate Expiration Time if applicable
     let expirationTime = null;
@@ -577,8 +697,8 @@ export const getRequests = async () => {
     return requests.sort((a: any, b: any) => Number(new Date(b.timestamp || 0)) - Number(new Date(a.timestamp || 0)));
 };
 
-export const approveRequest = async (requestId, approverId, message, decision) => {
-    const requests = await StorageService.loadRequests();
+export const approveRequest = async (requestId, approverId, message, decision, isSimulation = false) => {
+    const requests = await _loadRequests();
     const req = requests.find((r) => r.id === requestId);
 
     if (req) {
@@ -587,7 +707,8 @@ export const approveRequest = async (requestId, approverId, message, decision) =
             approverId,
             message,
             decision,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            isSimulation // Track if this was a simulated approval
         });
 
         // 2. Update specific approver state

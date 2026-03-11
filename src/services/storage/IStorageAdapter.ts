@@ -30,6 +30,21 @@ export interface IStorageAdapter {
     upsertRequest(request: AccessRequest, config: StorageConfig): Promise<boolean>;
 
     /**
+     * Loads the object approver policies.
+     * @param config - The global app configuration.
+     * @returns A map of object IDs to approver group arrays.
+     */
+    getApprovers(config: StorageConfig): Promise<Record<string, string[]>>;
+
+    /**
+     * Saves the object approver policies.
+     * @param approvers - The object approvers map.
+     * @param config - The global app configuration.
+     * @returns Success status.
+     */
+    saveApprovers(approvers: Record<string, string[]>, config: StorageConfig): Promise<boolean>;
+
+    /**
      * Gets approved grants for a specific object.
      * @param object - The object (catalog/schema/table).
      * @param config - The global app configuration.
@@ -44,6 +59,10 @@ export interface StorageConfig {
     ucCatalog?: string;
     ucSchema?: string;
     ucTable?: string;
+    ucApproversTable?: string;
+    ucAuditTable?: string;
+    ucTables?: string;
+    ucWarehouseId?: string;
     rdbmsConn?: string;
     rdbmsUser?: string;
     rdbmsPassword?: string;

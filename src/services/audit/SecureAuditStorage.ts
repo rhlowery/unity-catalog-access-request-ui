@@ -1,10 +1,8 @@
 import type { AuditEntry, SecureAuditStorage as ISecureAuditStorage } from './AuditTypes';
 import type { AuditIntegrityService } from './AuditIntegrityManager';
+import { generateSecureId, generateSecureToken } from '../../utils/crypto';
 
-// Simple ID generator
-const generateId = (): string => {
-  return Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
-};
+const generateId = (): string => generateSecureId();
 
 export class SecureAuditStorage implements ISecureAuditStorage {
   private storageKey = 'acs_audit_log';
@@ -14,7 +12,7 @@ export class SecureAuditStorage implements ISecureAuditStorage {
   async storeEntry(entry: AuditEntry): Promise<void> {
     try {
       const entries = await this.getEntries();
-      
+
       // Add new entry with timestamp
       const newEntry = {
         ...entry,
@@ -33,6 +31,15 @@ export class SecureAuditStorage implements ISecureAuditStorage {
       const compressed = this.compressEntries(entries);
       localStorage.setItem(this.storageKey, compressed);
 
+      // Sync to BFF
+      try {
+        const { apiClient } = await import('../../lib/axios');
+        await apiClient.post('/api/audit/log', newEntry);
+        console.log(`[SecureAuditStorage] Synced audit entry to BFF: ${newEntry.type}`);
+      } catch (syncError) {
+        console.warn('[SecureAuditStorage] Failed to sync to BFF (will retry later or stay local):', syncError);
+      }
+
       console.log(`[SecureAuditStorage] Stored audit entry: ${newEntry.type} by ${newEntry.actor}`);
     } catch (error) {
       console.error('[SecureAuditStorage] Failed to store entry:', error);
@@ -45,10 +52,10 @@ export class SecureAuditStorage implements ISecureAuditStorage {
       if (!stored) return [];
 
       const entries = this.decompressEntries(stored);
-      
+
       // Return most recent entries first
       const sorted = entries.sort((a, b) => b.timestamp - a.timestamp);
-      
+
       return limit ? sorted.slice(0, limit) : sorted;
     } catch (error) {
       console.error('[SecureAuditStorage] Failed to get entries:', error);
@@ -71,16 +78,9 @@ export class SecureAuditStorage implements ISecureAuditStorage {
         }
       }
 
-      // Check for missing signatures (if enabled)
-      const entriesWithSignatures = entries.filter(e => e.signature);
-      if (entriesWithSignatures.length > 0) {
-        // In a real implementation, would verify each signature
-        console.log(`[SecureAuditStorage] Found ${entriesWithSignatures.length} signed entries`);
-      }
-
       // Check storage integrity
       const storedHash = localStorage.getItem(this.integrityKey);
-      const calculatedHash = this.calculateStorageHash(entries);
+      const calculatedHash = await this.calculateStorageHash(entries);
 
       if (storedHash && storedHash !== calculatedHash) {
         issues.push('Storage integrity compromised - hash mismatch');
@@ -106,10 +106,10 @@ export class SecureAuditStorage implements ISecureAuditStorage {
     try {
       const entries = await this.getEntries();
       const cutoffTime = Date.now() - (daysToKeep * 24 * 60 * 60 * 1000);
-      
+
       const originalCount = entries.length;
       const filteredEntries = entries.filter(entry => entry.timestamp > cutoffTime);
-      
+
       // Store filtered entries
       const compressed = this.compressEntries(filteredEntries);
       localStorage.setItem(this.storageKey, compressed);
@@ -137,8 +137,7 @@ export class SecureAuditStorage implements ISecureAuditStorage {
     }
   }
 
-  private calculateStorageHash(entries: AuditEntry[]): string {
-    // Calculate hash of all entries for integrity verification
+  private async calculateStorageHash(entries: AuditEntry[]): Promise<string> {
     const data = JSON.stringify(entries.map(e => ({
       id: e.id,
       timestamp: e.timestamp,
@@ -146,12 +145,19 @@ export class SecureAuditStorage implements ISecureAuditStorage {
       signature: e.signature
     })));
 
-    let hash = 0;
-    for (let i = 0; i < data.length; i++) {
-      const char = data.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash;
+    try {
+      const { WebCrypto } = await import('../crypto/WebCryptoService');
+      return await WebCrypto.generateHash(data, 'SHA-256');
+    } catch (error) {
+      console.error('[SecureAuditStorage] Failed to calculate storage hash:', error);
+      // Fallback to a simple hash if WebCrypto fails (not ideal but avoids crash)
+      let hash = 0;
+      for (let i = 0; i < data.length; i++) {
+        const char = data.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash;
+      }
+      return hash.toString(16);
     }
-    return hash.toString(36);
   }
 }

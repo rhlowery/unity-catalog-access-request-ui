@@ -6,7 +6,7 @@ import { AuthContextType, User } from './AuthContext';
 const AuthContext = createContext<AuthContextType | null>(null);
 
 interface AuthProviderProps {
-  children: ReactNode;
+    children: ReactNode;
 }
 
 export const AuthProvider = ({ children }: AuthProviderProps) => {
@@ -18,61 +18,95 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     useEffect(() => {
         const initAuth = async () => {
             try {
-                console.log('[AuthProvider] Initializing auth with session management...');
-                
-                // Check for existing valid session
-                const activeSession = SessionManager.getActiveSession();
+                console.log('[AuthProvider] Initializing auth via Zero-Trust verify...');
+
+                // 1. Try to get verified identity from the BFF session cookie directly
+                const BFF_URL = import.meta.env.VITE_BFF_URL || 'http://localhost:3001';
+                try {
+                    const response = await fetch(`${BFF_URL}/api/auth/me`, {
+                        credentials: 'include'
+                    });
+
+                    if (response.ok) {
+                        const verifiedUser = await response.json();
+                        console.log('[AuthProvider] Found verified BFF session:', verifiedUser);
+
+                        const contextUser = {
+                            ...verifiedUser,
+                            initials: verifiedUser.name.split(' ').map((n: string) => n[0]).join(''),
+                            type: 'USER'
+                        };
+
+                        setUser(contextUser);
+                        setLoading(false);
+
+                        // Check local session for expiry tracking
+                        const activeSession = await SessionManager.getActiveSession();
+                        if (activeSession) {
+                            await SessionManager.checkSessionExpiration(activeSession.id);
+                        }
+                        return;
+                    }
+                } catch (e) {
+                    console.warn('[AuthProvider] BFF offline, falling back to local session lookup');
+                }
+
+                // 2. Fallback to existing persistent session (useful for offline/mock)
+                const activeSession = await SessionManager.getActiveSession();
                 if (activeSession) {
-                    console.log('[AuthProvider] Found active session:', activeSession);
+                    console.log('[AuthProvider] Found active local session, synchronizing with BFF:', activeSession);
+
                     const userFromSession = {
                         id: activeSession.userId,
                         name: activeSession.userName,
-                        email: `${activeSession.userName.toLowerCase().replace(/\s+/g, '.')}@example.com`,
-                        groups: activeSession.userGroups,
+                        email: activeSession.userEmail || `${activeSession.userId}@local`,
+                        groups: activeSession.userGroups || [],
+                        role: activeSession.userRole || 'STANDARD_USER',
                         provider: activeSession.provider,
                         initials: activeSession.userName.split(' ').map(n => n[0]).join(''),
                         type: 'USER'
                     };
-                    
+
+                    // Proactively attempt to establish BFF session for this local user
+                    try {
+                        await fetch(`${BFF_URL}/api/auth/login`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            credentials: 'include',
+                            body: JSON.stringify({
+                                userId: userFromSession.id,
+                                userName: userFromSession.name,
+                                email: userFromSession.email,
+                                groups: userFromSession.groups,
+                                role: userFromSession.role,
+                                provider: activeSession.provider || 'MOCK'
+                            })
+                        });
+                    } catch (err) {
+                        console.warn('[AuthProvider] Failed to sync local session to BFF:', err);
+                    }
+
                     setUser(userFromSession);
                     setLoading(false);
-                    
-                    // Start session monitoring
-                    SessionManager.checkSessionExpiration(activeSession.id);
                     return;
                 }
-                
-                // No valid session - try identity service
+
+                // 3. No valid session - try identity service
                 const adapter = IdentityService.getAdapter();
                 console.log('[AuthProvider] Using adapter:', adapter.name);
-                
+
                 const currentUser = await IdentityService.getCurrentUser();
                 console.log('[AuthProvider] Current user from identity service:', currentUser);
-                
-                // Check if this is mock identity with user selection
-                if (currentUser?.requiresUserSelection) {
-                    console.log('[AuthProvider] Mock user selection required');
+
+                // For mock provider, if we have a placeholder "user_selection" object,
+                // it means we still need to select a specific persona.
+                if (currentUser?.id === 'user_selection' || currentUser?.requiresUserSelection) {
+                    console.log('[AuthProvider] Identity requires user selection');
                     setUser(currentUser);
                     setLoading(false);
                     return;
                 }
-                
-                // For mock provider, check if there's a selected user in localStorage
-                if (currentUser?.id === 'user_selection') {
-                    try {
-                        const storedUser = localStorage.getItem('mock_current_user');
-                        if (storedUser) {
-                            const selectedUser = JSON.parse(storedUser);
-                            console.log('[AuthProvider] Found selected user:', selectedUser);
-                            setUser(selectedUser);
-                            setLoading(false);
-                            return;
-                        }
-                    } catch (e) {
-                        console.log('[AuthProvider] No selected user found in localStorage');
-                    }
-                }
-                
+
                 console.log('[AuthProvider] Setting current user:', currentUser);
                 setUser(currentUser);
             } catch (error) {
@@ -108,27 +142,67 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         };
     }, []);
 
-    const login = async (provider: string): Promise<User> => {
+    const login = async (provider: string, credentials?: any): Promise<User> => {
         try {
             console.log(`[AuthProvider] Attempting login with provider: ${provider}`);
-            
-            // Get identity and create session
-            const currentUser = await IdentityService.login(provider);
-            
-            // Create session with tokens (mock tokens for now)
+
+            // 1. Resolve identity via the configured identity adapter
+            const currentUser = await IdentityService.login(provider, credentials);
+
+            // If this is a mock provider and it requires selection, don't create a session yet
+            if (currentUser.requiresUserSelection) {
+                console.log('[AuthProvider] Login requires further selection, skipping session creation');
+                setUser(currentUser);
+                return currentUser;
+            }
+
+            // 2. Exchange the resolved identity for a BFF-signed JWT
+            const BFF_URL = import.meta.env.VITE_BFF_URL || 'http://localhost:3001';
+            let bffExpiresAt: number | undefined;
+            let bffToken: string | undefined;
+
+            try {
+                const jwtRes = await fetch(`${BFF_URL}/api/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include', // Important: stores bff_jwt HttpOnly cookie
+                    body: JSON.stringify({
+                        userId: currentUser.id,
+                        userName: currentUser.name,
+                        email: currentUser.email,
+                        groups: currentUser.groups || [],
+                        role: currentUser.role || 'STANDARD_USER',
+                        provider,
+                    }),
+                });
+
+                if (jwtRes.ok) {
+                    const jwtData = await jwtRes.json();
+                    bffExpiresAt = jwtData.expiresAt;
+                    bffToken = jwtData.token;
+                    console.log('[AuthProvider] BFF JWT issued, expires:', new Date(bffExpiresAt!).toISOString());
+                } else {
+                    console.warn('[AuthProvider] BFF JWT issuance failed, falling back to local session');
+                }
+            } catch (jwtErr) {
+                // BFF may not be running in offline/test mode — gracefully degrade
+                console.warn('[AuthProvider] Could not reach BFF for JWT issuance:', jwtErr);
+            }
+
+            // 3. Create frontend session (cookies manage the actual secrets)
             const tokens = {
-                accessToken: `token_${Date.now()}`,
-                refreshToken: `refresh_${Date.now()}`
+                expiresAt: bffExpiresAt,
+                // We no longer store tokens in localStorage for security
             };
-            
+
             const session = await SessionManager.createSession(currentUser, provider, tokens);
-            console.log('[AuthProvider] Session created:', session);
-            
+            console.log('[AuthProvider] Session created:', session.id);
+
             setUser(currentUser);
-            
+
             // Track activity for new session
-            SessionManager.trackActivity(session.id);
-            
+            await SessionManager.trackActivity(session.id);
+
             return currentUser;
         } catch (error) {
             console.error('Login error:', error);
@@ -139,19 +213,26 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     const logout = async () => {
         try {
             console.log('[AuthProvider] Logging out...');
-            
-            const activeSession = SessionManager.getActiveSession();
+
+            const activeSession = await SessionManager.getActiveSession();
             if (activeSession) {
                 await SessionManager.destroySession(activeSession.id);
             }
-            
+
+            // Clear BFF-side HttpOnly cookies (bff_jwt + access_token)
+            const BFF_URL = import.meta.env.VITE_BFF_URL || 'http://localhost:3001';
+            await fetch(`${BFF_URL}/api/auth/logout`, {
+                method: 'POST',
+                credentials: 'include',
+            }).catch(() => { /* Non-critical: BFF may be offline */ });
+
             // Also call identity service logout
-            IdentityService.logout();
-            
+            await IdentityService.logout();
+
             setUser(null);
             setSessionWarning(null);
             setSessionExpired(null);
-            
+
             // Clear any remaining mock data
             if (localStorage.getItem('mock_current_user')) {
                 localStorage.removeItem('mock_current_user');
@@ -179,53 +260,34 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     };
 
     return (
-        <AuthContext.Provider value={{ 
-            user, 
-            loading, 
-            login, 
+        <AuthContext.Provider value={{
+            user,
+            loading,
+            login,
             logout,
             sessionExpiring: sessionExpiringHandler,
             sessionExpired: sessionExpiredHandler
         }}>
             {children}
-            
+
             {/* Session Warning Modal */}
             {sessionWarning && (
-                <div style={{
-                    position: 'fixed',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    background: 'rgba(0, 0, 0, 0.7)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    zIndex: 9999
-                }}>
-                    <div style={{
-                        background: 'var(--glass-bg)',
-                        border: '1px solid var(--glass-border)',
-                        borderRadius: 'var(--border-radius)',
-                        padding: '2rem',
-                        maxWidth: '400px',
-                        width: '90%',
-                        textAlign: 'center'
-                    }}>
-                        <h3 style={{ color: 'var(--warning)', marginBottom: '1rem' }}>
+                <div className="modal-overlay">
+                    <div className="modal-content">
+                        <h3 className="modal-title warning">
                             Session Expiring Soon
                         </h3>
-                        <p style={{ color: 'var(--text-primary)', marginBottom: '1.5rem' }}>
+                        <p className="modal-body">
                             {sessionWarning.message}
                         </p>
-                        <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
-                            <button 
+                        <div className="modal-actions">
+                            <button
                                 className="btn btn-primary"
                                 onClick={dismissSessionWarning}
                             >
                                 Continue
                             </button>
-                            <button 
+                            <button
                                 className="btn btn-secondary"
                                 onClick={() => {
                                     dismissSessionWarning();
@@ -241,35 +303,16 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
             {/* Session Expired Modal */}
             {sessionExpired && (
-                <div style={{
-                    position: 'fixed',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    background: 'rgba(0, 0, 0, 0.7)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    zIndex: 9999
-                }}>
-                    <div style={{
-                        background: 'var(--glass-bg)',
-                        border: '1px solid var(--glass-border)',
-                        borderRadius: 'var(--border-radius)',
-                        padding: '2rem',
-                        maxWidth: '400px',
-                        width: '90%',
-                        textAlign: 'center'
-                    }}>
-                        <h3 style={{ color: 'var(--danger)', marginBottom: '1rem' }}>
+                <div className="modal-overlay">
+                    <div className="modal-content">
+                        <h3 className="modal-title danger">
                             Session Expired
                         </h3>
-                        <p style={{ color: 'var(--text-primary)', marginBottom: '1.5rem' }}>
+                        <p className="modal-body">
                             {sessionExpired.message}
                         </p>
-                        <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
-                            <button 
+                        <div className="modal-actions">
+                            <button
                                 className="btn btn-primary"
                                 onClick={dismissSessionExpired}
                             >
@@ -284,11 +327,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 };
 
 const useAuth = (): AuthContextType => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
+    const context = useContext(AuthContext);
+    if (!context) {
+        throw new Error('useAuth must be used within an AuthProvider');
+    }
+    return context;
 };
 
 export { useAuth };
