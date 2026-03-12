@@ -8,7 +8,7 @@ import {
     DialogClose
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { ComponentLoader } from '../OptimizedComponents';
+import { ComponentLoader } from './OptimizedComponents';
 
 const AdminSettings = React.lazy(() => import('../AdminSettings'));
 

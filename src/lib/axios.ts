@@ -47,9 +47,10 @@ apiClient.interceptors.response.use(
             const status = error.response.status;
             const message = error.response.data?.error || 'An unexpected error occurred';
 
-            if (status === 401 || status === 403) {
-                toast.error('Authentication Error', {
-                    description: 'Your session has expired or is invalid. Please log in again.',
+            if (status === 401) {
+                toast.error('Session Expired', {
+                    description: 'Your session has expired. Please log in again.',
+                    duration: Infinity,
                 });
 
                 const session = await SessionManager.getActiveSession();
@@ -60,14 +61,17 @@ apiClient.interceptors.response.use(
                 window.dispatchEvent(new CustomEvent('sessionExpired', {
                     detail: { message: 'Session invalid' }
                 }));
-            } else if (status >= 500) {
-                toast.error('Server Error', {
+            } else {
+                // Show generic error for 403, 400, 404, 500 etc
+                toast.error(status >= 500 ? 'Server Error' : (status === 403 ? 'Access Denied' : 'Request Failed'), {
                     description: message,
+                    duration: Infinity,
                 });
             }
         } else if (error.request) {
             toast.error('Network Error', {
                 description: 'Failed to contact the server. Please check your connection.',
+                duration: Infinity,
             });
         }
 

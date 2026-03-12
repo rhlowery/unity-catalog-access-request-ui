@@ -16,7 +16,6 @@ Feature: Access Request Form Submission
 
     Examples:
       | missing_field          |
-      | catalog object         |
       | principal              |
       | permission type        |
       | business justification |

@@ -53,9 +53,16 @@ export const ConstraintSelector: React.FC<ConstraintSelectorProps> = ({
                             <Label className="text-[11px] uppercase tracking-widest opacity-50 mb-2 block">Hours</Label>
                             <Input
                                 type="number"
+                                data-testid="duration-input"
                                 min="1"
-                                value={timeConstraint.value}
-                                onChange={(e) => onTimeConstraintChange({ ...timeConstraint, value: parseInt(e.target.value) || 1 })}
+                                value={timeConstraint.value || ''}
+                                onChange={(e) => {
+                                    const val = e.target.value;
+                                    onTimeConstraintChange({
+                                        ...timeConstraint,
+                                        value: val === '' ? 0 : parseInt(val)
+                                    });
+                                }}
                                 className="bg-transparent border-white/10 focus:border-primary/50"
                             />
                         </div>

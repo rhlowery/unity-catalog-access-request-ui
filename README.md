@@ -4,9 +4,9 @@ A premium, standalone React application for managing Unity Catalog access reques
 
 ## Architecture
 
-Below are the C4 Model diagrams illustrating the design of the ACS UI system.
+Below are the C4 Model and UML diagrams illustrating the design of the ACS UI system.
 
-### System Context
+### System Context (C4)
 
 ```mermaid
 C4Context
@@ -28,7 +28,7 @@ Rel(acs, idp, "Syncs Users & Groups", "SCIM / OAuth")
 Rel(acs, storage, "Persists Audit & Workflows", "JSON/SQL/Git")
 ```
 
-### Container Diagram
+### Container Diagram (C4)
 
 ```mermaid
 C4Container
@@ -52,6 +52,93 @@ Rel(spa, bff, "API Calls", "JSON/HTTPS")
 Rel(spa, idp, "Authenticates", "OAuth/SAML")
 Rel(bff, storage, "Reads/Writes State", "File I/O, SQL, or Git")
 Rel(bff, uc, "Manages Grants", "REST API")
+```
+
+### Identity & Session Management (UML Class)
+
+```mermaid
+classDiagram
+    class IdentityService {
+        +getAdapter() IIdentityAdapter
+        +fetchIdentities() Promise
+        +getCurrentUser() Promise
+        +login(provider, credentials) Promise
+        +logout() Promise
+    }
+    class IIdentityAdapter {
+        <<interface>>
+        +name: string
+        +type: string
+        +fetchIdentities(config) Promise
+        +getCurrentUser(config) Promise
+        +login(provider, config, credentials) Promise
+        +logout(config) Promise
+    }
+    class MockIdentityAdapter {
+    }
+    class DatabricksIdentityAdapter {
+    }
+    class SessionManagerService {
+        -storage: SessionStorage
+        -config: SessionConfig
+        +createSession(user, provider, tokens) Promise
+        +validateSession(sessionId) Promise
+        +renewSession(sessionId) Promise
+        +destroySession(sessionId) Promise
+    }
+    class SessionStorage {
+        <<interface>>
+        +createSession(session) Promise
+        +validateSession(sessionId) Promise
+        +updateSession(sessionId, updates) Promise
+        +deleteSession(sessionId) Promise
+    }
+    class SecureSessionStorage {
+    }
+
+    IdentityService ..> IIdentityAdapter : delegates to
+    IIdentityAdapter <|.. MockIdentityAdapter
+    IIdentityAdapter <|.. DatabricksIdentityAdapter
+    SessionManagerService o-- SessionStorage
+    SessionStorage <|.. SecureSessionStorage
+```
+
+### Access Request Flow (UML Sequence)
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant UA as User Agent (React)
+    participant SM as SessionManager
+    participant BFF as BFF Server (Node/Express)
+    participant UC as Unity Catalog API
+
+    User->>UA: Select Objects & Request Access
+    UA->>UA: Validate Form (Identities, Perms, Justification)
+    UA->>BFF: POST /api/storage/requests (with Session Cookie)
+    BFF->>BFF: Validate Session JWT
+    BFF->>BFF: Enrich Request (Approvers, Expiry)
+    BFF->>UC: Provision Grants (if auto-approved)
+    BFF-->>UA: 201 Created (Request ID)
+    UA-->>User: Show Success Toast & Modal
+```
+
+### Session Renewal Workflow (UML Sequence)
+
+```mermaid
+sequenceDiagram
+    participant UA as User Agent
+    participant SM as SessionManager
+    participant BFF as BFF Server
+    participant IDP as Identity Provider
+
+    Note over SM: Token Expiring<br/>(Renewal Threshold Reached)
+    SM->>BFF: POST /api/auth/refresh (with Credentials)
+    BFF->>IDP: Validate Refresh Token
+    IDP-->>BFF: New Access Token
+    BFF-->>SM: 200 OK (New Session Info)
+    SM->>SM: Update Local Storage
+    SM-->>UA: Dispatch 'sessionRenewed' Event
 ```
 
 ## Features
@@ -113,6 +200,37 @@ Open your browser to `http://localhost:5173`.
 
 > If you need to customize the BFF URL (e.g., for deployment), copy `.env.example` to `.env` and set `VITE_BFF_URL`.
 
+## Testing
+
+This project includes a comprehensive test suite covering unit, integration, and end-to-end (E2E) scenarios.
+
+### Unit Tests
+Unit tests are powered by [Vitest](https://vitest.dev/) and [React Testing Library](https://testing-library.com/). They focus on service logic, utility functions, and component rendering in isolation.
+
+```bash
+# Run all unit tests
+npm test
+
+# Run tests with UI reporter
+npm run test:ui
+
+# Generate coverage report
+npm run test:coverage
+```
+
+### End-to-End (E2E) Tests
+E2E tests use [Cypress](https://www.cypress.io/) with [Cucumber](https://github.com/badeball/cypress-cucumber-preprocessor) to validate business flows from the user's perspective.
+
+**Note:** Ensure both the BFF server and the frontend are running before executing E2E tests.
+
+```bash
+# Open Cypress Test Runner (Interactive)
+npx cypress open
+
+# Run all E2E tests (Headless)
+npx cypress run
+```
+
 ## Building for Production
 
 To create a static production build (which can be hosted on any static file server):
@@ -143,4 +261,5 @@ npm run preview
 - **Framework**: React + Vite
 - **Styling**: Vanilla CSS (CSS Variables, Glassmorphism)
 - **Icons**: Lucide React
+- **Testing**: Vitest, Cypress + Cucumber
 - **Persistence**: [Localized & Pluggable Backend](BACKEND.md) (LocalStorage, RDBMS, Unity Catalog, GitOps)

@@ -4,7 +4,30 @@ import { Given, When, Then } from '@badeball/cypress-cucumber-preprocessor';
 
 Given('I am on the Admin Settings page', () => {
     // Intercept the audit log fetch to prevent race conditions
-    cy.intercept('GET', '**/api/audit/log*').as('fetchAuditLogs');
+    // Intercept the audit log fetch to provide mock data
+    cy.intercept('GET', '**/api/audit/log*', {
+        statusCode: 200,
+        body: [
+            {
+                id: 'audit-1',
+                timestamp: Date.now() - 3600000,
+                type: 'ACCESS',
+                actor: 'test-user',
+                action: 'ACCESS_GRANTED',
+                target: 'main_catalog.finance.transactions',
+                signature: 'test-sig'
+            },
+            {
+                id: 'audit-2',
+                timestamp: Date.now() - 7200000,
+                type: 'SECURITY',
+                actor: 'admin-user',
+                action: 'PERSONA_SWITCH',
+                target: 'SYSTEM',
+                signature: 'test-sig'
+            }
+        ]
+    }).as('fetchAuditLogs');
 
     // Ensure the main UI is loaded by waiting for the title
     // This title is defined in MainLayout as 'Access Control System'

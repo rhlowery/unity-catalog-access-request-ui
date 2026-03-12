@@ -79,8 +79,7 @@ export const StorageService = {
     const requestIndex = requests.findIndex((r: AccessRequest) => r.id === id);
 
     if (requestIndex === -1) {
-      console.error(`[StorageService] Request with ID ${id} not found`);
-      return false;
+      throw new Error(`Request with ID ${id} not found`);
     }
 
     const updatedRequest = { ...requests[requestIndex], ...updates };

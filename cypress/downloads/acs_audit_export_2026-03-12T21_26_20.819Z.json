@@ -1,0 +1,20 @@
+[
+  {
+    "id": "audit-1",
+    "timestamp": 1773347180423,
+    "type": "ACCESS",
+    "actor": "test-user",
+    "action": "ACCESS_GRANTED",
+    "target": "main_catalog.finance.transactions",
+    "signature": "test-sig"
+  },
+  {
+    "id": "audit-2",
+    "timestamp": 1773343580423,
+    "type": "SECURITY",
+    "actor": "admin-user",
+    "action": "PERSONA_SWITCH",
+    "target": "SYSTEM",
+    "signature": "test-sig"
+  }
+]

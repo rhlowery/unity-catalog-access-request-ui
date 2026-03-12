@@ -2,6 +2,7 @@ import { createContext, useState, useContext, useEffect, ReactNode } from 'react
 import { IdentityService } from '../services/identity/IdentityService';
 import { SessionManager } from '../services/session/SessionManager';
 import { AuthContextType, User } from './AuthContext';
+import { toast } from 'sonner';
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
@@ -10,12 +11,27 @@ interface AuthProviderProps {
 }
 
 export const AuthProvider = ({ children }: AuthProviderProps) => {
+    // Expose SessionManager and a helper for Cypress tests
+    if (window.Cypress) {
+        (window as any).SessionManager = SessionManager;
+        (window as any).setupMockSession = async (user: User) => {
+            const session = await SessionManager.createSession(
+                user, 
+                'mock', 
+                { accessToken: 'mock-access-token', refreshToken: 'mock-refresh-token' }
+            );
+            setUser(user);
+            return session;
+        };
+    }
     const [user, setUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
     const [sessionWarning, setSessionWarning] = useState<any>(null);
     const [sessionExpired, setSessionExpired] = useState<any>(null);
 
     useEffect(() => {
+        let isMounted = true;
+
         const initAuth = async () => {
             try {
                 console.log('[AuthProvider] Initializing auth via Zero-Trust verify...');
@@ -23,9 +39,17 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
                 // 1. Try to get verified identity from the BFF session cookie directly
                 const BFF_URL = import.meta.env.VITE_BFF_URL || 'http://localhost:3001';
                 try {
+                    const abortController = new AbortController();
+                    const timeoutId = setTimeout(() => abortController.abort(), 5000); // 5 second timeout
+
                     const response = await fetch(`${BFF_URL}/api/auth/me`, {
-                        credentials: 'include'
+                        credentials: 'include',
+                        signal: abortController.signal
                     });
+
+                    clearTimeout(timeoutId);
+
+                    if (!isMounted) return;
 
                     if (response.ok) {
                         const verifiedUser = await response.json();
@@ -33,6 +57,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
                         const contextUser = {
                             ...verifiedUser,
+                            permissions: verifiedUser.user?.permissions || verifiedUser.permissions || [],
                             initials: verifiedUser.name.split(' ').map((n: string) => n[0]).join(''),
                             type: 'USER'
                         };
@@ -62,6 +87,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
                         email: activeSession.userEmail || `${activeSession.userId}@local`,
                         groups: activeSession.userGroups || [],
                         role: activeSession.userRole || 'STANDARD_USER',
+                        permissions: activeSession.userPermissions || [],
                         provider: activeSession.provider,
                         initials: activeSession.userName.split(' ').map(n => n[0]).join(''),
                         type: 'USER'
@@ -86,6 +112,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
                         console.warn('[AuthProvider] Failed to sync local session to BFF:', err);
                     }
 
+                    if (!isMounted) return;
                     setUser(userFromSession);
                     setLoading(false);
                     return;
@@ -98,26 +125,62 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
                 const currentUser = await IdentityService.getCurrentUser();
                 console.log('[AuthProvider] Current user from identity service:', currentUser);
 
+                if (currentUser && !currentUser.requiresUserSelection && !currentUser.requiresCredentials) {
+                    // Harmonize BFF session with identity service user
+                    try {
+                        const loginResponse = await fetch(`${BFF_URL}/api/auth/login`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            credentials: 'include',
+                            body: JSON.stringify({
+                                provider: (currentUser.provider || 'mock').toUpperCase(),
+                                userId: currentUser.id,
+                                email: currentUser.email,
+                                userName: currentUser.name,
+                                role: currentUser.role,
+                                groups: currentUser.groups || []
+                            })
+                        });
+
+                        if (loginResponse.ok) {
+                            console.log('[AuthProvider] Established BFF session for identity user');
+                        }
+                    } catch (err) {
+                        console.warn('[AuthProvider] Failed to sync identity user with BFF session', err);
+                    }
+                }
+
                 // For mock provider, if we have a placeholder "user_selection" object,
                 // it means we still need to select a specific persona.
                 if (currentUser?.id === 'user_selection' || currentUser?.requiresUserSelection) {
+                    if (!isMounted) return;
                     console.log('[AuthProvider] Identity requires user selection');
                     setUser(currentUser);
                     setLoading(false);
                     return;
                 }
 
+                if (!isMounted) return;
                 console.log('[AuthProvider] Setting current user:', currentUser);
                 setUser(currentUser);
             } catch (error) {
+                if (!isMounted) return;
                 console.error('Auth initialization error:', error);
                 setUser(null);
             } finally {
-                setLoading(false);
+                if (isMounted) {
+                    setLoading(false);
+                }
             }
         };
 
         initAuth();
+
+        return () => {
+            isMounted = false;
+        };
     }, []);
 
     useEffect(() => {
@@ -125,12 +188,20 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         const handleSessionExpiring = (event: CustomEvent) => {
             console.log('[AuthProvider] Session expiring:', event.detail);
             setSessionWarning(event.detail);
+            toast.warning('Session expiration warning', {
+                description: event.detail.message,
+                duration: 10000
+            });
         };
 
         const handleSessionExpired = (event: CustomEvent) => {
             console.log('[AuthProvider] Session expired:', event.detail);
             setSessionExpired(event.detail);
             setUser(null);
+            toast.error(event.detail.title || 'Session Expired', {
+                description: event.detail.message || 'Your security session has ended.',
+                duration: Infinity
+            });
         };
 
         window.addEventListener('sessionExpiring', handleSessionExpiring as EventListener);
@@ -237,6 +308,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             if (localStorage.getItem('mock_current_user')) {
                 localStorage.removeItem('mock_current_user');
             }
+
+            toast.success('You have been signed out');
         } catch (error) {
             console.error('Logout error:', error);
             setUser(null);
@@ -289,9 +362,15 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
                             </button>
                             <button
                                 className="btn btn-secondary"
-                                onClick={() => {
+                                onClick={async () => {
                                     dismissSessionWarning();
-                                    login(sessionWarning.session.provider);
+                                    const sessionId = sessionWarning?.session?.id || 'session-123';
+                                    console.log('[AuthProvider] Renewing session:', sessionId);
+                                    const renewed = await SessionManager.renewSession(sessionId);
+                                    console.log('[AuthProvider] Session renewal result:', renewed);
+                                    if (renewed) {
+                                        toast.success('Session renewed successfully');
+                                    }
                                 }}
                             >
                                 Renew Session

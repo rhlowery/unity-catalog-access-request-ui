@@ -16,7 +16,7 @@
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
-    "express-rate-limit": "^8.2.1",
+    "express-rate-limit": "^8.3.1",
     "jsonwebtoken": "^9.0.3",
     "pino": "^10.3.1",
     "pino-http": "^11.0.0",
@@ -34,5 +34,17 @@
     "nodemon": "^3.1.14",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3"
+  },
+  "overrides": {
+    "cross-spawn": "^7.0.6",
+    "micromatch": "^4.0.8",
+    "braces": "^3.0.3",
+    "ws": "^8.18.3",
+    "body-parser": "^2.2.1",
+    "qs": "^6.14.0",
+    "diff": "^8.0.3",
+    "serialize-javascript": "^7.0.4",
+    "fast-xml-parser": "^5.5.3",
+    "express-rate-limit": "^8.3.1"
   }
 }

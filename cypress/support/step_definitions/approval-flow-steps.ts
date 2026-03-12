@@ -61,21 +61,16 @@ And('I enter a justification {string}', (justification: string) => {
 });
 
 And('I click the submit button', () => {
-    // Stub window.alert to capture submission
-    cy.window().then((win) => {
-        cy.stub(win, 'alert').as('alertStub');
-    });
-
     cy.intercept('POST', '**/api/storage/requests', {
         statusCode: 200,
         body: { status: 'success', count: 1 }
     }).as('saveRequest');
 
-    cy.get('button').contains('Submit').click({ force: true });
+    cy.get('[data-testid="submit-request-button"]').scrollIntoView().click({ force: true });
 });
 
 Then('I should see a success notification', () => {
-    cy.get('@alertStub').should('have.been.calledWithMatch', /successfully/i);
+    cy.contains('[data-sonner-toast]', 'successfully', { timeout: 10000 }).should('be.visible');
 });
 
 And('the request should appear in my pending requests list', () => {
@@ -148,7 +143,7 @@ Then('the request status should change to {string}', (status: string) => {
 });
 
 And('I should see a confirmation toast message', () => {
-    cy.log('Confirmation toast verified');
+    cy.get('[data-sonner-toast]', { timeout: 10000 }).should('be.visible');
 });
 
 // =====================================================================
@@ -174,60 +169,97 @@ And('the audit entry should contain {string}', (text: string) => {
 // =====================================================================
 
 Given('I am logged in as an approver in group {string}', (group: string) => {
-    // Login as a user who belongs to this group
-    const groupToUser: Record<string, string> = {
-        'group_finance_admins': 'APPROVER',
-        'group_hr_admins': 'APPROVER',
-        'group_security': 'SECURITY_ADMIN',
+    // Role mapping to mock user IDs
+    const groupToUser: Record<string, any> = {
+        'group_finance_admins': {
+            id: 'user_finance_approver',
+            name: 'Sarah Finance',
+            email: 'sarah.f@company.com',
+            role: 'APPROVER',
+            groups: ['group_all_users', 'group_finance_admins']
+        },
+        'group_hr_admins': {
+            id: 'user_hr_approver',
+            name: 'Dana HR',
+            email: 'dana.hr@company.com',
+            role: 'APPROVER',
+            groups: ['group_all_users', 'group_hr_admins']
+        },
+        'group_security': {
+            id: 'user_security_admin',
+            name: 'Jane Security',
+            email: 'jane.s@company.com',
+            role: 'SECURITY_ADMIN',
+            groups: ['group_all_users', 'group_security']
+        },
     };
 
-    const role = groupToUser[group] || 'APPROVER';
+    const userObj = groupToUser[group] || groupToUser['group_finance_admins'];
 
     cy.clearLocalStorage();
     cy.clearCookies();
     cy.window().then((win) => win.sessionStorage.clear());
-    cy.visit('/login');
 
-    cy.get('body').then(($body) => {
-        if ($body.find('[data-testid="mock-login-button"]').length > 0) {
-            cy.get('[data-testid="mock-login-button"]').click();
+    const mockUserStr = JSON.stringify({
+        ...userObj,
+        type: "USER",
+        initials: userObj.name.substring(0, 2).toUpperCase(),
+        provider: "mock"
+    });
+
+    const mockConfigStr = JSON.stringify({
+        identityType: 'MOCK',
+        ucAuthType: 'MOCK'
+    });
+
+    cy.visit('/', {
+        onBeforeLoad: (win: any) => {
+            win.localStorage.setItem('mock_current_user', mockUserStr);
+            win.localStorage.setItem('uc_config', mockConfigStr);
         }
     });
 
-    const roleToId: Record<string, string> = {
-        'APPROVER': 'user_finance_approver',
-        'SECURITY_ADMIN': 'user_security_admin',
-    };
-
-    const userId = roleToId[role] || 'user_finance_approver';
-    cy.intercept('POST', '**/api/auth/login').as('loginReq');
-    cy.get(`[data-testid="mock-user-${userId}"]`).should('be.visible').click();
-    cy.wait('@loginReq', { timeout: 20000 });
-    cy.get('main', { timeout: 20000 }).should('be.visible');
+    cy.get('main', { timeout: 30000 }).should('be.visible');
 });
 
 And('there is a pending access request for {string} from {string}', (catalogObject: string, requester: string) => {
-    // Mock a pending request
+    // Mock a pending request that matches the active persona's pending filter
+    // Note: ApproverDashboard targets specifically these groups
+    const approverGroups = ['group_governance', 'group_finance_admins', 'group_hr_admins', 'group_security', 'group_marketing'];
+    
+    const approvalState: Record<string, string> = {};
+    approverGroups.forEach(g => {
+        approvalState[g] = 'PENDING';
+    });
+
     cy.intercept('GET', '**/api/storage/requests', {
         statusCode: 200,
         body: [{
             id: 'req-test-1',
             status: 'PENDING',
-            requester,
-            catalogObject,
+            requesterId: requester,
+            timestamp: Date.now(),
+            requestedObjects: [{ id: 'obj-1', name: catalogObject, fullPath: catalogObject }],
             permission: 'SELECT',
             justification: 'Test justification',
+            approvalState: approvalState
         }]
     }).as('getPendingRequests');
     cy.log(`Pending request from ${requester} for ${catalogObject}`);
 });
 
 And('I provide the denial reason {string}', (reason: string) => {
-    cy.log(`Denial reason: ${reason}`);
+    // Type into the denial reason textarea in the dialog
+    cy.get('[data-testid="denial-reason-input"]', { timeout: 10000 })
+        .should('be.visible')
+        .type(reason);
+    
+    // Click the confirm button
+    cy.get('[data-testid="confirm-denial-button"]').click({ force: true });
 });
 
 And('the requester should see a denial notification with the reason', () => {
-    cy.log('Requester notified of denial');
+    cy.get('[data-sonner-toast]', { timeout: 10000 }).should('be.visible');
 });
 
 And('the denial reason {string} should appear in the Audit Log', (reason: string) => {

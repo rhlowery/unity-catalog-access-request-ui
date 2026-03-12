@@ -1,6 +1,6 @@
-import { StorageService } from '../services/storage/StorageService';
-import { ConfigService } from '../services/config/ConfigService';
-import CatalogTree from './CatalogTree';
+import { StorageService } from '../../services/storage/StorageService';
+import { ConfigService } from '../../services/config/ConfigService';
+import CatalogTree from '../CatalogTree';
 
 import {
     Select,

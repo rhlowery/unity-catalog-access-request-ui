@@ -1,7 +1,7 @@
 import React from 'react';
 import { ShieldCheck, Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { ViewModeTabs, UserControls } from '@/components/OptimizedComponents';
+import { ViewModeTabs, UserControls } from './OptimizedComponents';
 import { ModeToggle } from '../ModeToggle';
 
 interface AppHeaderProps {

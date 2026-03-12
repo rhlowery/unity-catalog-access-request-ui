@@ -1,7 +1,7 @@
-import { EventBus } from './EventBus';
-import { AuditIntegrityManager } from './audit/AuditIntegrityManager';
-import { SecureAuditStorage } from './audit/SecureAuditStorage';
-import type { AuditEntry } from './audit/AuditTypes';
+import { EventBus } from '../common/EventBus';
+import { AuditIntegrityManager } from '../audit/AuditIntegrityManager';
+import { SecureAuditStorage } from '../audit/SecureAuditStorage';
+import type { AuditEntry } from '../audit/AuditTypes';
 
 // Note: OpenTelemetry dependencies are optional for full observability
 // This version works without external dependencies for error boundaries

@@ -145,6 +145,7 @@ const CatalogTree = ({
         return (
             <div
                 data-testid="catalog-node"
+                data-node-type={nodeType}
                 data-node-name={node.name}
                 className={`group flex items-center h-8 px-4 cursor-pointer transition-all duration-200 hover:bg-white/[0.03] ${isSelected ? 'bg-primary/20' : ''}`}
                 style={{ paddingLeft: `${(depth * 16) + 16}px` }}
@@ -162,6 +163,7 @@ const CatalogTree = ({
                     {!hideCheckboxes && (
                         <input
                             type="checkbox"
+                            data-testid="catalog-node-checkbox"
                             checked={isSelected}
                             onChange={handleCheckboxChange}
                             className="w-4 h-4 rounded border-white/20 bg-transparent text-primary focus:ring-primary/50 transition-all cursor-pointer mr-1"

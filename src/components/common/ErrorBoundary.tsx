@@ -1,5 +1,5 @@
 import React, { Component, ReactNode } from 'react';
-import { ObservabilityService } from '../services/ObservabilityService';
+import { ObservabilityService } from '../../services/observability/ObservabilityService';
 import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
 
 interface ErrorBoundaryState {
