@@ -26,7 +26,8 @@ Feature: Persona Simulation and Access Control
 
   @emergency-access
   Scenario: Emergency Access elevation
-    When I select the mock user with role "PLATFORM_ADMIN"
+    When I click the "Mock" login button
+    And I select the mock user with role "PLATFORM_ADMIN"
     Then I should be redirected to the main dashboard
     And the Simulation banner should be visible
     And all governance tabs should be unlocked

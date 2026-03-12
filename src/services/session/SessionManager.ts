@@ -48,6 +48,7 @@ export class SessionManagerService implements ISessionManager {
       userEmail: user.email,
       userRole: user.role,
       userGroups: user.groups || [],
+      userPermissions: user.permissions || [],
       provider,
       createdAt: now,
       expiresAt: now + (this.config.timeoutMinutes * 60 * 1000),
@@ -92,11 +93,12 @@ export class SessionManagerService implements ISessionManager {
     // Bridge with BFF to ensure server-side token is still valid
     try {
       const BFF_URL = import.meta.env.VITE_BFF_URL || 'http://localhost:3001';
-      const response = await fetch(`${BFF_URL}/api/session/validate`, {
+      const response = await fetch(`${BFF_URL}/api/session/check`, {
         credentials: 'include'
       });
       if (response.status === 401 || response.status === 403) {
         console.warn('[SessionManager] BFF session validation failed. Destroying local session.');
+        this.notifySessionExpired(session);
         await this.destroySession(sessionId);
         return null;
       }
@@ -133,6 +135,7 @@ export class SessionManagerService implements ISessionManager {
   private async performRenewal(sessionId: string, session: SessionInfo): Promise<SessionInfo | null> {
     try {
       const BFF_URL = import.meta.env.VITE_BFF_URL || 'http://localhost:3001';
+      console.log(`[SessionManager] Attempting renewal for session ${sessionId} against ${BFF_URL}/api/auth/refresh`);
       const response = await fetch(`${BFF_URL}/api/auth/refresh`, {
         method: 'POST',
         credentials: 'include',
@@ -141,6 +144,7 @@ export class SessionManagerService implements ISessionManager {
         },
       });
 
+      console.log(`[SessionManager] Renewal response status: ${response.status}`);
       if (response.ok) {
         const data = await response.json();
         const renewedSession: SessionInfo = {
@@ -225,8 +229,8 @@ export class SessionManagerService implements ISessionManager {
   }
 
   private async getSession(sessionId: string): Promise<SessionInfo | null> {
-    const sessions = await this.storage.getActiveSessionsForUser('');
-    return sessions.find(s => s.id === sessionId) || null;
+    const sessions = await (this.storage as any).getAllSessions();
+    return sessions.find((s: SessionInfo) => s.id === sessionId) || null;
   }
 
   private setupActivityTracking(sessionId: string): void {
@@ -329,7 +333,8 @@ export class SessionManagerService implements ISessionManager {
     const event = new CustomEvent('sessionExpired', {
       detail: {
         session,
-        message: 'Your session has expired. Please log in again.'
+        title: 'Session Expired',
+        message: 'Session expired. Please log in again.'
       }
     });
     window.dispatchEvent(event);

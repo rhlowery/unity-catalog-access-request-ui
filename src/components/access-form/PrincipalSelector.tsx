@@ -31,6 +31,7 @@ export const PrincipalSelector: React.FC<PrincipalSelectorProps> = ({
                     <div className="relative w-40 sm:w-56">
                         <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground opacity-50" />
                         <Input
+                            data-testid="principal-search-input"
                             placeholder="Filter idents..."
                             className="h-8 pl-9 text-xs bg-white/5 border-white/5 focus:bg-white/10 transition-all rounded-lg"
                             value={searchTerm}
@@ -50,6 +51,7 @@ export const PrincipalSelector: React.FC<PrincipalSelectorProps> = ({
                         .map(principal => (
                             <div
                                 key={principal.id}
+                                data-testid={`principal-option-${principal.id}`}
                                 className={cn(
                                     "flex items-center gap-4 p-3 rounded-xl transition-all duration-500 cursor-pointer border group relative overflow-hidden",
                                     selectedPrincipals.includes(principal.id)

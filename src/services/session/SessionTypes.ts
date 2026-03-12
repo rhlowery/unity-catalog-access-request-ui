@@ -5,6 +5,7 @@ export interface SessionInfo {
   userEmail?: string;
   userRole?: string;
   userGroups: string[];
+  userPermissions: string[];
   provider: string;
   createdAt: number;
   expiresAt: number;

@@ -29,7 +29,7 @@ Given('I have selected the {string} from the catalog tree', (catalogObject: stri
     cy.get('[data-testid="catalog-node"]', { timeout: 10000 })
         .filter(`:contains("${catalogObject}")`)
         .first()
-        .find('input[type="checkbox"]')
+        .find('[data-testid="catalog-node-checkbox"]')
         .click({ force: true });
 });
 
@@ -58,16 +58,16 @@ Given('I have selected the {string} field is empty', (field: string) => {
     } else if (field === 'principal') {
         // Set permission + justification, but leave principal empty
         cy.get('[data-testid="permission-toggle-SELECT"]').click({ force: true });
-        cy.get('[data-testid="justification-input"]').clear().type('Justification text for testing');
+        cy.get('[data-testid="justification-input"]').type('Test justification');
     } else if (field === 'permission type') {
         // Set principal + justification, but leave permission empty
-        cy.get('input[placeholder*="Filter idents"]').clear().type('Finance');
-        cy.contains('Finance Admins').click({ force: true });
-        cy.get('[data-testid="justification-input"]').clear().type('Justification text for testing');
+        cy.get('[data-testid="principal-search-input"]').clear().type('Chris');
+        cy.get('[data-testid^="principal-option-"]').first().click({ force: true });
+        cy.get('[data-testid="justification-input"]').type('Test justification');
     } else if (field === 'business justification') {
         // Set principal + permission, but leave justification empty
-        cy.get('input[placeholder*="Filter idents"]').clear().type('Finance');
-        cy.contains('Finance Admins').click({ force: true });
+        cy.get('[data-testid="principal-search-input"]').clear().type('Finance');
+        cy.get('[data-testid^="principal-option-"]').first().click({ force: true });
         cy.get('[data-testid="permission-toggle-SELECT"]').click({ force: true });
         cy.get('[data-testid="justification-input"]').clear();
     }
@@ -78,23 +78,13 @@ Given('I have selected the {string} field is empty', (field: string) => {
 // =====================================================================
 
 When('I click the Submit Request button', () => {
-    // Stub window.alert to capture submission result in tests
-    cy.window().then((win) => {
-        cy.stub(win, 'alert').as('alertStub');
-    });
-
     // Intercept/mock the BFF storage request to avoid session issues
     cy.intercept('POST', '**/api/storage/requests', {
         statusCode: 200,
         body: { status: 'success', count: 1 }
     }).as('saveRequest');
 
-    cy.get('body').then($body => {
-        const btn = $body.find('button:contains("Submit")');
-        if (btn.length > 0) {
-            cy.wrap(btn).first().click({ force: true });
-        }
-    });
+    cy.get('[data-testid="submit-request-button"]').scrollIntoView().click({ force: true });
 });
 
 Then('I should see a validation warning about {string}', (field: string) => {
@@ -112,13 +102,8 @@ Then('I should see a validation warning about {string}', (field: string) => {
 });
 
 And('the request should not be submitted', () => {
-    // No success alert should have been triggered
-    cy.get('@alertStub').then((stub: any) => {
-        if (stub.called) {
-            // If the stub was called, the first arg should NOT contain 'successfully'
-            expect(stub.firstCall.args[0]).to.not.include('successfully');
-        }
-    });
+    // Verify that the saveRequest intercept was NOT called
+    cy.get('@saveRequest').should('not.exist');
 });
 
 // =====================================================================
@@ -185,13 +170,14 @@ And('I have entered the business justification {string}', (justif: string) => {
 // =====================================================================
 
 Then('the submission confirmation modal should appear', () => {
-    // The app uses window.alert for submission confirmation
-    // We just check the alert was called
-    cy.get('@alertStub').should('have.been.called');
+    // In the new UI, there isn't a separate modal before the toast, 
+    // but the button showing loading state or the toast itself confirms it.
+    // For now, we expect the toast to appear shortly.
+    cy.get('[data-sonner-toast]', { timeout: 10000 }).should('be.visible');
 });
 
 And('after processing, a successful submission toast should appear', () => {
-    cy.get('@alertStub').should('have.been.calledWithMatch', /successfully/i);
+    cy.contains('[data-sonner-toast]', 'successfully', { timeout: 10000 }).should('be.visible');
 });
 
 And('the form should reset to its default state', () => {
@@ -216,26 +202,25 @@ And('I toggle the "Set expiration date or time limit" switch', () => {
 
 And('I choose a {string} hour duration limit', (duration: string) => {
     // Type the duration in the number input
-    cy.get('input[type="number"]', { timeout: 5000 }).scrollIntoView().clear().type(duration);
+    cy.get('[data-testid="duration-input"]', { timeout: 5000 }).scrollIntoView().clear().type(duration);
 });
 
 And('I submit the valid access request', () => {
-    // Stub alert before submitting
-    cy.window().then((win) => {
-        cy.stub(win, 'alert').as('alertStub');
-    });
-
     // Intercept/mock the BFF storage request
     cy.intercept('POST', '**/api/storage/requests', {
         statusCode: 200,
         body: { status: 'success', count: 1 }
     }).as('saveRequest');
 
-    cy.get('button').contains('Submit').scrollIntoView().click({ force: true });
+    cy.get('[data-testid="submit-request-button"]').scrollIntoView().click({ force: true });
 });
 
 Then('the pending request payload should include the duration limit of {string} hours', (_duration: string) => {
-    cy.get('@alertStub').should('have.been.calledWithMatch', /successfully/i);
+    cy.wait('@saveRequest').then((interception: any) => {
+        const request = Array.isArray(interception.request.body) ? interception.request.body[0] : interception.request.body;
+        expect(request.timeConstraint.value).to.equal(parseInt(_duration));
+    });
+    cy.contains('[data-sonner-toast]', 'successfully').should('be.visible');
 });
 
 And('the form should allow request submission', () => {

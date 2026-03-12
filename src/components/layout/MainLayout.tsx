@@ -12,6 +12,7 @@ import { usePersona } from '../../hooks/usePersona';
 import { AppHeader } from './AppHeader';
 import { AppFooter } from './AppFooter';
 import { ConfigDialog } from './ConfigDialog';
+import { toast } from 'sonner';
 
 const MainLayout = () => {
   const { user, logout } = useAuth();
@@ -239,15 +240,14 @@ const MainLayout = () => {
     try {
       const success = await StorageService.createRequest(request);
       if (success) {
-        window.alert("Access request submitted successfully!");
+        toast.success("Access request submitted successfully!");
         clearSelection();
         setViewMode('REVIEWER');
-      } else {
-        window.alert("Failed to submit access request.");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error submitting request:", error);
-      window.alert("An error occurred while submitting the request.");
+      // We don't show a generic toast here because the axios interceptor 
+      // already showed a specific one (e.g., 'CSRF failed' or 'Unauthorized')
     }
   }, [clearSelection]);
 

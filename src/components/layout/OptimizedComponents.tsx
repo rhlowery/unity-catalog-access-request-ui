@@ -1,14 +1,14 @@
 import React, { lazy, Suspense } from 'react';
 import { LogOut, Activity, ShieldPlus, CheckCircle, FileText, Users, UserCog } from 'lucide-react';
-import { PERSONA_LABELS } from '../services/persona/PersonaService';
+import { PERSONA_LABELS } from '../../services/persona/PersonaService';
 
 // Lazy load components that are not immediately needed
-const AccessForm = lazy(() => import('./AccessForm'));
-const ApproverDashboard = lazy(() => import('./ApproverDashboard'));
-const ReviewerTab = lazy(() => import('./ReviewerTab'));
-const AuditLog = lazy(() => import('./AuditLog'));
-const DataApproversView = lazy(() => import('./DataApproversView'));
-const UserGroupManagement = lazy(() => import('./UserGroupManagement'));
+const AccessForm = lazy(() => import('../AccessForm'));
+const ApproverDashboard = lazy(() => import('../ApproverDashboard'));
+const ReviewerTab = lazy(() => import('../ReviewerTab'));
+const AuditLog = lazy(() => import('../AuditLog'));
+const DataApproversView = lazy(() => import('../DataApproversView'));
+const UserGroupManagement = lazy(() => import('../UserGroupManagement'));
 
 import {
   Avatar,
@@ -52,6 +52,10 @@ interface ViewModeTabsProps {
   canViewUserGroupManagement: boolean;
 }
 
+const hasPermission = (user: any, permission: string) => {
+  return user?.permissions?.includes(permission) || false;
+};
+
 // Memoized tab bar — capabilities are passed in so the hook lives only in MainLayout
 const ViewModeTabs = React.memo(({
   viewMode,
@@ -76,8 +80,8 @@ const ViewModeTabs = React.memo(({
           Access Request
         </TabsTrigger>
 
-        {/* Approver tab: visible when persona is Approver or higher */}
-        {canViewApprover && (
+        {/* Approver tab: visible when persona is Approver or higher or has explicit permission */}
+        {(canViewApprover || hasPermission(user, 'can_approve')) && (
           <TabsTrigger value="APPROVER" className={`relative ${TAB_CLASS}`}>
             <CheckCircle size={14} className="opacity-50 group-data-[state=active]:opacity-100 group-data-[state=active]:text-primary transition-all" />
             Approver
@@ -89,24 +93,24 @@ const ViewModeTabs = React.memo(({
           </TabsTrigger>
         )}
 
-        {/* Data Approvers tab: visible to Security Admin and Platform Admin */}
-        {canViewDataApprovers && (
+        {/* Data Approvers tab: visible to Security Admin and Platform Admin or has explicit permission */}
+        {(canViewDataApprovers || hasPermission(user, 'can_configure')) && (
           <TabsTrigger value="DATA_APPROVERS" className={`hidden md:flex ${TAB_CLASS}`}>
             <Users size={14} className="opacity-50 group-data-[state=active]:opacity-100 group-data-[state=active]:text-primary transition-all text-amber-500/80" />
             Data Approvers
           </TabsTrigger>
         )}
 
-        {/* Audit Log tab: visible to Access Auditor, Security Admin, and Platform Admin */}
-        {canViewAuditLog && (
+        {/* Audit Log tab: visible to Access Auditor, Security Admin, and Platform Admin or has explicit permission */}
+        {(canViewAuditLog || hasPermission(user, 'can_audit')) && (
           <TabsTrigger value="AUDIT" className={TAB_CLASS}>
             <FileText size={14} className="opacity-50 group-data-[state=active]:opacity-100 group-data-[state=active]:text-primary transition-all" />
             Audit Log
           </TabsTrigger>
         )}
 
-        {/* Users & Groups tab: visible to Security Admin and Platform Admin */}
-        {canViewUserGroupManagement && (
+        {/* Users & Groups tab: visible to Security Admin and Platform Admin or has explicit permission */}
+        {(canViewUserGroupManagement || hasPermission(user, 'can_manage_users')) && (
           <TabsTrigger value="USER_GROUPS" className={`hidden md:flex ${TAB_CLASS}`}>
             <UserCog size={14} className="opacity-50 group-data-[state=active]:opacity-100 group-data-[state=active]:text-primary transition-all text-violet-400/80" />
             Users &amp; Groups

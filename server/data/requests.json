@@ -40,5 +40,48 @@
     "timestamp": 1773001498169,
     "approvals": [],
     "comments": []
+  },
+  {
+    "id": "1773268915638",
+    "objects": [
+      {
+        "id": "tbl_transactions",
+        "name": "transactions",
+        "type": "TABLE",
+        "parentId": "sch_finance",
+        "owners": [
+          "group_finance_admins",
+          "user_cfo"
+        ]
+      },
+      {
+        "id": "tbl_campaigns",
+        "name": "campaigns",
+        "type": "TABLE",
+        "parentId": "sch_marketing",
+        "owners": [
+          "user_marketing_lead"
+        ]
+      }
+    ],
+    "principals": [
+      "user_standard"
+    ],
+    "permissions": [
+      "SELECT"
+    ],
+    "justification": "Functional Test",
+    "status": "PENDING",
+    "createdAt": "2026-03-11T22:41:55.638Z",
+    "timeConstraint": {
+      "type": "DURATION",
+      "value": 1,
+      "start": "",
+      "end": ""
+    },
+    "timestamp": 1773268915638,
+    "approvals": [],
+    "comments": [],
+    "requesterId": "user_platform_admin"
   }
 ]

@@ -8,6 +8,7 @@ export interface User {
   initials?: string;
   provider?: string;
   groups?: string[];
+  permissions?: string[];
   // Mock identity specific properties
   requiresUserSelection?: boolean;
   availableUsers?: Array<{

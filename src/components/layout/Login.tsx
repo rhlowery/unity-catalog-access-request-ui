@@ -16,27 +16,38 @@ const Login = () => {
     const [credentials, setCredentials] = useState({ username: '', password: '', token: '', type: 'PAT' });
     const [configMode, setConfigMode] = useState('MOCK');
 
+    console.log(`[DEBUG-RENDER] Login render: activeProvider=${activeProvider}, showUserSelection=${showUserSelection}, user=${JSON.stringify(user)}`);
+
     useEffect(() => {
+        // Skip auto-login in Cypress to avoid interfering with logout tests
+        if (window.Cypress) return;
+
+        console.log(`[DEBUG-RENDER] useEffect dependencies: configMode=${configMode}, user=${user ? 'exists' : 'null'}`);
         // Automatically trigger mock login if in MOCK mode and no user is set
         if (configMode === 'MOCK' && !user && !activeProvider) {
+            console.log('[DEBUG-RENDER] executing handleLogin(MOCK)');
             handleLogin('MOCK');
         }
     }, [configMode, user]);
 
     const handleLogin = async (provider: string, creds?: any) => {
+        console.log('[DEBUG] handleLogin called for provider:', provider);
         setActiveProvider(provider);
         try {
+            console.log('[DEBUG] calling AuthProvider login...');
             const loggedUser = await login(provider, creds || (provider === activeProvider ? credentials : undefined));
-            console.log(`[Login] Logged in user:`, loggedUser);
+            console.log(`[DEBUG] Logged in user:`, loggedUser);
             if (loggedUser?.requiresUserSelection) {
+                console.log('[DEBUG] Setting showUserSelection to true');
                 setShowUserSelection(true);
             } else if (loggedUser?.requiresCredentials) {
+                console.log('[DEBUG] Setting showCredentials to true');
                 setShowCredentials(true);
             } else {
                 setShowCredentials(false);
             }
         } catch (error: any) {
-            console.error(`[Login] Login error:`, error);
+            console.error(`[DEBUG] Login error:`, error);
             toast.error("Login Failed", {
                 description: error.message || "An unexpected error occurred during authentication."
             });

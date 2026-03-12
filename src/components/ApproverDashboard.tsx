@@ -24,6 +24,8 @@ const statusColors: Record<string, string> = {
     EXPIRED: 'bg-gray-500/20 text-gray-400 border-gray-500/40',
 };
 
+import { toast } from 'sonner';
+
 const ApproverDashboard = () => {
     const queryClient = useQueryClient();
     const { user } = useAuth();
@@ -53,7 +55,14 @@ const ApproverDashboard = () => {
     const approveMutation = useMutation({
         mutationFn: async ({ reqId, action, reason }: any) =>
             await approveRequest(reqId, activePersona, reason, action, isSimulationMode),
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['requests'] })
+        onSuccess: (_, variables) => {
+            queryClient.invalidateQueries({ queryKey: ['requests'] });
+            const actionLabel = variables.action === 'APPROVE' ? 'approved' : 'denied';
+            toast.success(`Request ${actionLabel} successfully.`);
+        },
+        onError: (error: any) => {
+            toast.error(`Failed to process request: ${error.message || 'Unknown error'}`);
+        }
     });
 
     useEffect(() => {
@@ -221,15 +230,22 @@ const ApproverDashboard = () => {
                         onChange={(e) => setDenialState(s => ({ ...s, reason: e.target.value }))}
                         className="bg-black/20 border-white/5 min-h-[120px] focus:border-primary/50 transition-all font-medium"
                         autoFocus
+                        data-testid="denial-reason-input"
                     />
-                    <DialogFooter>
-                        <Button variant="ghost" onClick={() => setDenialState({ reqId: null, reason: '' })}>
+                    <DialogFooter className="mt-8 gap-3 sm:gap-0">
+                        <Button
+                            variant="ghost"
+                            onClick={() => setDenialState({ reqId: null, reason: '' })}
+                            className="font-bold uppercase tracking-widest text-xs opacity-60 hover:opacity-100 h-11"
+                        >
                             Cancel
                         </Button>
                         <Button
                             variant="destructive"
                             onClick={confirmDenial}
                             disabled={!denialState.reason.trim()}
+                            className="bg-red-500 hover:bg-red-600 text-white font-bold uppercase tracking-widest text-xs h-11 shadow-lg shadow-red-500/20"
+                            data-testid="confirm-denial-button"
                         >
                             Confirm Denial
                         </Button>
@@ -241,16 +257,7 @@ const ApproverDashboard = () => {
 };
 
 interface RequestCardProps {
-    req: {
-        id: string;
-        timestamp?: number;
-        status?: string;
-        approvalState?: Record<string, string>;
-        requestedObjects?: Array<{ catalogName?: string; schemaName?: string }>;
-        requesterId?: string;
-        justification?: string;
-        [key: string]: unknown;
-    };
+    req: any;
     isActionable: boolean;
     onApprove?: () => void;
     onDeny?: () => void;

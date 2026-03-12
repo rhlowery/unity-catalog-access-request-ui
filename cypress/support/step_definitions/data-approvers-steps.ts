@@ -18,11 +18,7 @@ Given('I am logged in as a user with {string} or {string} persona', (_persona1: 
     cy.window().then((win) => win.sessionStorage.clear());
 
     cy.visit('/login');
-    cy.get('body').then(($body) => {
-        if ($body.find('[data-testid="mock-login-button"]').length > 0) {
-            cy.get('[data-testid="mock-login-button"]').click();
-        }
-    });
+    cy.get('[data-testid="mock-login-button"]', { timeout: 10000 }).click();
 
     cy.intercept('POST', '**/api/auth/login').as('loginReq');
     cy.get('[data-testid="mock-user-user_platform_admin"]').should('be.visible').click();
