@@ -27,7 +27,7 @@
     "@cucumber/cucumber": "^12.6.0",
     "@tailwindcss/vite": "^4.2.1",
     "@tanstack/react-query": "^5.90.21",
-    "axios": "^1.13.6",
+    "axios": "^1.18.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cypress": "^15.9.0",
